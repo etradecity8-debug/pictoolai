@@ -1,0 +1,21 @@
+---
+description: PicAITool 项目上下文与约定，便于后续会话不丢失记忆
+alwaysApply: true
+---
+
+# PicAITool 项目记忆
+
+## 项目是什么
+- 全品类组图营销站复刻（品牌名 PicAITool）。前端 React 18 + Vite + Tailwind，后端 Express，AI 为 Google Gemini。
+- 核心流程：全品类组图 = 上传产品图 + 组图要求 → 分析（文+图→文）→ 确认规划 → 生图（Nano Banana/2/Pro）→ 完成。
+
+## 关键文件
+- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、左侧编辑后重置逻辑）、`src/lib/clarityByModel.js`（模型与清晰度联动）。
+- **后端**：`server/index.js`（注册/登录、`/api/detail-set/analyze`、`/api/detail-set/generate`、代理、语言规则）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
+- **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY），从 `.env.example` 复制，不提交。
+
+## 约定
+- 分析模型默认 `gemini-3-flash-preview`；503 时用 `gemini-2.5-flash` 重试。生图用 `getImageModelId(displayName)`。
+- 生成完成后：改「组图要求 / 产品图 / 生成数量」→ 回到步骤 1 并清空分析/生成结果；改「目标语言、模型、尺寸、清晰度」→ 可直接再次生成。
+- 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）。
+- 回复用户时使用简体中文。

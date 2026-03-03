@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const iconClass = 'w-5 h-5 shrink-0 text-gray-500'
 
@@ -14,7 +15,7 @@ const navLinks = [
     ),
   },
   {
-    to: '/#全品类组图',
+    to: '/detail-set',
     label: '全品类组图',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -23,7 +24,7 @@ const navLinks = [
     ),
   },
   {
-    to: '/#风格复刻',
+    to: '/style-clone',
     label: '风格复刻',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,7 +35,7 @@ const navLinks = [
     ),
   },
   {
-    to: '/#服装组图',
+    to: '/apparel-set',
     label: '服装组图',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -43,7 +44,7 @@ const navLinks = [
     ),
   },
   {
-    to: '/#图片精修',
+    to: '/image-retouch',
     label: '图片精修',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,10 +67,16 @@ const navLinks = [
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/'
     if (to === '/pricing') return location.pathname === '/pricing'
+    if (to === '/detail-set') return location.pathname === '/detail-set'
+    if (to === '/style-clone') return location.pathname === '/style-clone'
+    if (to === '/apparel-set') return location.pathname === '/apparel-set'
+    if (to === '/image-retouch') return location.pathname === '/image-retouch'
     return location.pathname === '/' && location.hash?.includes(to.slice(2))
   }
 
@@ -112,12 +119,44 @@ export default function Header() {
               </svg>
               <span>ZH</span>
             </button>
-            <Link
-              to="/login"
-              className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
-            >
-              登录
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="hidden sm:inline text-sm text-gray-600 hover:text-gray-900"
+                >
+                  {user.email}
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                >
+                  工作台
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => { logout(); navigate('/'); }}
+                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                >
+                  退出
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                >
+                  登录
+                </Link>
+                <Link
+                  to="/register"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark transition"
+                >
+                  免费注册
+                </Link>
+              </>
+            )}
             <button
               type="button"
               className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-white/60"
@@ -159,6 +198,20 @@ export default function Header() {
               </svg>
               <span>ZH</span>
             </div>
+            {user ? (
+              <>
+                <Link to="/dashboard" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>
+                  {user.email}
+                </Link>
+                <Link to="/dashboard" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>工作台</Link>
+                <button type="button" className="w-full text-left px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => { setMenuOpen(false); logout(); navigate('/'); }}>退出</button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>登录</Link>
+                <Link to="/register" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>免费注册</Link>
+              </>
+            )}
           </nav>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const sidebarLinks = [
   { to: '/dashboard', label: '工作台' },
@@ -8,17 +9,19 @@ const sidebarLinks = [
 
 export default function DashboardLayout() {
   const location = useLocation()
+  const { user } = useAuth()
+  const initial = user?.email ? user.email[0].toUpperCase() : '?'
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 h-14 flex items-center px-4">
         <Link to="/" className="text-lg font-semibold text-gray-900">
-          <span className="text-primary">PicSet</span> AI
+          <span className="text-primary">PicAITool</span>
         </Link>
         <div className="ml-auto flex items-center gap-4">
-          <span className="text-sm text-gray-500">示例用户</span>
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary">
-            用
+          <span className="text-sm text-gray-500 truncate max-w-[120px]">{user?.email}</span>
+          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary shrink-0">
+            {initial}
           </div>
         </div>
       </header>
