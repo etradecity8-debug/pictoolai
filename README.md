@@ -93,6 +93,14 @@ npm start
 
 ---
 
+## 网络与稳定性（已做）
+
+- **分析/生图请求体**：前端上传前用 `fileToCompressedDataUrl` 将产品图压缩（长边 1024px、JPEG 0.82），避免大图导致代理连接关闭。
+- **分析失败重试**：遇 `fetch failed` / `other side closed` 时后端自动重试最多 3 次（间隔 2s/4s），并返回更明确的错误提示（建议检查代理或直连重试）。
+- **生图尺寸比例**：后端将用户选的尺寸（如 1:1 正方形）映射为 `imageConfig.aspectRatio` 传给 Gemini，并在 prompt 中强调「输出必须严格符合该比例」；生图时打日志 `aspectRatio` 便于排查。若 1:1 仍偶发非方图，可继续加强 prompt 或查 API 文档。
+
+---
+
 ## 安全与忽略
 
 - API Key 仅在后端通过 `getGeminiApiKey()` 读取，不写进前端或日志。

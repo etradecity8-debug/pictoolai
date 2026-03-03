@@ -280,6 +280,7 @@ app.post('/api/detail-set/generate', async (req, res) => {
     const aspectRatioVal = ASPECT_RATIO_MAP[aspectRatio] || '3:4'
     const modelId = getImageModelId(model || 'Nano Banana 2')
     const parsedRef = image ? parseDataUrl(image) : null
+    console.log('[后端 API] 生图参数 aspectRatio:', aspectRatioVal, 'imageSize:', imageSize)
 
     const ai = new GoogleGenAI({ apiKey })
     const count = Math.min(imagePlan.length, 15)
@@ -289,7 +290,10 @@ app.post('/api/detail-set/generate', async (req, res) => {
     for (let i = 0; i < count; i++) {
       const item = imagePlan[i]
       const title = item?.title || `图${i + 1}`
+      const aspectRule = `CRITICAL - Aspect ratio: The output image MUST have aspect ratio exactly ${aspectRatioVal}. For 1:1 this means a perfect square (width = height). For 3:4 or 4:3 etc. the image must match that ratio precisely. Do not produce a different aspect ratio.`
       const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation.
+
+${aspectRule}
 
 ${langRule}
 

@@ -18,4 +18,5 @@ alwaysApply: true
 - 分析模型默认 `gemini-3-flash-preview`；503 时用 `gemini-2.5-flash` 重试。生图用 `getImageModelId(displayName)`。
 - 生成完成后：改「组图要求 / 产品图 / 生成数量」→ 回到步骤 1 并清空分析/生成结果；改「目标语言、模型、尺寸、清晰度」→ 可直接再次生成。
 - 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）。
+- **网络/稳定性**：分析/生图传图前前端用 `fileToCompressedDataUrl`（1024px、jpeg 0.82）压缩；分析接口遇 socket 关闭/ fetch failed 自动重试最多 3 次；生图在 prompt 中强调 aspect ratio（如 1:1 必须方图），后端打 aspectRatio 日志。1:1 输出是否稳定待用户次日验证。
 - 回复用户时使用简体中文。
