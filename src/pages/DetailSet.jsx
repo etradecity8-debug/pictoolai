@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { getClarityOptionsForModel } from '../lib/clarityByModel'
+import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
+import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 
 const STEPS = [
   { id: 1, label: '输入' },
@@ -30,8 +31,159 @@ const TARGET_LANGUAGE_OPTIONS = [
 ]
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
-const ASPECT_OPTIONS = ['1:1 正方形', '2:3 竖版', '3:2 横版', '3:4 竖版', '4:3 横版', '4:5 竖版', '5:4 横版', '9:16 手机竖屏', '16:9 宽屏', '21:9 超宽屏']
 const QUANTITY_OPTIONS = Array.from({ length: 15 }, (_, i) => `${i + 1}张`)
+
+/** 尺寸比例文案 → 展示用的 Tailwind aspect 类，与用户选择一致 */
+function aspectRatioToCssClass(label) {
+  const map = {
+    '1:1 正方形': 'aspect-square',
+    '2:3 竖版': 'aspect-[2/3]',
+    '3:2 横版': 'aspect-[3/2]',
+    '3:4 竖版': 'aspect-[3/4]',
+    '4:3 横版': 'aspect-[4/3]',
+    '4:5 竖版': 'aspect-[4/5]',
+    '5:4 横版': 'aspect-[5/4]',
+    '9:16 手机竖屏': 'aspect-[9/16]',
+    '16:9 宽屏': 'aspect-video',
+    '21:9 超宽屏': 'aspect-[21/9]',
+    '1:4 极竖': 'aspect-[1/4]',
+    '1:8 极竖': 'aspect-[1/8]',
+    '4:1 极横': 'aspect-[4/1]',
+    '8:1 极横': 'aspect-[8/1]',
+  }
+  return map[label] || 'aspect-[3/4]'
+}
+
+/** 二级标签（主色调、辅助色、背景色等），用于在无换行时按标签拆成多行 */
+const SECONDARY_LABELS = '主色调|辅助色|背景色|标题字体|正文字体|字号层级|装饰元素|图标风格|留白原则|光线|景深|相机参数|分辨率|风格|真实感'
+
+/** 将一段文字按二级标签拆成多行（支持「 - 主色调」「、辅助色」等连写格式） */
+function splitBySecondaryLabels(text) {
+  if (!text || typeof text !== 'string') return []
+  // 方式1：按「 - 」或「 – 」或「 — 」后紧跟“标签：”拆开（常见 API 输出）
+  const dashRe = new RegExp(`\\s*[-–—]\\s+(?=\\*{0,2}(?:${SECONDARY_LABELS})\\*{0,2}\\s*[：:])`, 'g')
+  const byDash = text.split(dashRe).map((s) => s.trim()).filter(Boolean)
+  if (byDash.length > 1) return byDash
+  // 方式2：按“标签：”前的位置拆开（支持、；等前导）
+  const re = new RegExp(`(?=[-•\\s、；]*\\*{0,2}(?:${SECONDARY_LABELS})\\*{0,2}\\s*[：:])`, 'g')
+  return text.split(re).map((s) => s.trim()).filter(Boolean)
+}
+
+/** 解析单行或单段为「标签：内容」，支持 **标签** 形式；去掉末尾分隔符 */
+function parseLabelLine(str) {
+  const s = str.trim().replace(/\s*[-–—]\s*$/, '').replace(/[、；]\s*$/, '')
+  const match = s.match(/^(.+?)[:：]\s*(.*)$/s)
+  if (match) {
+    const label = match[1].replace(/\*+/g, '').trim()
+    const rest = match[2].trim().replace(/\s*[-–—]\s*$/, '').replace(/[、；]\s*$/, '')
+    return { label, rest }
+  }
+  return null
+}
+
+/** 将设计规范 Markdown 转为可读的目录结构：一级大号加粗并空行，二级小号加粗且各自一行 */
+function SpecPreview({ markdown }) {
+  if (!markdown || typeof markdown !== 'string') return null
+  const blocks = markdown.split(/\n\n+/).filter(Boolean)
+  return (
+    <div className="text-sm text-gray-700">
+      {blocks.map((block, i) => {
+        const trimmed = block.trim()
+        // 一级：如「色彩系统」「字体系统」— 字体大、加粗，与下一级之间空一行
+        if (/^##\s+/.test(trimmed)) {
+          return (
+            <h4 key={i} className="mt-6 first:mt-0 mb-1 text-lg font-bold text-gray-900">
+              {trimmed.replace(/^##\s+/, '')}
+            </h4>
+          )
+        }
+        if (/^###\s+/.test(trimmed)) {
+          return (
+            <h5 key={i} className="mt-3 mb-0.5 text-sm font-semibold text-gray-800">
+              {trimmed.replace(/^###\s+/, '')}
+            </h5>
+          )
+        }
+        if (/^[-*]\s+/m.test(trimmed)) {
+          const items = trimmed.split(/\n/).filter((l) => /^[-*]\s+/.test(l)).map((l) => l.replace(/^[-*]\s+/, ''))
+          return (
+            <ul key={i} className="list-disc list-inside space-y-1 my-2">
+              {items.map((item, j) => (
+                <li key={j}>{item}</li>
+              ))}
+            </ul>
+          )
+        }
+        // 普通段落：先按换行拆；若某行内仍含多个二级标签（主色调、辅助色、背景色等），再按标签拆成多行
+        const lines = trimmed.split(/\n/).filter((l) => l.trim())
+        const rows = []
+        for (const line of lines) {
+          const segments = splitBySecondaryLabels(line)
+          if (segments.length > 1) {
+            segments.forEach((seg) => rows.push(seg))
+          } else {
+            rows.push(segments[0] || line)
+          }
+        }
+        if (rows.length === 0) return null
+        if (rows.length === 1) {
+          const parsed = parseLabelLine(rows[0])
+          if (parsed) {
+            return (
+              <div key={i} className="leading-relaxed py-0.5">
+                <span className="text-sm font-semibold text-gray-900">{parsed.label}：</span>
+                {parsed.rest && <span>{parsed.rest}</span>}
+              </div>
+            )
+          }
+          return <div key={i} className="leading-relaxed py-0.5">{rows[0]}</div>
+        }
+        return (
+          <div key={i} className="space-y-2">
+            {rows.map((row, j) => {
+              const parsed = parseLabelLine(row)
+              if (parsed) {
+                return (
+                  <div key={j} className="leading-relaxed">
+                    <span className="text-sm font-semibold text-gray-900">{parsed.label}：</span>
+                    {parsed.rest && <span>{parsed.rest}</span>}
+                  </div>
+                )
+              }
+              return <div key={j} className="leading-relaxed">{row}</div>
+            })}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** 从单张图的 contentMarkdown 中提取一句客户可读的要点（设计目标或首句） */
+function planSummary(contentMarkdown) {
+  if (!contentMarkdown || typeof contentMarkdown !== 'string') return ''
+  const firstLine = contentMarkdown.split(/\n/)[0] || ''
+  const designGoal = firstLine.replace(/^[-*]\s*设计目标[：:]\s*/, '').trim()
+  if (designGoal && designGoal !== firstLine) return designGoal
+  return firstLine.replace(/^[-*]\s+/, '').trim() || '根据规划生成'
+}
+
+/** 小铅笔图标，用于标记/编辑 */
+function PencilIcon({ onClick, className = '' }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onClick?.() }}
+      className={`inline-flex shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 ${className}`}
+      title="编辑"
+      aria-label="编辑"
+    >
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      </svg>
+    </button>
+  )
+}
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -39,6 +191,43 @@ function fileToBase64(file) {
     reader.onload = () => resolve(reader.result)
     reader.onerror = reject
     reader.readAsDataURL(file)
+  })
+}
+
+/** 压缩后转 data URL，长边不超过 maxSize，保持原图比例。输出比例由后端 image_config.aspect_ratio 控制，不裁剪上传图。 */
+function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let w = img.width
+      let h = img.height
+      if (w > maxSize || h > maxSize) {
+        if (w >= h) {
+          h = Math.round((h * maxSize) / w)
+          w = maxSize
+        } else {
+          w = Math.round((w * maxSize) / h)
+          h = maxSize
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, w, h)
+      try {
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      } catch (e) {
+        reject(e)
+      }
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('图片加载失败'))
+    }
+    img.src = url
   })
 }
 
@@ -59,10 +248,14 @@ export default function DetailSet() {
   const [generatedImages, setGeneratedImages] = useState([])
   const [generateError, setGenerateError] = useState('')
   const maxImages = 6
+  const [specCollapsed, setSpecCollapsed] = useState(false)
+  const [editingSpec, setEditingSpec] = useState(false)
+  const [editingPlanIndex, setEditingPlanIndex] = useState(null)
 
   const handleModelChange = (newModel) => {
     setModel(newModel)
-    if (newModel === 'Nano Banana' && clarity !== '1K 标准') setClarity('1K 标准')
+    setClarity((prev) => resolveClarityForModel(newModel, prev))
+    setAspectRatio((prev) => resolveAspectForModel(newModel, prev))
   }
 
   const resetToInputIfEdited = () => {
@@ -104,7 +297,7 @@ export default function DetailSet() {
     setAnalyzing(true)
     try {
       const first = productImages[0]
-      const base64 = await fileToBase64(first.file)
+      const base64 = await fileToCompressedDataUrl(first.file)
       const res = await fetch('/api/detail-set/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +331,9 @@ export default function DetailSet() {
     setStep(4)
     setGenerating(true)
     try {
-      const productImageBase64 = productImages[0] ? await fileToBase64(productImages[0].file) : null
+      const productImageBase64 = productImages[0]
+        ? await fileToCompressedDataUrl(productImages[0].file)
+        : null
       const res = await fetch('/api/detail-set/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,7 +342,7 @@ export default function DetailSet() {
           imagePlan,
           model,
           clarity,
-          aspectRatio,
+          aspectRatio: aspectRatio || '3:4 竖版',
           targetLanguage,
           quantity: imagePlan.length,
           image: productImageBase64,
@@ -322,7 +517,7 @@ export default function DetailSet() {
                   value={aspectRatio}
                   onChange={(e) => setAspectRatio(e.target.value)}
                 >
-                  {ASPECT_OPTIONS.map((opt) => (
+                  {getAspectOptionsForModel(model).map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
@@ -404,13 +599,48 @@ export default function DetailSet() {
                 )}
               </>
             )}
+            {(step >= 3 && step !== 4) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (step === 3) {
+                    if (window.confirm('返回将清除整体设计规范和图片规范')) {
+                      setDesignSpecMarkdown('')
+                      setImagePlan([])
+                      setStep(1)
+                    }
+                  } else if (step === 5) {
+                    if (window.confirm('返回将清除已生成图片')) {
+                      setGeneratedImages([])
+                      setStep(3)
+                    }
+                  }
+                }}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                返回上一步
+              </button>
+            )}
           </div>
 
           {/* 右侧：生成结果 / 设计规范 */}
           <div className="rounded-2xl border border-gray-200 bg-white p-8">
-            <h2 className="text-sm font-semibold text-gray-900">
-              {step === 5 ? '生成结果' : step >= 3 ? '设计规划预览' : '生成结果'}
-            </h2>
+            {step >= 3 && step !== 4 && step !== 5 && designSpecMarkdown ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-gray-900">设计规划预览</h2>
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">请确认设计规范和图片规划</p>
+              </>
+            ) : (
+              <h2 className="text-sm font-semibold text-gray-900">
+                {step === 5 ? '生成结果' : '生成结果'}
+              </h2>
+            )}
             {step === 1 && (
               <div className="mt-6 flex min-h-[320px] flex-col items-center justify-center text-center">
                 <div className="rounded-full bg-gray-100 p-6">
@@ -451,7 +681,11 @@ export default function DetailSet() {
                 <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
                   {generatedImages.map((img) => (
                     <div key={img.id} className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
-                      <img src={img.url} alt={img.title} className="w-full aspect-[3/4] object-cover" />
+                      <img
+                        src={img.url}
+                        alt={img.title}
+                        className={`w-full object-cover ${aspectRatioToCssClass(aspectRatio)}`}
+                      />
                       <p className="p-2 text-xs font-medium text-gray-700 truncate">{img.title}</p>
                     </div>
                   ))}
@@ -460,22 +694,113 @@ export default function DetailSet() {
             )}
             {step >= 3 && step !== 4 && step !== 5 && designSpecMarkdown && (
               <div className="mt-6 space-y-6">
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">整体设计规范</h3>
-                  <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-sm text-gray-800 font-sans">
-                    {designSpecMarkdown}
-                  </pre>
+                {/* 整体设计规范：可折叠 + 铅笔编辑 */}
+                <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 p-4 text-left hover:bg-gray-50/80 transition"
+                    onClick={() => setSpecCollapsed((c) => !c)}
+                  >
+                    <div className="min-w-0">
+                      <h3 className="text-base font-bold text-gray-900">整体设计规范</h3>
+                      <p className="mt-0.5 text-xs text-gray-500">所有图片遵循的统一视觉标准</p>
+                    </div>
+                    <span className="flex items-center gap-1 shrink-0">
+                      <PencilIcon
+                        onClick={(e) => { e?.stopPropagation?.(); setEditingSpec((s) => !s); setSpecCollapsed(false) }}
+                      />
+                      <svg
+                        className={`h-5 w-5 text-gray-400 transition-transform ${specCollapsed ? '' : 'rotate-180'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </span>
+                  </button>
+                  {!specCollapsed && (
+                    <div className="border-t border-gray-100 px-4 pb-4">
+                      {editingSpec ? (
+                        <div className="mt-4">
+                          <textarea
+                            className="w-full min-h-[200px] rounded-lg border border-gray-300 p-3 text-sm text-gray-800 focus:border-primary focus:ring-1 focus:ring-primary"
+                            value={designSpecMarkdown}
+                            onChange={(e) => setDesignSpecMarkdown(e.target.value)}
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditingSpec(false)}
+                            className="mt-2 rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                          >
+                            完成编辑
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="mt-4 rounded-lg bg-gray-50/80 p-5">
+                          <SpecPreview markdown={designSpecMarkdown} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
+                {/* 图片规划：每项带铅笔，点击可编辑标题和描述 */}
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">图片规划</h3>
-                  <p className="mt-1 text-xs text-gray-500">共{planCount}张图片，点击可编辑标题和描述</p>
-                  <ul className="mt-2 space-y-4">
+                  <h3 className="text-base font-bold text-gray-900">图片规划</h3>
+                  <p className="mt-0.5 text-xs text-gray-500">共{planCount}张图片，点击铅笔可编辑标题和描述</p>
+                  <ul className="mt-3 space-y-3">
                     {imagePlan.map((item, i) => (
-                      <li key={i} className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
-                        <p className="font-medium text-gray-900">{item.title}</p>
-                        <pre className="mt-2 whitespace-pre-wrap text-sm text-gray-700 font-sans">
-                          {item.contentMarkdown || ''}
-                        </pre>
+                      <li
+                        key={i}
+                        className="flex gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm items-start"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-800 text-xs font-medium text-white">
+                          {i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          {editingPlanIndex === i ? (
+                            <>
+                              <input
+                                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm font-medium text-gray-900 focus:border-primary focus:ring-1 focus:ring-primary"
+                                value={item.title}
+                                onChange={(e) =>
+                                  setImagePlan((prev) =>
+                                    prev.map((p, j) => (j === i ? { ...p, title: e.target.value } : p))
+                                  )
+                                }
+                                placeholder="图片标题"
+                                autoFocus
+                              />
+                              <textarea
+                                className="mt-2 w-full min-h-[80px] rounded border border-gray-300 p-2 text-sm text-gray-700 focus:border-primary focus:ring-1 focus:ring-primary"
+                                value={item.contentMarkdown || ''}
+                                onChange={(e) =>
+                                  setImagePlan((prev) =>
+                                    prev.map((p, j) => (j === i ? { ...p, contentMarkdown: e.target.value } : p))
+                                  )
+                                }
+                                placeholder="描述/要点"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditingPlanIndex(null)}
+                                className="mt-2 rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                              >
+                                完成编辑
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-medium text-gray-900">{item.title}</p>
+                                <PencilIcon onClick={() => setEditingPlanIndex(i)} />
+                              </div>
+                              <p className="mt-1 text-sm text-gray-600">{planSummary(item.contentMarkdown)}</p>
+                            </>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>

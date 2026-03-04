@@ -20,3 +20,7 @@ alwaysApply: true
 - 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）。
 - **网络/稳定性**：分析/生图传图前前端用 `fileToCompressedDataUrl`（1024px、jpeg 0.82）压缩；分析接口遇 socket 关闭/ fetch failed 自动重试最多 3 次；生图在 prompt 中强调 aspect ratio（如 1:1 必须方图），后端打 aspectRatio 日志。1:1 输出是否稳定待用户次日验证。
 - 回复用户时使用简体中文。
+
+## 待办 / 已知问题（不丢失记忆）
+
+- **设计规范换行**：右侧「整体设计规范」里「色彩系统」下的「主色调」「辅助色」「背景色」仍常堆在一起、未各自一行。相关逻辑在 `src/pages/DetailSet.jsx` 的 `SpecPreview`、`splitBySecondaryLabels`；后续可从分析 prompt（`server/index.js`）要求每项换行，或前端按实际返回格式再加强拆分。详见 **`docs/KNOWN_ISSUES.md`**。

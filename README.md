@@ -18,12 +18,15 @@
 
 ```
 nano banana for business/
+├── docs/
+│   └── KNOWN_ISSUES.md         # 已知问题与待办（含设计规范换行未彻底解决）
 ├── src/
 │   ├── App.jsx                 # 路由
 │   ├── context/AuthContext.jsx  # 登录态
 │   ├── lib/clarityByModel.js    # 模型与清晰度联动（Nano 仅 1K）
+│   ├── lib/aspectByModel.js     # 模型与尺寸比例联动
 │   ├── pages/
-│   │   ├── DetailSet.jsx        # 全品类组图：上传→分析→确认规划→生成→完成
+│   │   ├── DetailSet.jsx        # 全品类组图：上传→分析→确认规划→生成→完成（含 SpecPreview）
 │   │   ├── StyleClone.jsx       # 风格复刻
 │   │   ├── ApparelSet.jsx       # 服装组图
 │   │   ├── ImageRetouch.jsx     # 图片精修
@@ -31,7 +34,7 @@ nano banana for business/
 │   └── components/             # Header、Footer、各 section
 ├── server/
 │   ├── index.js                # Express：注册/登录、/api/detail-set/analyze、/api/detail-set/generate
-│   ├── gemini-models.js        # 生图/分析模型 ID、清晰度校验（Nano 仅 1K）
+│   ├── gemini-models.js        # 生图/分析模型 ID、清晰度与 0.5K/1K/2K/4K
 │   ├── .env.example            # 环境变量示例（复制为 .env，勿提交）
 │   └── users.json              # 用户存储（gitignore）
 ├── .cursor/rules/              # 项目记忆与约定（见下）
@@ -108,8 +111,15 @@ npm start
 
 ---
 
+## 已知问题（后续再改）
+
+详见 **`docs/KNOWN_ISSUES.md`**。当前未彻底解决：整体设计规范中「主色调」「辅助色」「背景色」等二级项在前端展示时仍可能堆在一行，换行逻辑依赖分析结果格式，后续可从分析 prompt 强制换行或前端再加强拆分规则。
+
+---
+
 ## 后续可做
 
 - 首页/营销页细节与间距微调
 - Dashboard 图库、筛选、导出
 - 分析/生图 429 或额度用尽时的友好提示与重试策略
+- 解决 `docs/KNOWN_ISSUES.md` 中的设计规范换行问题

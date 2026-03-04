@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { getClarityOptionsForModel } from '../lib/clarityByModel'
+import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
+import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
-const ASPECT_OPTIONS = ['1:1 正方形', '2:3 竖版', '3:2 横版', '3:4 竖版', '4:3 横版', '4:5 竖版', '5:4 横版', '9:16 手机竖屏', '16:9 宽屏', '21:9 超宽屏']
 const QUANTITY_OPTIONS = Array.from({ length: 15 }, (_, i) => `${i + 1}张`)
 
 const SparkIcon = ({ className = 'h-5 w-5' }) => (
@@ -18,11 +18,13 @@ export default function StyleClone() {
   const [quantity, setQuantity] = useState('1张')
   const [model, setModel] = useState('Nano Banana Pro')
   const [clarity, setClarity] = useState('2K 高清')
+  const [aspectRatio, setAspectRatio] = useState('3:4 竖版')
   const maxProduct = 6
 
   const handleModelChange = (newModel) => {
     setModel(newModel)
-    if (newModel === 'Nano Banana' && clarity !== '1K 标准') setClarity('1K 标准')
+    setClarity((prev) => resolveClarityForModel(newModel, prev))
+    setAspectRatio((prev) => resolveAspectForModel(newModel, prev))
   }
 
   return (
@@ -113,8 +115,12 @@ export default function StyleClone() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700">尺寸比例</label>
-                  <select className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" defaultValue="3:4 竖版">
-                    {ASPECT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={aspectRatio}
+                    onChange={(e) => setAspectRatio(e.target.value)}
+                  >
+                    {getAspectOptionsForModel(model).map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
                 <div>
