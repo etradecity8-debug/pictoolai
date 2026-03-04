@@ -5,6 +5,7 @@ import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarit
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 
 const STEPS = [
   { id: 1, label: '输入' },
@@ -660,24 +661,24 @@ export default function DetailSet() {
                       <p className="p-3 text-sm font-medium text-gray-700 truncate">{img.title}</p>
                       {img.url && (
                         <div className="flex flex-wrap gap-2 px-3 pb-3">
-                          <a
-                            href={img.url}
-                            download={(img.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(img.url)
+                                const blob = await res.blob()
+                                const name = (img.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
+                                await saveBlobWithPicker(blob, name)
+                              } catch (_) {}
+                            }}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                           >
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                             </svg>
                             保存到本地
-                          </a>
-                          {user ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              已保存到仓库
-                            </span>
-                          ) : (
+                          </button>
+                          {!user && (
                             <button
                               type="button"
                               disabled={savingToGallery === img.id}

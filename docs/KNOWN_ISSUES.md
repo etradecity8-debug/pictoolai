@@ -9,6 +9,9 @@
 - **进度条**：分析中/生成中全页遮罩内增加不确定进度条。
 - **仓库**：SQLite 数据库（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动**写入仓库；每张图可「保存到本地」下载；工作台 → 仓库从接口拉取并展示。
 - **README**：补充数据库概念（SQLite vs MySQL/PostgreSQL）、已知问题/后续可做与文档同步。
+- **侧栏与路由**：「工作台」改为仅保留「仓库」入口（`/dashboard/gallery`）；访问 `/dashboard` 重定向到 `/dashboard/gallery`。
+- **仓库批量删除**：仓库页增加「删除选中」按钮，对选中图片逐个调用 DELETE 并更新列表与选中状态。
+- **生图文字不裁切**：在 `server/index.js` 生图 prompt 中强化 `safeAreaRule`，要求整段标题完整在画面内、四周留足边距、禁止单词在边缘被裁切（如 "DURABILITY" 不得只露出一部分）。
 
 ## 历史记录（已处理）
 

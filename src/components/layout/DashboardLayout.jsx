@@ -2,9 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
 const sidebarLinks = [
-  { to: '/dashboard', label: '工作台' },
   { to: '/dashboard/gallery', label: '仓库' },
-  { to: '/dashboard/settings', label: '设置' },
 ]
 
 export default function DashboardLayout() {

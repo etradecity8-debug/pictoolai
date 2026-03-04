@@ -423,19 +423,22 @@ app.post('/api/detail-set/generate', async (req, res) => {
       const item = imagePlan[i]
       const title = item?.title || `图${i + 1}`
       const aspectRule = `CRITICAL - Aspect ratio: The output image MUST have aspect ratio exactly ${aspectRatioVal}. For 1:1 this means a perfect square (width = height). For 3:4 or 4:3 etc. the image must match that ratio precisely. Do not produce a different aspect ratio.`
-      const textQualityRule = `CRITICAL - Text in image: If you include any text (titles, captions, labels), render it SHARP and CLEAR: use clean, high-resolution typography; modern sans-serif; strong contrast against the background; no blurry, pixelated, or low-quality text. Every word must be crisp and readable.`
-      const safeAreaRule = `CRITICAL - Composition and safe area: Keep ALL text and important elements WELL INSIDE the frame. Leave clear margins from the top, bottom, and sides (do not place headlines or text near the very edge). Nothing may be cut off or cropped at the image boundary; the full layout must be fully visible within the image.`
+      const textQualityRule = `CRITICAL - Typography in image must be beautiful and harmonious: Render the headline with refined, premium typography. Use an elegant modern sans-serif (e.g. geometric or humanist style—clean letterforms, balanced weight, not too thin or heavy). Ensure generous letter-spacing and a single clear line; the text should feel part of the composition and match the minimalist, high-end aesthetic of the scene. Strong contrast against the background (dark on light or light on dark), crisp and readable—no blurry, pixelated, or generic system-font look. Avoid cramped or cheap-looking type.`
+      const singleTitleRule = `CRITICAL - Only ONE line of text in the image: Render ONLY the main title (主标题). Do NOT add a subtitle, tagline, or any second line of text (e.g. no "Elegance in Simplicity" under "Pure Form, Elevated Living", no "Seamless Strength" under another headline). Exactly one headline phrase only. This is mandatory.`
+      const safeAreaRule = `CRITICAL - Text must NOT overflow or be cut off: The entire headline (every letter and word) must be fully visible inside the image. Do not place text so that the start or end is clipped at the left/right/top/bottom edge. Leave wide margins (at least 5–10% from each edge); the full phrase must sit well within the frame with padding on all sides. No partial words (e.g. "DURABILITY" must not appear as "URABILITY" or "DURABIL" at the edge). The whole layout must be inside the image boundaries.`
       const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation.
 
 ${aspectRule}
 
 ${textQualityRule}
 
+${singleTitleRule}
+
 ${safeAreaRule}
 
 ${langRule}
 
-Product placement: Place the product naturally in the scene (e.g. on the floor, ground, or in a realistic environment). Do NOT place the product on a table, counter, or elevated platform unless the image plan explicitly asks for a "on table" or "tabletop" display. Avoid unrealistic compositions like a stool standing on a table.
+Product placement: Place the product naturally in the scene (e.g. on the floor, ground, or beside furniture). Do NOT place the product on a table, counter, desk, or shelf—even if the reference photo shows the product on a table. The reference is for product appearance only; in the generated image put the product on the floor, next to a sofa/chair, or in a realistic room setting where it is used as intended (e.g. a stool as seating or as a side surface), never on top of another table. This is mandatory.
 
 Overall design spec:
 ${designSpecMarkdown || 'Simple, clear, product-focused.'}
@@ -443,7 +446,9 @@ ${designSpecMarkdown || 'Simple, clear, product-focused.'}
 This image plan - ${title}:
 ${item?.contentMarkdown || 'Highlight product, consistent style.'}
 
-If the plan says 副标题 or 说明文字 is "留空" or "（留空）" or "（留空，用户可自填）", do NOT render any subtitle or description text in the image; only render the 主标题 (main title) and the visual content. This keeps text proportion in the image lower.
+You must render at most ONE line of text (the main title only). No subtitle, no second line, no tagline. If the plan mentions 副标题 or 说明文字 as 留空 or empty, do not invent or add any such text.
+
+Typography: The headline must look like premium brand advertising—elegant, harmonious with the image, not generic or ugly. Prefer refined sans-serif with good proportions and spacing.
 
 Generate the image that meets the above. Do not add any text that violates the language rule.`
       const contents = []

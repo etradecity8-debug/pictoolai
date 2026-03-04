@@ -10,17 +10,18 @@ alwaysApply: true
 - 核心流程：全品类组图 = 上传产品图 + 组图要求 → 分析（文+图→文）→ 确认规划 → 生图（Nano Banana/2/Pro）→ 完成。
 
 ## 关键文件
-- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、整体设计规范与图片规划 Markdown 渲染、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地/仓库）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库）。
-- **后端**：`server/index.js`（注册/登录、分析、生图、**仓库 API**；生图请求带 token 时自动将本批图写入该用户仓库）、`server/db.js`（SQLite、gallery 表）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
+- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、整体设计规范与图片规划 Markdown 渲染、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地/仓库）、`src/pages/dashboard/Gallery.jsx`（仓库列表、按日期分组、多选、批量保存到本地、批量删除）、`src/components/layout/DashboardLayout.jsx`（侧栏仅「仓库」入口）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库）。
+- **后端**：`server/index.js`（注册/登录、分析、生图、**仓库 API**；生图请求带 token 时自动将本批图写入该用户仓库；生图 prompt 含 safeAreaRule 要求文字完整不裁切）、`server/db.js`（SQLite、gallery 表）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
 - **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY），从 `.env.example` 复制，不提交。
 
 ## 约定
 - 分析模型默认 `gemini-3-flash-preview`；503 时用 `gemini-2.5-flash` 重试。生图用 `getImageModelId(displayName)`。
 - 生成完成后：改「组图要求 / 产品图 / 生成数量」→ 回到步骤 1 并清空分析/生成结果；改「目标语言、模型、尺寸、清晰度」→ 可直接再次生成。
-- 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）。
+- 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）；**文字安全区**：safeAreaRule 要求整段标题完整在画面内、四周留足边距、禁止单词在边缘被裁切。
+- **仓库**：侧栏只有「仓库」链接到 `/dashboard/gallery`；`/dashboard` 重定向到 `/dashboard/gallery`；仓库页支持多选、批量保存到本地、批量删除选中。
 - **网络/稳定性**：分析/生图传图前前端用 `fileToCompressedDataUrl`（1024px、jpeg 0.82）压缩；分析接口遇 socket 关闭/ fetch failed 自动重试最多 3 次；生图在 prompt 中强调 aspect ratio（如 1:1 必须方图），后端打 aspectRatio 日志。1:1 输出是否稳定待用户次日验证。
 - 回复用户时使用简体中文。
 
 ## 待办 / 已知问题（不丢失记忆）
 
-- 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；客户可对每张图「保存到本地」下载。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。更多记录见 **`docs/KNOWN_ISSUES.md`**。
+- 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；侧栏仅「仓库」、支持多选与**批量保存到本地、批量删除**；生图 prompt 已强化文字不裁切（safeAreaRule）。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。更多记录见 **`docs/KNOWN_ISSUES.md`**。
