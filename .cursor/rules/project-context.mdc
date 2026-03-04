@@ -10,8 +10,8 @@ alwaysApply: true
 - 核心流程：全品类组图 = 上传产品图 + 组图要求 → 分析（文+图→文）→ 确认规划 → 生图（Nano Banana/2/Pro）→ 完成。
 
 ## 关键文件
-- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、左侧编辑后重置逻辑）、`src/lib/clarityByModel.js`（模型与清晰度联动）。
-- **后端**：`server/index.js`（注册/登录、`/api/detail-set/analyze`、`/api/detail-set/generate`、代理、语言规则）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
+- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、整体设计规范与图片规划 Markdown 渲染、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地/仓库）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库）。
+- **后端**：`server/index.js`（注册/登录、分析、生图、**仓库 API**；生图请求带 token 时自动将本批图写入该用户仓库）、`server/db.js`（SQLite、gallery 表）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
 - **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY），从 `.env.example` 复制，不提交。
 
 ## 约定
@@ -23,4 +23,4 @@ alwaysApply: true
 
 ## 待办 / 已知问题（不丢失记忆）
 
-- **设计规范换行**：右侧「整体设计规范」里「色彩系统」下的「主色调」「辅助色」「背景色」仍常堆在一起、未各自一行。相关逻辑在 `src/pages/DetailSet.jsx` 的 `SpecPreview`、`splitBySecondaryLabels`；后续可从分析 prompt（`server/index.js`）要求每项换行，或前端按实际返回格式再加强拆分。详见 **`docs/KNOWN_ISSUES.md`**。
+- 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；客户可对每张图「保存到本地」下载。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。更多记录见 **`docs/KNOWN_ISSUES.md`**。

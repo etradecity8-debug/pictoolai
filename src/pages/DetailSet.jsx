@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkBreaks from 'remark-breaks'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const STEPS = [
   { id: 1, label: '输入' },
@@ -54,118 +58,26 @@ function aspectRatioToCssClass(label) {
   return map[label] || 'aspect-[3/4]'
 }
 
-/** 二级标签（主色调、辅助色、背景色等），用于在无换行时按标签拆成多行 */
-const SECONDARY_LABELS = '主色调|辅助色|背景色|标题字体|正文字体|字号层级|装饰元素|图标风格|留白原则|光线|景深|相机参数|分辨率|风格|真实感'
-
-/** 将一段文字按二级标签拆成多行（支持「 - 主色调」「、辅助色」等连写格式） */
-function splitBySecondaryLabels(text) {
-  if (!text || typeof text !== 'string') return []
-  // 方式1：按「 - 」或「 – 」或「 — 」后紧跟“标签：”拆开（常见 API 输出）
-  const dashRe = new RegExp(`\\s*[-–—]\\s+(?=\\*{0,2}(?:${SECONDARY_LABELS})\\*{0,2}\\s*[：:])`, 'g')
-  const byDash = text.split(dashRe).map((s) => s.trim()).filter(Boolean)
-  if (byDash.length > 1) return byDash
-  // 方式2：按“标签：”前的位置拆开（支持、；等前导）
-  const re = new RegExp(`(?=[-•\\s、；]*\\*{0,2}(?:${SECONDARY_LABELS})\\*{0,2}\\s*[：:])`, 'g')
-  return text.split(re).map((s) => s.trim()).filter(Boolean)
-}
-
-/** 解析单行或单段为「标签：内容」，支持 **标签** 形式；去掉末尾分隔符 */
-function parseLabelLine(str) {
-  const s = str.trim().replace(/\s*[-–—]\s*$/, '').replace(/[、；]\s*$/, '')
-  const match = s.match(/^(.+?)[:：]\s*(.*)$/s)
-  if (match) {
-    const label = match[1].replace(/\*+/g, '').trim()
-    const rest = match[2].trim().replace(/\s*[-–—]\s*$/, '').replace(/[、；]\s*$/, '')
-    return { label, rest }
-  }
-  return null
-}
-
-/** 将设计规范 Markdown 转为可读的目录结构：一级大号加粗并空行，二级小号加粗且各自一行 */
+/** 整体设计规范：直接按 Markdown 渲染为 HTML 展示 */
 function SpecPreview({ markdown }) {
   if (!markdown || typeof markdown !== 'string') return null
-  const blocks = markdown.split(/\n\n+/).filter(Boolean)
   return (
     <div className="text-sm text-gray-700">
-      {blocks.map((block, i) => {
-        const trimmed = block.trim()
-        // 一级：如「色彩系统」「字体系统」— 字体大、加粗，与下一级之间空一行
-        if (/^##\s+/.test(trimmed)) {
-          return (
-            <h4 key={i} className="mt-6 first:mt-0 mb-1 text-lg font-bold text-gray-900">
-              {trimmed.replace(/^##\s+/, '')}
-            </h4>
-          )
-        }
-        if (/^###\s+/.test(trimmed)) {
-          return (
-            <h5 key={i} className="mt-3 mb-0.5 text-sm font-semibold text-gray-800">
-              {trimmed.replace(/^###\s+/, '')}
-            </h5>
-          )
-        }
-        if (/^[-*]\s+/m.test(trimmed)) {
-          const items = trimmed.split(/\n/).filter((l) => /^[-*]\s+/.test(l)).map((l) => l.replace(/^[-*]\s+/, ''))
-          return (
-            <ul key={i} className="list-disc list-inside space-y-1 my-2">
-              {items.map((item, j) => (
-                <li key={j}>{item}</li>
-              ))}
-            </ul>
-          )
-        }
-        // 普通段落：先按换行拆；若某行内仍含多个二级标签（主色调、辅助色、背景色等），再按标签拆成多行
-        const lines = trimmed.split(/\n/).filter((l) => l.trim())
-        const rows = []
-        for (const line of lines) {
-          const segments = splitBySecondaryLabels(line)
-          if (segments.length > 1) {
-            segments.forEach((seg) => rows.push(seg))
-          } else {
-            rows.push(segments[0] || line)
-          }
-        }
-        if (rows.length === 0) return null
-        if (rows.length === 1) {
-          const parsed = parseLabelLine(rows[0])
-          if (parsed) {
-            return (
-              <div key={i} className="leading-relaxed py-0.5">
-                <span className="text-sm font-semibold text-gray-900">{parsed.label}：</span>
-                {parsed.rest && <span>{parsed.rest}</span>}
-              </div>
-            )
-          }
-          return <div key={i} className="leading-relaxed py-0.5">{rows[0]}</div>
-        }
-        return (
-          <div key={i} className="space-y-2">
-            {rows.map((row, j) => {
-              const parsed = parseLabelLine(row)
-              if (parsed) {
-                return (
-                  <div key={j} className="leading-relaxed">
-                    <span className="text-sm font-semibold text-gray-900">{parsed.label}：</span>
-                    {parsed.rest && <span>{parsed.rest}</span>}
-                  </div>
-                )
-              }
-              return <div key={j} className="leading-relaxed">{row}</div>
-            })}
-          </div>
-        )
-      })}
+      <ReactMarkdown
+        remarkPlugins={[remarkBreaks]}
+        components={{
+          h2: ({ children }) => <h2 className="mt-6 first:mt-0 mb-1 text-lg font-bold">{children}</h2>,
+          h3: ({ children }) => <h3 className="mt-3 mb-0.5 text-base font-semibold">{children}</h3>,
+          p: ({ children }) => <p className="leading-relaxed">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,
+          strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
     </div>
   )
-}
-
-/** 从单张图的 contentMarkdown 中提取一句客户可读的要点（设计目标或首句） */
-function planSummary(contentMarkdown) {
-  if (!contentMarkdown || typeof contentMarkdown !== 'string') return ''
-  const firstLine = contentMarkdown.split(/\n/)[0] || ''
-  const designGoal = firstLine.replace(/^[-*]\s*设计目标[：:]\s*/, '').trim()
-  if (designGoal && designGoal !== firstLine) return designGoal
-  return firstLine.replace(/^[-*]\s+/, '').trim() || '根据规划生成'
 }
 
 /** 小铅笔图标，用于标记/编辑 */
@@ -232,7 +144,10 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
 }
 
 export default function DetailSet() {
+  const navigate = useNavigate()
+  const { user, getToken } = useAuth()
   const [step, setStep] = useState(1)
+  const [savingToGallery, setSavingToGallery] = useState(null)
   const [productImages, setProductImages] = useState([])
   const [requirements, setRequirements] = useState('')
   const [model, setModel] = useState('Nano Banana Pro')
@@ -251,6 +166,12 @@ export default function DetailSet() {
   const [specCollapsed, setSpecCollapsed] = useState(false)
   const [editingSpec, setEditingSpec] = useState(false)
   const [editingPlanIndex, setEditingPlanIndex] = useState(null)
+  /** 自定义确认弹窗（不显示 localhost，字体可调大） */
+  const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null })
+
+  /** 分析首次返回的原始内容（只在 runAnalyze 成功时写入，用户编辑不会覆盖），重置时恢复到此状态 */
+  const originalDesignSpecRef = useRef('')
+  const originalImagePlanRef = useRef([])
 
   const handleModelChange = (newModel) => {
     setModel(newModel)
@@ -263,6 +184,8 @@ export default function DetailSet() {
     setStep(1)
     setDesignSpecMarkdown('')
     setImagePlan([])
+    originalDesignSpecRef.current = ''
+    originalImagePlanRef.current = []
     setGeneratedImages([])
     setGenerateError('')
     setAnalyzeError('')
@@ -312,8 +235,12 @@ export default function DetailSet() {
       if (!res.ok) {
         throw new Error(data.error || '分析失败')
       }
-      setDesignSpecMarkdown(data.designSpecMarkdown || '')
-      setImagePlan(Array.isArray(data.imagePlan) ? data.imagePlan : [])
+      const spec = data.designSpecMarkdown || ''
+      const plan = Array.isArray(data.imagePlan) ? data.imagePlan : []
+      setDesignSpecMarkdown(spec)
+      setImagePlan(plan)
+      originalDesignSpecRef.current = spec
+      originalImagePlanRef.current = JSON.parse(JSON.stringify(plan))
       setStep(3)
     } catch (err) {
       const msg = err.message || ''
@@ -334,9 +261,11 @@ export default function DetailSet() {
       const productImageBase64 = productImages[0]
         ? await fileToCompressedDataUrl(productImages[0].file)
         : null
+      const headers = { 'Content-Type': 'application/json' }
+      if (getToken()) headers.Authorization = `Bearer ${getToken()}`
       const res = await fetch('/api/detail-set/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           designSpecMarkdown,
           imagePlan,
@@ -372,7 +301,7 @@ export default function DetailSet() {
           aria-busy="true"
           aria-live="polite"
         >
-          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-8 py-6 shadow-xl">
+          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-8 py-6 shadow-xl min-w-[280px]">
             <svg className="h-12 w-12 animate-spin text-gray-700" fill="none" viewBox="0 0 24 24" aria-hidden>
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -381,6 +310,12 @@ export default function DetailSet() {
               {analyzing ? '正在分析产品与要求...' : '正在生成图片...'}
             </p>
             <p className="text-xs text-gray-500">请勿关闭或刷新页面</p>
+            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="progress-bar-indeterminate h-full w-[40%] bg-gray-700 rounded-full"
+                style={{ marginLeft: '-10%' }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -589,32 +524,68 @@ export default function DetailSet() {
                 </button>
                 <p className="mt-1 text-center text-xs text-gray-500">消耗 {planCount * 3} 积分</p>
                 {step === 5 && (
-                  <button
-                    type="button"
-                    onClick={() => setStep(3)}
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-                  >
-                    返回修改规划
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmModal({
+                          open: true,
+                          message: '返回将清除已生成图片，是否继续？',
+                          onConfirm: () => {
+                            setGeneratedImages([])
+                            setStep(3)
+                            setConfirmModal((m) => ({ ...m, open: false }))
+                          },
+                        })
+                      }}
+                      className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition flex items-center justify-center gap-1.5"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      返回上一步
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmModal({
+                          open: true,
+                          message: '新建将清除当前项目的设计规范、图片规划和已生成图片，是否继续？',
+                          onConfirm: () => {
+                            setDesignSpecMarkdown('')
+                            setImagePlan([])
+                            originalDesignSpecRef.current = ''
+                            originalImagePlanRef.current = []
+                            setGeneratedImages([])
+                            setGenerateError('')
+                            setAnalyzeError('')
+                            setStep(1)
+                            setConfirmModal((m) => ({ ...m, open: false }))
+                          },
+                        })
+                      }}
+                      className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      新建项目
+                    </button>
+                  </>
                 )}
               </>
             )}
-            {(step >= 3 && step !== 4) && (
+            {(step >= 3 && step !== 4 && step !== 5) && (
               <button
                 type="button"
                 onClick={() => {
-                  if (step === 3) {
-                    if (window.confirm('返回将清除整体设计规范和图片规范')) {
+                  setConfirmModal({
+                    open: true,
+                    message: '返回将清除整体设计规范和图片规范，是否继续？',
+                    onConfirm: () => {
                       setDesignSpecMarkdown('')
                       setImagePlan([])
+                      originalDesignSpecRef.current = ''
+                      originalImagePlanRef.current = []
                       setStep(1)
-                    }
-                  } else if (step === 5) {
-                    if (window.confirm('返回将清除已生成图片')) {
-                      setGeneratedImages([])
-                      setStep(3)
-                    }
-                  }
+                      setConfirmModal((m) => ({ ...m, open: false }))
+                    },
+                  })
                 }}
                 className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
               >
@@ -678,15 +649,96 @@ export default function DetailSet() {
             {step === 5 && generatedImages.length > 0 && (
               <div className="mt-6">
                 <p className="text-xs text-gray-500">共 {generatedImages.length} 张</p>
-                <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                <div className="mt-4 grid max-w-4xl grid-cols-2 gap-6">
                   {generatedImages.map((img) => (
-                    <div key={img.id} className="rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+                    <div key={img.id} className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
                       <img
                         src={img.url}
                         alt={img.title}
                         className={`w-full object-cover ${aspectRatioToCssClass(aspectRatio)}`}
                       />
-                      <p className="p-2 text-xs font-medium text-gray-700 truncate">{img.title}</p>
+                      <p className="p-3 text-sm font-medium text-gray-700 truncate">{img.title}</p>
+                      {img.url && (
+                        <div className="flex flex-wrap gap-2 px-3 pb-3">
+                          <a
+                            href={img.url}
+                            download={(img.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            保存到本地
+                          </a>
+                          {user ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              已保存到仓库
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={savingToGallery === img.id}
+                              onClick={async () => {
+                                const token = getToken()
+                                if (!token) {
+                                  setConfirmModal({
+                                    open: true,
+                                    message: '请先登录后再保存到仓库。登录后可在工作台 → 仓库中查看。',
+                                    confirmLabel: '去登录',
+                                    onConfirm: () => {
+                                      setConfirmModal((m) => ({ ...m, open: false }))
+                                      navigate('/login')
+                                    },
+                                  })
+                                  return
+                                }
+                                setSavingToGallery(img.id)
+                                try {
+                                  const res = await fetch('/api/gallery', {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ image: img.url, title: img.title }),
+                                  })
+                                  const data = await res.json().catch(() => ({}))
+                                  setSavingToGallery(null)
+                                  if (!res.ok) {
+                                    setConfirmModal({
+                                      open: true,
+                                      message: data.error || '保存失败，请稍后重试',
+                                      onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
+                                    })
+                                    return
+                                  }
+                                  setConfirmModal({
+                                    open: true,
+                                    message: '已保存到仓库，可在工作台 → 仓库中查看',
+                                    onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
+                                  })
+                                } catch {
+                                  setSavingToGallery(null)
+                                  setConfirmModal({
+                                    open: true,
+                                    message: '保存失败，请稍后重试',
+                                    onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
+                                  })
+                                }
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                              </svg>
+                              {savingToGallery === img.id ? '保存中…' : '保存到仓库'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -729,13 +781,24 @@ export default function DetailSet() {
                             onChange={(e) => setDesignSpecMarkdown(e.target.value)}
                             autoFocus
                           />
-                          <button
-                            type="button"
-                            onClick={() => setEditingSpec(false)}
-                            className="mt-2 rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
-                          >
-                            完成编辑
-                          </button>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingSpec(false)}
+                              className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                            >
+                              完成编辑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDesignSpecMarkdown(originalDesignSpecRef.current)
+                              }}
+                              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                            >
+                              重置
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="mt-4 rounded-lg bg-gray-50/80 p-5">
@@ -783,13 +846,29 @@ export default function DetailSet() {
                                 }
                                 placeholder="描述/要点"
                               />
-                              <button
-                                type="button"
-                                onClick={() => setEditingPlanIndex(null)}
-                                className="mt-2 rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
-                              >
-                                完成编辑
-                              </button>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPlanIndex(null)}
+                                  className="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white hover:bg-gray-700"
+                                >
+                                  完成编辑
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const orig = originalImagePlanRef.current[i]
+                                    if (orig) {
+                                      setImagePlan((prev) =>
+                                        prev.map((p, j) => (j === i ? { ...orig } : p))
+                                      )
+                                    }
+                                  }}
+                                  className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                                >
+                                  重置
+                                </button>
+                              </div>
                             </>
                           ) : (
                             <>
@@ -797,7 +876,25 @@ export default function DetailSet() {
                                 <p className="font-medium text-gray-900">{item.title}</p>
                                 <PencilIcon onClick={() => setEditingPlanIndex(i)} />
                               </div>
-                              <p className="mt-1 text-sm text-gray-600">{planSummary(item.contentMarkdown)}</p>
+                              {item.contentMarkdown ? (
+                                <div className="mt-2 text-sm text-gray-600">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkBreaks]}
+                                    components={{
+                                      h2: ({ children }) => <h2 className="mt-3 first:mt-0 mb-0.5 text-base font-semibold text-gray-900">{children}</h2>,
+                                      h3: ({ children }) => <h3 className="mt-2 mb-0.5 text-sm font-semibold text-gray-800">{children}</h3>,
+                                      p: ({ children }) => <p className="leading-relaxed my-1">{children}</p>,
+                                      ul: ({ children }) => <ul className="list-disc list-inside space-y-0.5 my-1">{children}</ul>,
+                                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-0.5 my-1">{children}</ol>,
+                                      strong: ({ children }) => <strong className="font-semibold text-gray-800">{children}</strong>,
+                                    }}
+                                  >
+                                    {item.contentMarkdown}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-sm text-gray-500">根据规划生成</p>
+                              )}
                             </>
                           )}
                         </div>
@@ -810,6 +907,37 @@ export default function DetailSet() {
           </div>
         </div>
       </div>
+
+      {/* 自定义确认弹窗：不显示 localhost，字体更大 */}
+      {confirmModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setConfirmModal((m) => ({ ...m, open: false }))}
+        >
+          <div
+            className="rounded-2xl bg-white p-6 shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-xl text-gray-800 leading-relaxed">{confirmModal.message}</p>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmModal((m) => ({ ...m, open: false }))}
+                className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-lg font-medium text-gray-700 hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmModal.onConfirm?.()}
+                className="rounded-xl bg-gray-800 px-5 py-3 text-lg font-medium text-white hover:bg-gray-700"
+              >
+                {confirmModal.confirmLabel || '确定'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

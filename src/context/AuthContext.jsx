@@ -21,6 +21,8 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const getToken = useCallback(() => localStorage.getItem(TOKEN_KEY), [])
+
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
     const saved = localStorage.getItem(USER_KEY)
@@ -41,7 +43,7 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const value = { user, loading, login, logout }
+  const value = { user, loading, login, logout, getToken }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

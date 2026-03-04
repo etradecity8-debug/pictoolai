@@ -9,7 +9,7 @@
 | 层级 | 技术 |
 |------|------|
 | 前端 | React 18、Vite、React Router 6、Tailwind CSS |
-| 后端 | Node.js、Express、JWT、bcrypt、用户存 `server/users.json` |
+| 后端 | Node.js、Express、JWT、bcrypt、用户存 `server/users.json`、仓库用 SQLite（`server/db.js` + `server/picaitool.db`） |
 | AI | Google Gemini（分析：文+图→文；生图：Nano Banana / 2 / Pro） |
 
 ---
@@ -19,7 +19,7 @@
 ```
 nano banana for business/
 ├── docs/
-│   └── KNOWN_ISSUES.md         # 已知问题与待办（含设计规范换行未彻底解决）
+│   └── KNOWN_ISSUES.md         # 已知问题与待办、今日完成记录
 ├── src/
 │   ├── App.jsx                 # 路由
 │   ├── context/AuthContext.jsx  # 登录态
@@ -33,10 +33,13 @@ nano banana for business/
 │   │   ├── Login.jsx / 注册、ForgotPassword、Dashboard 等
 │   └── components/             # Header、Footer、各 section
 ├── server/
-│   ├── index.js                # Express：注册/登录、/api/detail-set/analyze、/api/detail-set/generate
+│   ├── index.js                # Express：注册/登录、分析、生图、仓库 API
+│   ├── db.js                   # SQLite 初始化与 gallery 表
 │   ├── gemini-models.js        # 生图/分析模型 ID、清晰度与 0.5K/1K/2K/4K
 │   ├── .env.example            # 环境变量示例（复制为 .env，勿提交）
-│   └── users.json              # 用户存储（gitignore）
+│   ├── users.json              # 用户存储（gitignore）
+│   ├── picaitool.db            # SQLite 数据库（gitignore，首次运行自动创建）
+│   └── gallery/                # 仓库图片文件（gitignore）
 ├── .cursor/rules/              # 项目记忆与约定（见下）
 ├── .gitignore
 └── README.md
@@ -104,16 +107,32 @@ npm start
 
 ---
 
+## 数据库与仓库
+
+**数据库是什么？** 数据库用来持久化存数据（用户、图片记录等），支持按条件查询、不丢数据。本项目用的 **SQLite** 是「真正的」数据库，和 MySQL、PostgreSQL 一样是关系型数据库，区别在于：
+
+| 类型 | 说明 | 适用场景 |
+|------|------|----------|
+| **SQLite**（本项目） | 单文件、无需单独安装、内嵌在程序里 | 小到中型应用、单机、原型、轻量部署 |
+| **MySQL / PostgreSQL** | 独立数据库服务，需安装并启动，支持多机、高并发 | 大型站点、多用户高并发、需要独立运维 |
+
+本项目用 SQLite 即可满足「用户登录 + 仓库图片」的存储；若以后访问量很大或要独立备份/迁移数据库，可再迁到 MySQL/PostgreSQL，表结构可复用。
+
+- **SQLite 文件**：无需单独安装，首次有仓库请求时会在 `server/` 下自动创建 `picaitool.db`。
+- **仓库表**：`db.js` 中创建表 `gallery`（id、user_email、title、file_path、saved_at），图片文件存在 `server/gallery/{用户 hash}/`，数据库只存元数据与路径。
+- **自动保存**：用户登录状态下生成图片后，会**自动**写入仓库（数据库 + 文件）；客户可随时在每张图下点击「下载」保存到本地。
+- **备份**：复制 `server/picaitool.db` 和 `server/gallery/` 即可备份仓库数据；生产环境建议定期备份。
+
 ## 安全与忽略
 
 - API Key 仅在后端通过 `getGeminiApiKey()` 读取，不写进前端或日志。
-- `.gitignore` 已包含 `node_modules`、`dist`、`.env`、`.env.*`、`server/users.json`，勿提交敏感文件。
+- `.gitignore` 已包含 `node_modules`、`dist`、`.env`、`.env.*`、`server/users.json`、`server/picaitool.db*`、`server/gallery`，勿提交敏感文件。
 
 ---
 
 ## 已知问题（后续再改）
 
-详见 **`docs/KNOWN_ISSUES.md`**。当前未彻底解决：整体设计规范中「主色调」「辅助色」「背景色」等二级项在前端展示时仍可能堆在一行，换行逻辑依赖分析结果格式，后续可从分析 prompt 强制换行或前端再加强拆分规则。
+详见 **`docs/KNOWN_ISSUES.md`**。
 
 ---
 
@@ -122,4 +141,3 @@ npm start
 - 首页/营销页细节与间距微调
 - Dashboard 图库、筛选、导出
 - 分析/生图 429 或额度用尽时的友好提示与重试策略
-- 解决 `docs/KNOWN_ISSUES.md` 中的设计规范换行问题

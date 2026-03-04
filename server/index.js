@@ -7,13 +7,15 @@ if (process.env.HTTPS_PROXY || process.env.https_proxy) {
 }
 import express from 'express'
 import cors from 'cors'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { createHash } from 'crypto'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { GoogleGenAI } from '@google/genai'
 import { ANALYSIS_MODEL_ID, ANALYSIS_MODEL_FALLBACK, getImageModelId, normalizeClarityForModel } from './gemini-models.js'
+import { getDb } from './db.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -213,7 +215,7 @@ app.post('/api/detail-set/analyze', async (req, res) => {
   - 布局方式：如产品在画面右侧三分之一、左侧留白用于排版；或低角度仰拍、对角线构图等。
   - 文字区域：明确位置，如画面左侧中部、画面顶部中央、右下角留白区；并强调所有文字必须完整落在画面内，留出上下左右安全边距，不得贴边或裁切。
 - **内容要素**：展示重点、突出卖点（可带英文 slogan）、背景元素、装饰元素；如有备注（如保持磨砂质感、禁止抹除结构线）也写上。
-- **文字内容**（注明「使用 英语」或目标语言）：主标题、副标题、说明文字的具体文案（完整句子，便于生图直接使用）。
+- **文字内容**（注明「使用 英语」或目标语言）：只写主标题的具体文案（完整短句，便于生图使用）；副标题、说明文字不写，留空，由用户需要时在规划中自行填写，以控制图中文字占比。
 - **氛围营造**：情绪关键词（如 时尚、宁静、高端、环保、坚固）；光影效果（如 柔和百叶窗投影、硬朗轮廓光、明亮自然阳光）。
 
 用户组图要求：${requirements || '（未填写）'}
@@ -315,11 +317,11 @@ imagePlan 数组长度必须为 ${planCount}。`
 ${requirements ? `**用户要求摘要**：${requirements.slice(0, 200)}${requirements.length > 200 ? '...' : ''}` : ''}
 `
     const mockPlans = [
-      { title: '品牌形象海报', contentMarkdown: '**设计目标**：建立品牌时尚、高端的第一印象\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比 45%；产品放置在画面右侧三分之一处，左侧留白用于排版；文字区域在画面左侧中部；所有文字须完整在画面内，留安全边距。\n**内容要素**：展示产品整体轮廓与纯净色调；突出卖点 Minimalist Design；背景为现代简约客厅、浅灰墙面、木质地板；装饰可为画面边缘一角绿植。\n**文字内容**（使用 英语）：主标题、副标题、说明文字需具体写出。\n**氛围营造**：情绪关键词 时尚、宁静、高端、纯净；光影效果 柔和百叶窗投影。' },
-      { title: '功能卖点图', contentMarkdown: '**设计目标**：消除用户对稳固性的顾虑\n**产品出现**：是\n**图中图元素**：可加 [放大镜特写, 圆形, 右下角, 20%大小] 展示细节\n**构图方案**：产品占比 60%；低角度仰拍突出支撑感；文字区域在画面顶部中央；文字须完整在画面内。\n**内容要素**：展示凳腿与连接处、结构线条；突出卖点 Rock-Solid Stability；背景纯净浅灰影棚；可加半透明受力分析线条；保持产品磨砂质感。\n**文字内容**（使用 英语）：主标题 BUILT TO LAST、副标题、说明文字。\n**氛围营造**：安全、坚固、可靠；硬朗轮廓光。' },
-      { title: '材质/环保图', contentMarkdown: '**设计目标**：传达环保、可持续价值观\n**产品出现**：是\n**图中图元素**：[材质/树叶图标, 左上角, 10%大小, 环保认证]\n**构图方案**：产品占比 50%；对角线构图；文字区域在右下角留白区；文字须完整在画面内。\n**内容要素**：展示材质细腻纹理；突出卖点 Eco-Friendly Material；背景为自然光户外或阳台、模糊绿植；装饰为嫩绿叶片、光斑。\n**文字内容**（使用 英语）：主标题 ECO-CONSCIOUS CHOICE、副标题、说明文字。\n**氛围营造**：环保、自然、清新；明亮自然阳光。' },
-      { title: '细节图', contentMarkdown: '**设计目标**：展示工艺与质感\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比约 50%；留白 30% 以上；文字区域明确且留边距。\n**内容要素**：局部特写、材质表现。\n**氛围营造**：清晰、专业。' },
-      { title: '卖点总结图', contentMarkdown: '**设计目标**：理性说服、卖点汇总\n**产品出现**：是\n**构图方案**：留白充足；文字区域不贴边。\n**内容要素**：参数或卖点列表。' },
+      { title: '品牌形象海报', contentMarkdown: '**设计目标**：建立品牌时尚、高端的第一印象\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比 45%；产品放置在画面右侧三分之一处，左侧留白用于排版；文字区域在画面左侧中部；所有文字须完整在画面内，留安全边距。\n**内容要素**：展示产品整体轮廓与纯净色调；突出卖点 Minimalist Design；背景为现代简约客厅、浅灰墙面、木质地板；装饰可为画面边缘一角绿植。\n**文字内容**（使用 英语）：主标题 Effortless Elegance。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：情绪关键词 时尚、宁静、高端、纯净；光影效果 柔和百叶窗投影。' },
+      { title: '功能卖点图', contentMarkdown: '**设计目标**：消除用户对稳固性的顾虑\n**产品出现**：是\n**图中图元素**：可加 [放大镜特写, 圆形, 右下角, 20%大小] 展示细节\n**构图方案**：产品占比 60%；低角度仰拍突出支撑感；文字区域在画面顶部中央；文字须完整在画面内。\n**内容要素**：展示凳腿与连接处、结构线条；突出卖点 Rock-Solid Stability；背景纯净浅灰影棚；可加半透明受力分析线条；保持产品磨砂质感。\n**文字内容**（使用 英语）：主标题 BUILT TO LAST。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：安全、坚固、可靠；硬朗轮廓光。' },
+      { title: '材质/环保图', contentMarkdown: '**设计目标**：传达环保、可持续价值观\n**产品出现**：是\n**图中图元素**：[材质/树叶图标, 左上角, 10%大小, 环保认证]\n**构图方案**：产品占比 50%；对角线构图；文字区域在右下角留白区；文字须完整在画面内。\n**内容要素**：展示材质细腻纹理；突出卖点 Eco-Friendly Material；背景为自然光户外或阳台、模糊绿植；装饰为嫩绿叶片、光斑。\n**文字内容**（使用 英语）：主标题 ECO-CONSCIOUS CHOICE。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：环保、自然、清新；明亮自然阳光。' },
+      { title: '细节图', contentMarkdown: '**设计目标**：展示工艺与质感\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比约 50%；留白 30% 以上；文字区域明确且留边距。\n**内容要素**：局部特写、材质表现。\n**文字内容**（使用 英语）：主标题 Crafted for Detail。副标题：（留空）。说明文字：（留空）。\n**氛围营造**：清晰、专业。' },
+      { title: '卖点总结图', contentMarkdown: '**设计目标**：理性说服、卖点汇总\n**产品出现**：是\n**构图方案**：留白充足；文字区域不贴边。\n**内容要素**：参数或卖点列表。\n**文字内容**（使用 英语）：主标题 Why Choose Us。副标题：（留空）。说明文字：（留空）。' },
     ]
     const imagePlan = mockPlans.slice(0, planCount)
     return res.json({ designSpecMarkdown, imagePlan })
@@ -441,6 +443,8 @@ ${designSpecMarkdown || 'Simple, clear, product-focused.'}
 This image plan - ${title}:
 ${item?.contentMarkdown || 'Highlight product, consistent style.'}
 
+If the plan says 副标题 or 说明文字 is "留空" or "（留空）" or "（留空，用户可自填）", do NOT render any subtitle or description text in the image; only render the 主标题 (main title) and the visual content. This keeps text proportion in the image lower.
+
 Generate the image that meets the above. Do not add any text that violates the language rule.`
       const contents = []
       if (parsedRef) {
@@ -495,6 +499,25 @@ Generate the image that meets the above. Do not add any text that violates the l
     if (successCount === 0) {
       return res.status(500).json({ error: images[0]?.error || '全部生图失败，请稍后重试' })
     }
+    // 若请求带登录 token，将本批生成图自动写入该用户的仓库（默认自动保存到数据库）
+    const auth = req.headers.authorization
+    const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+    if (token) {
+      try {
+        const payload = jwt.verify(token, JWT_SECRET)
+        const email = payload.email
+        const toReturn = images.filter((img) => img.url)
+        toReturn.forEach((img) => {
+          try {
+            saveImageToGallery(email, img.id, img.title, img.url)
+          } catch (e) {
+            console.error('[后端 API] 自动保存到仓库失败', img.id, e.message)
+          }
+        })
+      } catch (_) {
+        // token 无效或过期，不自动保存，不影响生图结果
+      }
+    }
     return res.json({ images: images.map(({ id, title, url }) => ({ id, title, url: url || '' })).filter((img) => img.url) })
   } catch (e) {
     console.error(e)
@@ -512,6 +535,121 @@ app.get('/api/me', (req, res) => {
     return res.json({ user: { email: payload.email } })
   } catch {
     return res.status(401).json({ error: '登录已过期' })
+  }
+})
+
+// ---------- 仓库（数据库/文件存储）----------
+// 需要登录的中间件
+function requireAuth(req, res, next) {
+  const auth = req.headers.authorization
+  const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+  if (!token) return res.status(401).json({ error: '请先登录后再使用仓库' })
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    req.user = { email: payload.email }
+    next()
+  } catch {
+    return res.status(401).json({ error: '登录已过期，请重新登录' })
+  }
+}
+
+const galleryRoot = join(__dirname, 'gallery')
+
+function userGalleryDir(email) {
+  const hash = createHash('sha256').update(String(email).toLowerCase()).digest('hex').slice(0, 16)
+  return join(galleryRoot, hash)
+}
+
+/** 相对路径，用于存入数据库（便于迁移），读取时 join(__dirname, file_path) */
+function galleryFilePath(email, id, ext) {
+  const hash = createHash('sha256').update(String(email).toLowerCase()).digest('hex').slice(0, 16)
+  return join('gallery', hash, `${id}.${ext}`)
+}
+
+/** 将一张图片写入仓库（文件 + 数据库），id 可由调用方传入（如生图返回的 id）或自动生成 */
+function saveImageToGallery(email, id, title, dataUrl) {
+  const parsed = parseDataUrl(dataUrl)
+  if (!parsed || !parsed.data) return
+  const dir = userGalleryDir(email)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  const ext = (parsed.mimeType || '').includes('png') ? 'png' : 'jpg'
+  const fullPath = join(dir, `${id}.${ext}`)
+  const buf = Buffer.from(parsed.data, 'base64')
+  writeFileSync(fullPath, buf)
+  const filePath = galleryFilePath(email, id, ext)
+  const savedAt = Date.now()
+  getDb().prepare('INSERT INTO gallery (id, user_email, title, file_path, saved_at) VALUES (?, ?, ?, ?, ?)').run(id, email, title || '未命名', filePath, savedAt)
+}
+
+// 保存图片到仓库：dataUrl 转为文件，元数据写入 SQLite
+app.post('/api/gallery', requireAuth, (req, res) => {
+  try {
+    const { image: dataUrl, title } = req.body || {}
+    const parsed = parseDataUrl(dataUrl)
+    if (!parsed || !parsed.data) {
+      return res.status(400).json({ error: '请提供有效的图片数据' })
+    }
+    const email = req.user.email
+    const id = `g-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    saveImageToGallery(email, id, title || '未命名', dataUrl)
+    return res.json({ id })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '保存失败' })
+  }
+})
+
+// 拉取当前用户的仓库列表（从数据库读取）
+app.get('/api/gallery', requireAuth, (req, res) => {
+  try {
+    const email = req.user.email
+    const rows = getDb().prepare('SELECT id, title, saved_at AS savedAt FROM gallery WHERE user_email = ? ORDER BY saved_at DESC').all(email)
+    const list = rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      url: `/api/gallery/image/${row.id}`,
+      savedAt: row.savedAt,
+    }))
+    return res.json({ items: list })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取仓库失败' })
+  }
+})
+
+// 获取单张图片（需登录且只能看自己的，从数据库查 file_path 再读文件）
+app.get('/api/gallery/image/:id', requireAuth, (req, res) => {
+  try {
+    const { id } = req.params
+    const email = req.user.email
+    const row = getDb().prepare('SELECT file_path FROM gallery WHERE id = ? AND user_email = ?').get(id, email)
+    if (!row) return res.status(404).json({ error: '图片不存在' })
+    const fullPath = join(__dirname, row.file_path)
+    if (!existsSync(fullPath)) return res.status(404).json({ error: '文件不存在' })
+    const buf = readFileSync(fullPath)
+    const mime = fullPath.endsWith('.png') ? 'image/png' : 'image/jpeg'
+    res.setHeader('Content-Type', mime)
+    return res.send(buf)
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取图片失败' })
+  }
+})
+
+// 从仓库删除一张（删数据库记录 + 删文件）
+app.delete('/api/gallery/:id', requireAuth, (req, res) => {
+  try {
+    const { id } = req.params
+    const email = req.user.email
+    const row = getDb().prepare('SELECT file_path FROM gallery WHERE id = ? AND user_email = ?').get(id, email)
+    if (!row) return res.status(404).json({ error: '图片不存在' })
+    const fullPath = join(__dirname, row.file_path)
+    if (existsSync(fullPath)) unlinkSync(fullPath)
+    getDb().prepare('DELETE FROM gallery WHERE id = ? AND user_email = ?').run(id, email)
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '删除失败' })
   }
 })
 

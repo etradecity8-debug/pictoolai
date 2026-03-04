@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.progress-bar-indeterminate {
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
 :root {
   --color-primary: #6366f1;
   --color-primary-dark: #4f46e5;
