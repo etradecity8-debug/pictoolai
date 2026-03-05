@@ -15,6 +15,20 @@ export function AuthProvider({ children }) {
     setUser(userData)
   }, [])
 
+  const refreshUser = useCallback(() => {
+    const token = localStorage.getItem(TOKEN_KEY)
+    const saved = localStorage.getItem(USER_KEY)
+    if (!token || !saved) return Promise.resolve()
+    return fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        const prev = JSON.parse(saved)
+        setUser({ ...prev, ...data.user })
+        localStorage.setItem(USER_KEY, JSON.stringify({ ...prev, ...data.user }))
+      })
+      .catch(() => {})
+  }, [])
+
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
@@ -43,7 +57,7 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const value = { user, loading, login, logout, getToken }
+  const value = { user, loading, login, logout, getToken, refreshUser }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

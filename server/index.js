@@ -16,6 +16,17 @@ import jwt from 'jsonwebtoken'
 import { GoogleGenAI } from '@google/genai'
 import { ANALYSIS_MODEL_ID, ANALYSIS_MODEL_FALLBACK, getImageModelId, normalizeClarityForModel } from './gemini-models.js'
 import { getDb } from './db.js'
+import {
+  setGetDb,
+  getPointsPerImage,
+  getBalance,
+  addBalance,
+  addTransaction,
+  getTransactions,
+  deductPoints,
+} from './points.js'
+
+setGetDb(getDb)
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -64,7 +75,8 @@ app.post('/api/register', async (req, res) => {
     users.push(user)
     writeUsers(users)
     const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '7d' })
-    return res.json({ token, user: { email: user.email } })
+    const balance = getBalance(user.email)
+    return res.json({ token, user: { email: user.email, pointsBalance: balance } })
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '注册失败' })
@@ -84,7 +96,8 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: '邮箱或密码错误' })
     }
     const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '7d' })
-    return res.json({ token, user: { email: user.email } })
+    const balance = getBalance(user.email)
+    return res.json({ token, user: { email: user.email, pointsBalance: balance } })
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '登录失败' })
@@ -205,15 +218,15 @@ app.post('/api/detail-set/analyze', async (req, res) => {
    - 风格：专业家居产品摄影。
    - 真实感：超写实照片级，保留产品哑光/磨砂等材质质感。
 
-**图片规划**（imagePlan）：每条包含 title 和 contentMarkdown。contentMarkdown 必须按以下结构逐项书写（换行用\\\\n），便于生图时严格执行构图与文字区域，避免文字被裁切或模糊：
+**图片规划**（imagePlan）：每条包含 title 和 contentMarkdown。contentMarkdown 必须按以下结构逐项书写（换行用\\\\n），便于生图时严格执行构图与文字区域，避免文字被裁切或模糊。风格要对齐高端品牌详情图：分区清晰、留白充足、主标题单行、字体精致。
 
 - **设计目标**：一句话说明该图要达成的效果（如建立品牌第一印象、消除稳固性顾虑、传达环保价值观）。
 - **产品出现**：是 / 否。
 - **图中图元素**：无；或具体描述如 [放大镜特写, 圆形, 右下角, 20%大小, 展示某细节]、[材质图标, 树叶形, 左上角, 10%大小, 环保认证]。
-- **构图方案**（务必具体）：
-  - 产品占比：如 45%、50%、60%。
-  - 布局方式：如产品在画面右侧三分之一、左侧留白用于排版；或低角度仰拍、对角线构图等。
-  - 文字区域：明确位置，如画面左侧中部、画面顶部中央、右下角留白区；并强调所有文字必须完整落在画面内，留出上下左右安全边距，不得贴边或裁切。
+- **构图方案**（务必具体，便于生图直接执行）：
+  - 产品占比与位置：如产品占画面 45%，位于右侧 1/3 或居中；或左侧 1/3，右侧留白。
+  - 留白与分区：明确「产品区」与「文字区」分离；留白至少 25–35%，避免拥挤。例如：左侧 1/3 为标题区、右侧 2/3 为产品与背景；或上方 1/3 标题、下方 2/3 产品。
+  - 文字区域：主标题仅一行，位置明确（如画面左侧中部、或顶部中央），并注明「整句完整在画面内，四边留足安全边距，不贴边、不裁切」。
 - **内容要素**：展示重点、突出卖点（可带英文 slogan）、背景元素、装饰元素；如有备注（如保持磨砂质感、禁止抹除结构线）也写上。
 - **文字内容**（注明「使用 英语」或目标语言）：只写主标题的具体文案（完整短句，便于生图使用）；副标题、说明文字不写，留空，由用户需要时在规划中自行填写，以控制图中文字占比。
 - **氛围营造**：情绪关键词（如 时尚、宁静、高端、环保、坚固）；光影效果（如 柔和百叶窗投影、硬朗轮廓光、明亮自然阳光）。
@@ -423,22 +436,40 @@ app.post('/api/detail-set/generate', async (req, res) => {
       const item = imagePlan[i]
       const title = item?.title || `图${i + 1}`
       const aspectRule = `CRITICAL - Aspect ratio: The output image MUST have aspect ratio exactly ${aspectRatioVal}. For 1:1 this means a perfect square (width = height). For 3:4 or 4:3 etc. the image must match that ratio precisely. Do not produce a different aspect ratio.`
-      const textQualityRule = `CRITICAL - Typography in image must be beautiful and harmonious: Render the headline with refined, premium typography. Use an elegant modern sans-serif (e.g. geometric or humanist style—clean letterforms, balanced weight, not too thin or heavy). Ensure generous letter-spacing and a single clear line; the text should feel part of the composition and match the minimalist, high-end aesthetic of the scene. Strong contrast against the background (dark on light or light on dark), crisp and readable—no blurry, pixelated, or generic system-font look. Avoid cramped or cheap-looking type.`
-      const singleTitleRule = `CRITICAL - Only ONE line of text in the image: Render ONLY the main title (主标题). Do NOT add a subtitle, tagline, or any second line of text (e.g. no "Elegance in Simplicity" under "Pure Form, Elevated Living", no "Seamless Strength" under another headline). Exactly one headline phrase only. This is mandatory.`
-      const safeAreaRule = `CRITICAL - Text must NOT overflow or be cut off: The entire headline (every letter and word) must be fully visible inside the image. Do not place text so that the start or end is clipped at the left/right/top/bottom edge. Leave wide margins (at least 5–10% from each edge); the full phrase must sit well within the frame with padding on all sides. No partial words (e.g. "DURABILITY" must not appear as "URABILITY" or "DURABIL" at the edge). The whole layout must be inside the image boundaries.`
-      const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation.
+
+      const compositionRule = `CRITICAL - Composition and layout (high-end product ad style):
+- Use clear visual zoning: reserve one area for the product (e.g. right 1/3 or center) and a separate area for the headline (e.g. left or top), with generous negative space between them. Do not crowd product and text together.
+- Keep at least 25–35% of the frame as negative space (clean background, no clutter). This creates a premium, breathable look like high-end brand ads.
+- Apply rule-of-thirds or centered balance: place the product on a strong focal position; place the single headline in a dedicated zone with ample padding (at least 8–12% from frame edges). No elements touching the edges.
+- Avoid dense, busy layouts. Prefer minimal elements: product + one headline + subtle background. No extra slogans, subtitles, or decorative text.`
+
+      const textQualityRule = `CRITICAL - Typography in image (premium brand level):
+- Render the headline in a single line only. Use an elegant, modern sans-serif (geometric or humanist: clean letterforms, medium weight, not thin or heavy). Think Apple / premium magazine ad: refined, spacious, not system font.
+- Generous letter-spacing and word-spacing so the line breathes; the phrase must feel like one clear statement. Strong contrast (dark on light or light on dark), sharp and readable—no blurry or pixelated type.
+- Do NOT add a subtitle, tagline, or second line. Exactly one headline phrase. No cramped or cheap-looking type.`
+
+      const safeAreaRule = `CRITICAL - Text must be fully inside the frame: The entire headline (every letter and word) must be fully visible with wide margins (at least 8–12% from each edge). No clipping at left/right/top/bottom. No partial words at the edge. The full phrase sits well within the frame with padding on all sides.`
+
+      const placementRule = `CRITICAL - Physically realistic product placement (non-negotiable):
+- The product must be supported by a real, plausible surface: floor, ground, or furniture used as intended (e.g. a stool on the floor beside a sofa, a vase on a side table). No exceptions.
+- FORBIDDEN: (1) Product floating or suspended in mid-air. (2) Product placed on an inappropriate surface (e.g. stool/chair on top of a table, desk, counter, or shelf—seating belongs on the floor; small objects may sit on tables only when that is their normal use). (3) Product balanced impossibly, hanging, or in any unnatural or gravity-defying position.
+- The reference photo may show the product on a table or in a studio—use it only for the product’s appearance. In your image, place the product in a physically correct, realistic scene. When in doubt: put it on the floor or on a surface that matches how the product is actually used in real life.`
+
+      const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation. Aim for the visual quality of high-end brand product ads: clear composition, generous negative space, and premium typography.
+
+${placementRule}
 
 ${aspectRule}
 
-${textQualityRule}
+${compositionRule}
 
-${singleTitleRule}
+${textQualityRule}
 
 ${safeAreaRule}
 
 ${langRule}
 
-Product placement: Place the product naturally in the scene (e.g. on the floor, ground, or beside furniture). Do NOT place the product on a table, counter, desk, or shelf—even if the reference photo shows the product on a table. The reference is for product appearance only; in the generated image put the product on the floor, next to a sofa/chair, or in a realistic room setting where it is used as intended (e.g. a stool as seating or as a side surface), never on top of another table. This is mandatory.
+Product placement (reminder): The product must sit on a realistic supporting surface (floor, ground, or appropriate furniture). No floating, no impossible balance, no placing items on wrong surfaces (e.g. no stool on a table). Reference image is for product look only. Mandatory.
 
 Overall design spec:
 ${designSpecMarkdown || 'Simple, clear, product-focused.'}
@@ -448,9 +479,7 @@ ${item?.contentMarkdown || 'Highlight product, consistent style.'}
 
 You must render at most ONE line of text (the main title only). No subtitle, no second line, no tagline. If the plan mentions 副标题 or 说明文字 as 留空 or empty, do not invent or add any such text.
 
-Typography: The headline must look like premium brand advertising—elegant, harmonious with the image, not generic or ugly. Prefer refined sans-serif with good proportions and spacing.
-
-Generate the image that meets the above. Do not add any text that violates the language rule.`
+Typography: The headline must look like premium brand advertising—elegant, harmonious, refined sans-serif with good proportions and spacing. Generate the image that meets the above. Do not add any text that violates the language rule.`
       const contents = []
       if (parsedRef) {
         contents.push({ inlineData: { mimeType: parsedRef.mimeType, data: parsedRef.data } })
@@ -458,11 +487,12 @@ Generate the image that meets the above. Do not add any text that violates the l
       contents.push({ text: prompt })
 
       try {
-        // 官方 Python 使用 aspect_ratio / image_size（snake_case），与 REST 一致；SDK 可能需 snake_case 才生效
+        // 见 https://ai.google.dev/gemini-api/docs/image-generation#aspect_ratios_and_image_size
+        // Gemini 2.5 Flash Image 仅支持 aspectRatio；3.1 Flash / 3 Pro 支持 aspectRatio + imageSize
         const is25Image = modelId === 'gemini-2.5-flash-image'
         const imageConfig = is25Image
-          ? { aspect_ratio: aspectRatioVal }
-          : { aspect_ratio: aspectRatioVal, image_size: String(imageSize || '1K') }
+          ? { aspectRatio: aspectRatioVal }
+          : { aspectRatio: aspectRatioVal, imageSize: String(imageSize || '1K') }
         console.log('[后端 API] 生图中', i + 1, '/', count, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig))
         const response = await ai.models.generateContent({
           model: modelId,
@@ -504,23 +534,35 @@ Generate the image that meets the above. Do not add any text that violates the l
     if (successCount === 0) {
       return res.status(500).json({ error: images[0]?.error || '全部生图失败，请稍后重试' })
     }
-    // 若请求带登录 token，将本批生成图自动写入该用户的仓库（默认自动保存到数据库）
     const auth = req.headers.authorization
     const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+    const pointsPerImage = getPointsPerImage(model || 'Nano Banana 2', resolvedClarity || '1K 标准')
+    const totalPoints = pointsPerImage * successCount
     if (token) {
       try {
         const payload = jwt.verify(token, JWT_SECRET)
         const email = payload.email
+        if (totalPoints > 0) {
+          const balance = getBalance(email)
+          if (balance < totalPoints) {
+            return res.status(402).json({
+              error: '积分不足',
+              required: totalPoints,
+              balance,
+            })
+          }
+          deductPoints(email, totalPoints, `全品类组图 - ${successCount} 张 (${model || 'Nano Banana 2'}, ${resolvedClarity || '1K 标准'})`)
+        }
         const toReturn = images.filter((img) => img.url)
         toReturn.forEach((img) => {
           try {
-            saveImageToGallery(email, img.id, img.title, img.url)
+            saveImageToGallery(email, img.id, img.title, img.url, pointsPerImage, model || null, resolvedClarity || null)
           } catch (e) {
             console.error('[后端 API] 自动保存到仓库失败', img.id, e.message)
           }
         })
-      } catch (_) {
-        // token 无效或过期，不自动保存，不影响生图结果
+      } catch (err) {
+        if (err.message === '积分不足') throw err
       }
     }
     return res.json({ images: images.map(({ id, title, url }) => ({ id, title, url: url || '' })).filter((img) => img.url) })
@@ -530,16 +572,54 @@ Generate the image that meets the above. Do not add any text that violates the l
   }
 })
 
-// 获取当前用户（校验 token）
+// 获取当前用户（校验 token）+ 积分余额
 app.get('/api/me', (req, res) => {
   const auth = req.headers.authorization
   const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
   if (!token) return res.status(401).json({ error: '未登录' })
   try {
     const payload = jwt.verify(token, JWT_SECRET)
-    return res.json({ user: { email: payload.email } })
+    const balance = getBalance(payload.email)
+    return res.json({ user: { email: payload.email, pointsBalance: balance } })
   } catch {
     return res.status(401).json({ error: '登录已过期' })
+  }
+})
+
+// 积分：余额
+app.get('/api/points/balance', requireAuth, (req, res) => {
+  try {
+    const balance = getBalance(req.user.email)
+    return res.json({ balance })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取积分失败' })
+  }
+})
+
+// 积分：充值（测试用，登录后可给自己充值）
+app.post('/api/points/credit', requireAuth, (req, res) => {
+  try {
+    const amount = Math.max(0, parseInt(req.body?.amount, 10) || 0)
+    if (amount <= 0) return res.status(400).json({ error: '请填写有效充值数量' })
+    addBalance(req.user.email, amount)
+    addTransaction(req.user.email, amount, '充值')
+    const balance = getBalance(req.user.email)
+    return res.json({ balance })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '充值失败' })
+  }
+})
+
+// 积分：扣取明细
+app.get('/api/points/transactions', requireAuth, (req, res) => {
+  try {
+    const list = getTransactions(req.user.email)
+    return res.json({ items: list })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取明细失败' })
   }
 })
 
@@ -571,8 +651,8 @@ function galleryFilePath(email, id, ext) {
   return join('gallery', hash, `${id}.${ext}`)
 }
 
-/** 将一张图片写入仓库（文件 + 数据库），id 可由调用方传入（如生图返回的 id）或自动生成 */
-function saveImageToGallery(email, id, title, dataUrl) {
+/** 将一张图片写入仓库（文件 + 数据库），pointsUsed/model/clarity 可选，生图扣积分时传入 */
+function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model = null, clarity = null) {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed || !parsed.data) return
   const dir = userGalleryDir(email)
@@ -583,7 +663,7 @@ function saveImageToGallery(email, id, title, dataUrl) {
   writeFileSync(fullPath, buf)
   const filePath = galleryFilePath(email, id, ext)
   const savedAt = Date.now()
-  getDb().prepare('INSERT INTO gallery (id, user_email, title, file_path, saved_at) VALUES (?, ?, ?, ?, ?)').run(id, email, title || '未命名', filePath, savedAt)
+  getDb().prepare('INSERT INTO gallery (id, user_email, title, file_path, saved_at, points_used, model, clarity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, email, title || '未命名', filePath, savedAt, pointsUsed != null ? pointsUsed : null, model || null, clarity || null)
 }
 
 // 保存图片到仓库：dataUrl 转为文件，元数据写入 SQLite
@@ -608,12 +688,15 @@ app.post('/api/gallery', requireAuth, (req, res) => {
 app.get('/api/gallery', requireAuth, (req, res) => {
   try {
     const email = req.user.email
-    const rows = getDb().prepare('SELECT id, title, saved_at AS savedAt FROM gallery WHERE user_email = ? ORDER BY saved_at DESC').all(email)
+    const rows = getDb().prepare('SELECT id, title, saved_at AS savedAt, points_used AS pointsUsed, model, clarity FROM gallery WHERE user_email = ? ORDER BY saved_at DESC').all(email)
     const list = rows.map((row) => ({
       id: row.id,
       title: row.title,
       url: `/api/gallery/image/${row.id}`,
       savedAt: row.savedAt,
+      pointsUsed: row.pointsUsed != null ? row.pointsUsed : undefined,
+      model: row.model != null && String(row.model).trim() ? String(row.model).trim() : undefined,
+      clarity: row.clarity != null && String(row.clarity).trim() ? String(row.clarity).trim() : undefined,
     }))
     return res.json({ items: list })
   } catch (e) {

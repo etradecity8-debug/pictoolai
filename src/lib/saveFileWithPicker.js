@@ -34,34 +34,21 @@ export async function saveBlobWithPicker(blob, suggestedName) {
 }
 
 /**
- * 多文件：弹出「选择文件夹」让用户选择保存目录，将所有文件写入该目录
+ * 多文件：弹出「选择文件夹」让用户选目录，将所有文件写入该目录。
+ * 用户取消或浏览器拒绝（如「含有系统文件」）时抛出，由调用方提示；不做自动下载等后备。
  * @param {{ blob: Blob, name: string }[]} files
  * @returns {Promise<void>}
  */
 export async function saveBlobsToFolder(files) {
-  if (typeof window !== 'undefined' && window.showDirectoryPicker && files.length > 0) {
-    try {
-      const dirHandle = await window.showDirectoryPicker()
-      for (const { blob, name } of files) {
-        const safeName = (name || 'image').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
-        const fileHandle = await dirHandle.getFileHandle(safeName, { create: true })
-        const w = await fileHandle.createWritable()
-        await w.write(blob)
-        await w.close()
-      }
-      return
-    } catch (e) {
-      if (e.name === 'AbortError') return
-    }
+  if (typeof window === 'undefined' || !window.showDirectoryPicker || files.length === 0) {
+    throw new Error('当前环境不支持选择文件夹保存，请逐张点击「下载」')
   }
-  for (let i = 0; i < files.length; i++) {
-    const { blob, name } = files[i]
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = (name || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
-    a.click()
-    URL.revokeObjectURL(url)
-    if (i < files.length - 1) await new Promise((r) => setTimeout(r, 300))
+  const dirHandle = await window.showDirectoryPicker()
+  for (const { blob, name } of files) {
+    const safeName = (name || 'image').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
+    const fileHandle = await dirHandle.getFileHandle(safeName, { create: true })
+    const w = await fileHandle.createWritable()
+    await w.write(blob)
+    await w.close()
   }
 }

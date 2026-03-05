@@ -24,4 +24,5 @@ alwaysApply: true
 
 ## 待办 / 已知问题（不丢失记忆）
 
-- 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；侧栏仅「仓库」、支持多选与**批量保存到本地、批量删除**；生图 prompt 已强化文字不裁切（safeAreaRule）。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。更多记录见 **`docs/KNOWN_ISSUES.md`**。
+- 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `picaitool.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；侧栏仅「仓库」、支持多选与**批量保存到本地、批量删除**；生图 prompt 已强化文字不裁切（safeAreaRule）。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。
+- **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），用户对该块体验不满意，**待后续再改**；约束见 `docs/KNOWN_ISSUES.md`（多张不能改为每张弹另存为，否则 1 万张要点 1 万次）。更多记录见 **`docs/KNOWN_ISSUES.md`**。

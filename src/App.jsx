@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
+import GuestOnlyRoute from './components/GuestOnlyRoute'
 import Header from './components/layout/Header'
 import Footer from './components/layout/Footer'
 import Home from './pages/Home'
@@ -13,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Dashboard from './pages/dashboard/Dashboard'
 import Gallery from './pages/dashboard/Gallery'
+import Points from './pages/dashboard/Points'
 import DetailSet from './pages/DetailSet'
 import StyleClone from './pages/StyleClone'
 import ApparelSet from './pages/ApparelSet'
@@ -31,11 +33,11 @@ function MarketingLayout({ children }) {
 export default function App() {
   return (
     <Routes>
-      {/* 未登录只能看主页和登录/注册/找回密码 */}
+      {/* 未登录只能看主页和登录/注册/找回密码；已登录访问这些页会重定向到工作台 */}
       <Route path="/" element={<MarketingLayout><Home /></MarketingLayout>} />
-      <Route path="/login" element={<MarketingLayout><Login /></MarketingLayout>} />
-      <Route path="/register" element={<MarketingLayout><Register /></MarketingLayout>} />
-      <Route path="/forgot-password" element={<MarketingLayout><ForgotPassword /></MarketingLayout>} />
+      <Route path="/login" element={<GuestOnlyRoute><MarketingLayout><Login /></MarketingLayout></GuestOnlyRoute>} />
+      <Route path="/register" element={<GuestOnlyRoute><MarketingLayout><Register /></MarketingLayout></GuestOnlyRoute>} />
+      <Route path="/forgot-password" element={<GuestOnlyRoute><MarketingLayout><ForgotPassword /></MarketingLayout></GuestOnlyRoute>} />
       {/* 定价、关于、联系未登录也可查看 */}
       <Route path="/pricing" element={<MarketingLayout><Pricing /></MarketingLayout>} />
       <Route path="/about" element={<MarketingLayout><About /></MarketingLayout>} />
@@ -49,6 +51,7 @@ export default function App() {
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard/gallery" replace />} />
         <Route path="gallery" element={<Gallery />} />
+        <Route path="points" element={<Points />} />
         <Route path="settings" element={<Navigate to="/dashboard" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

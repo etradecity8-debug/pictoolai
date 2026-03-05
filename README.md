@@ -61,9 +61,9 @@ nano banana for business/
 
 ## 本地运行
 
-需要两个终端：前端 + 后端。
+需要**两个终端**：一个跑前端，一个跑后端；**后端必须在 `server` 目录下运行**，在项目根目录执行 `npm start` 会再起一个前端（端口会变成 5174 等）。
 
-### 前端（项目根目录）
+### 终端一：前端（项目根目录）
 
 ```bash
 cd "/Users/lina/cursor/nano banana for business"
@@ -71,9 +71,9 @@ npm install
 npm run dev
 ```
 
-浏览器访问 **http://localhost:5173**。
+浏览器访问 **图片惊喜**。
 
-### 后端（server 目录）
+### 终端二：后端（务必先 cd 到 server 目录）
 
 ```bash
 cd "/Users/lina/cursor/nano banana for business/server"
@@ -133,7 +133,7 @@ npm start
 
 ## 已知问题（后续再改）
 
-详见 **`docs/KNOWN_ISSUES.md`**。
+详见 **`docs/KNOWN_ISSUES.md`**。当前含：**仓库保存/下载体验**（单张「下载」正常；多张「保存选中到本地」用选择文件夹，部分目录会被浏览器以「含有系统文件」拒绝）待后续改进。
 
 ---
 

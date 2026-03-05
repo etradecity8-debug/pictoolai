@@ -3,9 +3,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
+import { getPointsPerImage } from '../lib/pointsConfig'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
+import ImageLightbox from '../components/ImageLightbox'
 
 const STEPS = [
   { id: 1, label: '输入' },
@@ -146,7 +148,7 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
 
 export default function DetailSet() {
   const navigate = useNavigate()
-  const { user, getToken } = useAuth()
+  const { user, getToken, refreshUser } = useAuth()
   const [step, setStep] = useState(1)
   const [savingToGallery, setSavingToGallery] = useState(null)
   const [productImages, setProductImages] = useState([])
@@ -169,6 +171,7 @@ export default function DetailSet() {
   const [editingPlanIndex, setEditingPlanIndex] = useState(null)
   /** 自定义确认弹窗（不显示 localhost，字体可调大） */
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null })
+  const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
 
   /** 分析首次返回的原始内容（只在 runAnalyze 成功时写入，用户编辑不会覆盖），重置时恢复到此状态 */
   const originalDesignSpecRef = useRef('')
@@ -279,9 +282,15 @@ export default function DetailSet() {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '生成失败')
+      if (!res.ok) {
+        if (res.status === 402 && data.balance != null) {
+          throw new Error(`积分不足：需要 ${data.required} 积分，当前剩余 ${data.balance}`)
+        }
+        throw new Error(data.error || '生成失败')
+      }
       setGeneratedImages(Array.isArray(data.images) ? data.images : [])
       setStep(5)
+      if (getToken()) refreshUser()
     } catch (err) {
       setGenerateError(err.message || '生成失败，请稍后重试')
       setStep(3)
@@ -523,7 +532,9 @@ export default function DetailSet() {
                   </svg>
                   {step === 5 ? `再次生成 ${planCount} 张图片` : `→ 确认生成 ${planCount} 张图片`}
                 </button>
-                <p className="mt-1 text-center text-xs text-gray-500">消耗 {planCount * 3} 积分</p>
+                <p className="mt-1 text-center text-xs text-gray-500">
+                  预计扣除 {planCount * getPointsPerImage(model, clarity)} 积分（{planCount} 张 × {getPointsPerImage(model, clarity)} 积分/张）
+                </p>
                 {step === 5 && (
                   <>
                     <button
@@ -653,11 +664,17 @@ export default function DetailSet() {
                 <div className="mt-4 grid max-w-4xl grid-cols-2 gap-6">
                   {generatedImages.map((img) => (
                     <div key={img.id} className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
-                      <img
-                        src={img.url}
-                        alt={img.title}
-                        className={`w-full object-cover ${aspectRatioToCssClass(aspectRatio)}`}
-                      />
+                      <button
+                        type="button"
+                        className={`block w-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset ${aspectRatioToCssClass(aspectRatio)}`}
+                        onClick={() => img.url && setLightbox({ open: true, src: img.url, alt: img.title })}
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
                       <p className="p-3 text-sm font-medium text-gray-700 truncate">{img.title}</p>
                       {img.url && (
                         <div className="flex flex-wrap gap-2 px-3 pb-3">
@@ -939,6 +956,13 @@ export default function DetailSet() {
           </div>
         </div>
       )}
+
+      <ImageLightbox
+        open={lightbox.open}
+        src={lightbox.src}
+        alt={lightbox.alt}
+        onClose={() => setLightbox((p) => ({ ...p, open: false }))}
+      />
     </div>
   )
 }

@@ -1,30 +1,28 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import Header from './Header'
 import { useAuth } from '../../context/AuthContext'
 
 const sidebarLinks = [
   { to: '/dashboard/gallery', label: '仓库' },
+  { to: '/dashboard/points', label: '积分明细' },
 ]
 
 export default function DashboardLayout() {
   const location = useLocation()
   const { user } = useAuth()
-  const initial = user?.email ? user.email[0].toUpperCase() : '?'
+  const balance = user?.pointsBalance ?? null
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 h-14 flex items-center px-4">
-        <Link to="/" className="text-lg font-semibold text-gray-900">
-          <span className="text-primary">PicAITool</span>
-        </Link>
-        <div className="ml-auto flex items-center gap-4">
-          <span className="text-sm text-gray-500 truncate max-w-[120px]">{user?.email}</span>
-          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-medium text-primary shrink-0">
-            {initial}
-          </div>
-        </div>
-      </header>
+      <Header />
       <div className="flex">
         <aside className="w-56 bg-white border-r border-gray-200 min-h-[calc(100vh-3.5rem)] py-4 px-3">
+          {balance != null && (
+            <div className="mb-4 px-3 py-2 rounded-lg bg-gray-50 text-sm">
+              <p className="text-gray-500">剩余积分</p>
+              <p className="font-semibold text-gray-900">{balance}</p>
+            </div>
+          )}
           <nav className="space-y-1">
             {sidebarLinks.map(({ to, label }) => (
               <Link

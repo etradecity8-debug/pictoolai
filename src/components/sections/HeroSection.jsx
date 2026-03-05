@@ -8,14 +8,14 @@ export default function HeroSection() {
           专业 AI 电商设计
         </h1>
         <p className="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-          一键全品类组图/风格复刻/服装组图/图片精修，让您的商品更有竞争力。
+          使用业绩最强 Nano Banana 香蕉🍌 模型，一键生成产品图片/风格复刻/服装组图/图片精修，让您的商品更有竞争力。
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
           <Link
             to="/register"
             className="rounded-lg bg-primary px-6 py-3 text-base font-medium text-white hover:bg-primary-dark transition"
           >
-            免费开始
+            开始
           </Link>
           <Link
             to="/product"

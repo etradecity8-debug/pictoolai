@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { saveBlobWithPicker, saveBlobsToFolder } from '../../lib/saveFileWithPicker'
+import ImageLightbox from '../../components/ImageLightbox'
 
 /** 按 savedAt 时间戳得到日期键 YYYY-MM-DD */
 function dateKey(ts) {
@@ -42,6 +43,7 @@ export default function Gallery() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedIds, setSelectedIds] = useState(new Set())
+  const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
   const blobUrlsRef = useRef({})
 
   const fetchList = useCallback(() => {
@@ -176,7 +178,7 @@ export default function Gallery() {
     if (deleted.length < ids.length) setError('部分删除失败，请重试')
   }, [selectedIds, getToken, blobUrls])
 
-  /** 批量保存选中图片到本地：优先弹出「选择文件夹」让用户选路径，否则逐个下载 */
+  /** 批量保存：弹出「选择文件夹」，将选中图片写入客户所选目录 */
   const batchDownload = useCallback(async () => {
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
@@ -201,7 +203,13 @@ export default function Gallery() {
     )
     const valid = blobs.filter(Boolean)
     if (valid.length === 0) return
-    await saveBlobsToFolder(valid)
+    setError('')
+    try {
+      await saveBlobsToFolder(valid)
+    } catch (e) {
+      if (e.name === 'AbortError') return
+      setError(e.message || '保存失败。如遇「含有系统文件」提示，请另选一个文件夹（例如在文稿内新建空文件夹）')
+    }
   }, [selectedIds, items, blobUrls])
 
   if (loading) {
@@ -237,7 +245,7 @@ export default function Gallery() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">仓库</h1>
-      <p className="mt-2 text-gray-500">您保存的图片保存在服务器，按日期分组；可多选后批量保存到本地</p>
+      <p className="mt-2 text-gray-500">您保存的图片保存在服务器，按日期分组；可多选后批量保存到客户所选文件夹</p>
 
       {items.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-gray-300 bg-gray-50/50 py-16 text-center">
@@ -300,11 +308,17 @@ export default function Gallery() {
                           />
                         </label>
                         {blobUrls[item.id] ? (
-                          <img
-                            src={blobUrls[item.id]}
-                            alt={item.title}
-                            className="w-full aspect-square object-cover"
-                          />
+                          <button
+                            type="button"
+                            className="block w-full aspect-square overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset flex items-center justify-center"
+                            onClick={() => setLightbox({ open: true, src: blobUrls[item.id], alt: item.title })}
+                          >
+                            <img
+                              src={blobUrls[item.id]}
+                              alt={item.title}
+                              className="w-full h-full object-contain"
+                            />
+                          </button>
                         ) : (
                           <div className="w-full aspect-square bg-gray-200 flex items-center justify-center text-gray-400 text-sm">
                             加载中…
@@ -314,6 +328,11 @@ export default function Gallery() {
                       <div className="p-3 flex-1 flex flex-col gap-2">
                         <p className="text-sm font-medium text-gray-700 truncate" title={item.title}>
                           {item.title}
+                        </p>
+                        <p className="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-0.5">
+                          <span>模型：{item.model || '—'}</span>
+                          <span>清晰度：{item.clarity || '—'}</span>
+                          {item.pointsUsed != null && <span>{item.pointsUsed} 积分</span>}
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {blobUrls[item.id] && (
@@ -349,6 +368,12 @@ export default function Gallery() {
           </div>
         </>
       )}
+      <ImageLightbox
+        open={lightbox.open}
+        src={lightbox.src}
+        alt={lightbox.alt}
+        onClose={() => setLightbox((p) => ({ ...p, open: false }))}
+      />
     </div>
   )
 }
