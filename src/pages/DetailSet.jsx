@@ -379,9 +379,32 @@ export default function DetailSet() {
         <div className="mt-8 grid lg:grid-cols-[400px_1fr] gap-6">
           {/* 左侧：输入与设置 */}
           <div className="space-y-6">
+
+            {/* 步骤 >= 3 时：已固化字段的提示条 */}
+            {step >= 3 && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0 0v2m0-2h2m-2 0H10m2-9V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2h8a2 2 0 002-2v-1" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9V5m0 0a2 2 0 10-4 0m4 0a2 2 0 114 0" />
+                </svg>
+                <div>
+                  <p className="text-xs font-medium text-amber-700">产品信息已用于分析，已锁定</p>
+                  <p className="mt-0.5 text-xs text-amber-600">如需修改产品图、组图要求或数量，请点「返回上一步」重新分析。</p>
+                </div>
+              </div>
+            )}
+
             {/* 产品图上传 */}
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">产品图</h2>
+            <div className={step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-gray-900">产品图</h2>
+                {step >= 3 && (
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                    <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    已锁定
+                  </span>
+                )}
+              </div>
               <p className="mt-0.5 text-xs text-gray-500">上传清晰的产品图片</p>
               <div className="mt-3 rounded-xl border-2 border-dashed border-gray-300 bg-white p-6 text-center">
                 <input
@@ -391,8 +414,9 @@ export default function DetailSet() {
                   className="hidden"
                   id="detail-set-upload"
                   onChange={handleFileChange}
+                  disabled={step >= 3}
                 />
-                <label htmlFor="detail-set-upload" className="cursor-pointer">
+                <label htmlFor="detail-set-upload" className={step >= 3 ? 'cursor-default' : 'cursor-pointer'}>
                   <svg
                     className="mx-auto h-10 w-10 text-gray-400"
                     fill="none"
@@ -413,14 +437,16 @@ export default function DetailSet() {
                     {productImages.map((item, i) => (
                       <div key={i} className="relative">
                         <img src={item.dataUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
-                        <button
-                          type="button"
-                          className="absolute -right-1 -top-1 rounded-full bg-gray-800 p-0.5 text-white hover:bg-gray-700"
-                          aria-label="删除"
-                          onClick={() => removeImage(i)}
-                        >
-                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                        {step < 3 && (
+                          <button
+                            type="button"
+                            className="absolute -right-1 -top-1 rounded-full bg-gray-800 p-0.5 text-white hover:bg-gray-700"
+                            aria-label="删除"
+                            onClick={() => removeImage(i)}
+                          >
+                            <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -429,8 +455,16 @@ export default function DetailSet() {
             </div>
 
             {/* 组图要求 */}
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">组图要求</h2>
+            <div className={step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-sm font-semibold text-gray-900">组图要求</h2>
+                {step >= 3 && (
+                  <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                    <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    已锁定
+                  </span>
+                )}
+              </div>
               <p className="mt-0.5 text-xs text-gray-500">填写产品信息，越详细 AI 生成效果越好</p>
               <div className="mt-3 space-y-3">
                 <div>
@@ -439,6 +473,7 @@ export default function DetailSet() {
                   </label>
                   <input
                     type="text"
+                    readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：日式抹茶沐浴露"
                     value={productName}
@@ -452,6 +487,7 @@ export default function DetailSet() {
                   <label className="block text-xs font-medium text-gray-700">卖点</label>
                   <input
                     type="text"
+                    readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：天然成分、舒缓放松、无刺激"
                     value={sellingPoints}
@@ -465,6 +501,7 @@ export default function DetailSet() {
                   <label className="block text-xs font-medium text-gray-700">目标人群</label>
                   <input
                     type="text"
+                    readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：25-40 岁女性、注重生活品质"
                     value={targetAudience}
@@ -478,6 +515,7 @@ export default function DetailSet() {
                   <label className="block text-xs font-medium text-gray-700">风格</label>
                   <input
                     type="text"
+                    readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：日式极简、清新自然、高端质感"
                     value={styleDesc}
@@ -490,6 +528,7 @@ export default function DetailSet() {
                 <div>
                   <label className="block text-xs font-medium text-gray-700">其他要求</label>
                   <textarea
+                    readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     rows={3}
                     placeholder="其他补充说明，如特殊场景、禁忌元素等"
@@ -553,10 +592,19 @@ export default function DetailSet() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700">生成数量</label>
+              <div className={step >= 3 ? 'opacity-50' : ''}>
+                <div className="flex items-center gap-1.5">
+                  <label className="block text-xs font-medium text-gray-700">生成数量</label>
+                  {step >= 3 && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+                      <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      已锁定
+                    </span>
+                  )}
+                </div>
                 <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  disabled={step >= 3}
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
                   value={quantity}
                   onChange={(e) => {
                     setQuantity(e.target.value)

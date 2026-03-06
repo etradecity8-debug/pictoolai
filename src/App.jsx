@@ -19,6 +19,7 @@ import DetailSet from './pages/DetailSet'
 import StyleClone from './pages/StyleClone'
 import ApparelSet from './pages/ApparelSet'
 import ImageRetouch from './pages/ImageRetouch'
+import ImageEdit from './pages/ImageEdit'
 
 function MarketingLayout({ children }) {
   return (
@@ -48,6 +49,7 @@ export default function App() {
       <Route path="/style-clone" element={<ProtectedRoute><MarketingLayout><StyleClone /></MarketingLayout></ProtectedRoute>} />
       <Route path="/apparel-set" element={<ProtectedRoute><MarketingLayout><ApparelSet /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-retouch" element={<ProtectedRoute><MarketingLayout><ImageRetouch /></MarketingLayout></ProtectedRoute>} />
+      <Route path="/image-edit" element={<ProtectedRoute><MarketingLayout><ImageEdit /></MarketingLayout></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard/gallery" replace />} />
         <Route path="gallery" element={<Gallery />} />

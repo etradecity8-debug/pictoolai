@@ -26,12 +26,14 @@ nano banana for business/
 │   ├── lib/clarityByModel.js    # 模型与清晰度联动（Nano 仅 1K）
 │   ├── lib/aspectByModel.js     # 模型与尺寸比例联动
 │   ├── pages/
-│   │   ├── DetailSet.jsx        # 全品类组图：上传→分析→确认规划→生成→完成（含 SpecPreview）
+│   │   ├── DetailSet.jsx        # 全品类组图：上传→分析→确认规划→生成→完成
+│   │   ├── ImageEdit.jsx        # 修改图片：7种 Gemini 图片编辑模式
 │   │   ├── StyleClone.jsx       # 风格复刻
 │   │   ├── ApparelSet.jsx       # 服装组图
-│   │   ├── ImageRetouch.jsx     # 图片精修
 │   │   ├── Login.jsx / 注册、ForgotPassword、Dashboard 等
-│   └── components/             # Header、Footer、各 section
+│   └── components/             # Header（导航重构）、Footer、各 section
+├── public/
+│   └── demo-*.png              # 修改图片各模式 before/after 演示图（14 张）
 ├── server/
 │   ├── index.js                # Express：注册/登录、分析、生图、仓库 API
 │   ├── db.js                   # SQLite 初始化与 gallery 表
@@ -139,8 +141,29 @@ npm start
 
 ---
 
+## 修改图片（/image-edit）
+
+基于 Gemini 图片编辑能力，支持 7 种模式：
+
+| 模式 | 说明 | 输入→输出 |
+|------|------|-----------|
+| 添加 / 移除元素 | 在图片中自然地添加或移除指定元素 | 1 → 1 |
+| 局部重绘（语义遮盖） | 修改特定区域，其余保持完全不变 | 1 → 1 |
+| 风格迁移 | 将照片转换为指定艺术风格 | 1 → 1 |
+| 高级合成：多图组合 | 将多张图（最多 5 张）中的元素合成新图 | 2–5 → 1 |
+| 高保真细节保留 | 将细节/标志融合到主体图中，主体特征不变 | 2 → 1 |
+| 让草图变生动 | 草图/线稿渲染为真实感成品图 | 1 → 1 |
+| 角色一致性：360° 全景 | 基于参考图生成多角度一致性视图 | 1 → 多 |
+
+- 后端接口 `POST /api/image-edit`，支持 Nano Banana / 2 / Pro，含重试逻辑（Pro/Nano2 最多 3 次）。
+- 每种模式顶部展示真实 before → after 可视化示例，`ModeDemo` 组件自动适配「单→单」「多→单」「单→多」三种布局。
+- 演示图存于 `public/demo-*.png`（14 张）。
+
+---
+
 ## 后续可做
 
 - 首页/营销页细节与间距微调
 - 仓库筛选、导出（已支持按日期分组与批量保存/删除）
 - 分析/生图 429 或额度用尽时的友好提示与重试策略
+- 修改图片结果支持自动保存到仓库

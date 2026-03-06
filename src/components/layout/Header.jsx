@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 
-const iconClass = 'w-5 h-5 shrink-0 text-gray-500'
+const iconClass = 'w-4 h-4 shrink-0'
 
-const navLinks = [
+// 工具类导航（居中显示）
+const toolLinks = [
   {
     to: '/',
     label: '万能画布',
@@ -16,7 +17,7 @@ const navLinks = [
   },
   {
     to: '/detail-set',
-    label: '一键生成产品图',
+    label: '产品组图',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
@@ -44,21 +45,11 @@ const navLinks = [
     ),
   },
   {
-    to: '/image-retouch',
-    label: '图片精修',
+    to: '/image-edit',
+    label: '修改图片',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12l9.879-9.879" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v2m0 14v2M3 12h2m14 0h2M5.636 5.636l1.414 1.414m9.9 9.9l1.414 1.414M5.636 18.364l1.414-1.414m9.9-9.9l1.414-1.414" />
-      </svg>
-    ),
-  },
-  {
-    to: '/pricing',
-    label: '订阅计划',
-    icon: (
-      <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2h-2m-4-1v8" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
       </svg>
     ),
   },
@@ -72,29 +63,29 @@ export default function Header() {
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/'
-    if (to === '/pricing') return location.pathname === '/pricing'
-    if (to === '/detail-set') return location.pathname === '/detail-set'
-    if (to === '/style-clone') return location.pathname === '/style-clone'
-    if (to === '/apparel-set') return location.pathname === '/apparel-set'
-    if (to === '/image-retouch') return location.pathname === '/image-retouch'
-    return location.pathname === '/' && location.hash?.includes(to.slice(2))
+    return location.pathname === to
   }
 
   return (
     <header className="sticky top-0 z-50 bg-[#f5f5f5]/95 backdrop-blur border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          <Link to="/" className="flex items-center text-lg font-semibold text-gray-900 shrink-0">
-            <span className="tracking-tight">PicAITool</span>
+        <div className="flex items-center h-14 gap-4">
+
+          {/* Logo */}
+          <Link to="/" className="flex items-center text-base font-bold text-gray-900 shrink-0 tracking-tight mr-2">
+            PicAITool
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
-            {navLinks.map(({ to, label, icon }) => (
+          {/* 工具导航（居中，flex-1） */}
+          <nav className="hidden lg:flex items-center gap-0.5 flex-1">
+            {toolLinks.map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                  isActive(to) ? 'text-gray-900 bg-white/80' : 'text-gray-600 hover:text-gray-900 hover:bg-white/60'
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                  isActive(to)
+                    ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
                 }`}
               >
                 {icon}
@@ -103,40 +94,44 @@ export default function Header() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4 shrink-0">
-            <button
-              type="button"
-              className="hidden sm:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
-              aria-label="语言"
+          {/* 右侧：订阅 + 语言 + 用户 */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
+            {/* 订阅计划 */}
+            <Link
+              to="/pricing"
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                location.pathname === '/pricing'
+                  ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
+              }`}
             >
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3a9 9 0 100 18 9 9 0 000-18zM3.75 12h16.5M12 3c2.5 2 4 5.5 4 9s-1.5 7-4 9c-2.5-2-4-5.5-4-9s1.5-7 4-9z"
-                />
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2h-2m-4-1v8" />
               </svg>
-              <span>ZH</span>
-            </button>
+              <span>订阅</span>
+            </Link>
+
+            {/* 竖线分隔 */}
+            <div className="hidden lg:block w-px h-5 bg-gray-300 mx-1" />
+
             {user ? (
               <>
                 <Link
                   to="/dashboard"
-                  className="hidden sm:inline text-sm text-gray-600 hover:text-gray-900"
+                  className="hidden sm:inline text-xs text-gray-500 hover:text-gray-900 max-w-[120px] truncate"
                 >
                   {user.email}
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                  className="rounded-lg bg-white border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
                 >
                   工作台
                 </Link>
                 <button
                   type="button"
-                  onClick={() => { logout(); navigate('/'); }}
-                  className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  onClick={() => { logout(); navigate('/') }}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition"
                 >
                   退出
                 </button>
@@ -145,25 +140,27 @@ export default function Header() {
               <>
                 <Link
                   to="/login"
-                  className="rounded-lg bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                  className="rounded-lg bg-white border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition shadow-sm"
                 >
                   登录
                 </Link>
                 <Link
                   to="/register"
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark transition"
+                  className="rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 transition"
                 >
                   免费注册
                 </Link>
               </>
             )}
+
+            {/* 汉堡菜单（移动端） */}
             <button
               type="button"
               className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-white/60"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="菜单"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {menuOpen ? (
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 ) : (
@@ -174,42 +171,42 @@ export default function Header() {
           </div>
         </div>
 
+        {/* 移动端展开菜单 */}
         {menuOpen && (
-          <nav className="lg:hidden py-4 border-t border-gray-200 space-y-1">
-            {navLinks.map(({ to, label, icon }) => (
+          <nav className="lg:hidden py-3 border-t border-gray-200 space-y-0.5">
+            {toolLinks.map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-white/60 hover:text-gray-900"
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
+                  isActive(to) ? 'text-gray-900 bg-white font-medium' : 'text-gray-600 hover:bg-white/60 hover:text-gray-900'
+                }`}
                 onClick={() => setMenuOpen(false)}
               >
                 {icon}
                 <span>{label}</span>
               </Link>
             ))}
-            <div className="flex items-center gap-2 px-3 py-2.5 text-gray-500">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 3a9 9 0 100 18 9 9 0 000-18zM3.75 12h16.5M12 3c2.5 2 4 5.5 4 9s-1.5 7-4 9c-2.5-2-4-5.5-4-9s1.5-7 4-9z"
-                />
+            <Link
+              to="/pricing"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-white/60 hover:text-gray-900"
+              onClick={() => setMenuOpen(false)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2h-2m-4-1v8" />
               </svg>
-              <span>ZH</span>
-            </div>
+              <span>订阅计划</span>
+            </Link>
+            <div className="border-t border-gray-100 my-1" />
             {user ? (
               <>
-                <Link to="/dashboard" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>
-                  {user.email}
-                </Link>
-                <Link to="/dashboard" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>工作台</Link>
-                <button type="button" className="w-full text-left px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => { setMenuOpen(false); logout(); navigate('/'); }}>退出</button>
+                <Link to="/dashboard" className="flex px-3 py-2.5 text-sm text-gray-600 hover:bg-white/60 rounded-lg" onClick={() => setMenuOpen(false)}>工作台</Link>
+                <button type="button" className="w-full text-left flex px-3 py-2.5 text-sm text-gray-600 hover:bg-white/60 rounded-lg" onClick={() => { setMenuOpen(false); logout(); navigate('/') }}>退出</button>
               </>
             ) : (
               <>
-                <Link to="/login" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>登录</Link>
-                <Link to="/register" className="px-3 py-2.5 text-gray-600 hover:bg-white/60" onClick={() => setMenuOpen(false)}>免费注册</Link>
+                <Link to="/login" className="flex px-3 py-2.5 text-sm text-gray-600 hover:bg-white/60 rounded-lg" onClick={() => setMenuOpen(false)}>登录</Link>
+                <Link to="/register" className="flex px-3 py-2.5 text-sm text-gray-600 hover:bg-white/60 rounded-lg" onClick={() => setMenuOpen(false)}>免费注册</Link>
               </>
             )}
           </nav>

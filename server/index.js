@@ -205,6 +205,7 @@ app.post('/api/detail-set/analyze', async (req, res) => {
    - 标题字体：具体字体名（如 Montserrat Bold 或 Helvetica），现代无衬线。
    - 正文字体：具体字体名（如 Open Sans 或 Arial），轻量无衬线。
    - 字号层级：大标题:副标题:正文 = 3:1.8:1。
+   - **标题颜色**：从色彩系统中推导，不要用纯黑或纯白。浅色/米白背景 → 用产品主色调加深版（如深森林绿、暖炭灰、深砖红）；深色背景 → 用暖米白或产品高光色。确保与背景有足够对比度，同时与整体色调视觉融合。
 4. **视觉语言**：
    - 装饰元素：极简几何线条、自然植物阴影、环保/认证类图标等。
    - 图标风格：细线条极简风格，线性感强。
@@ -445,8 +446,16 @@ app.post('/api/detail-set/generate', async (req, res) => {
 
       const textQualityRule = `CRITICAL - Typography in image (premium brand level):
 - Render the headline in a single line only. Use an elegant, modern sans-serif (geometric or humanist: clean letterforms, medium weight, not thin or heavy). Think Apple / premium magazine ad: refined, spacious, not system font.
-- Generous letter-spacing and word-spacing so the line breathes; the phrase must feel like one clear statement. Strong contrast (dark on light or light on dark), sharp and readable—no blurry or pixelated type.
+- Letter-spacing: slightly wide (+8 to +15% tracking) for a luxury, airy feel. The phrase should feel like one calm, confident statement.
 - Do NOT add a subtitle, tagline, or second line. Exactly one headline phrase. No cramped or cheap-looking type.`
+
+      const colorHarmonyRule = `CRITICAL - Text color and visual harmony:
+- The headline color MUST be chosen from the image's own palette to feel designed-in, not pasted on top.
+  - Light/pastel/neutral background → use a deep, rich tone sampled from the product or scene (e.g. deep forest green, warm charcoal, dusty navy) — NOT generic pure black (#000000).
+  - Dark/moody/saturated background → use a warm off-white, cream, or a light accent color that echoes the product highlights — NOT pure white (#FFFFFF).
+  - If the product has a strong accent color (e.g. vibrant orange cap, gold label) → the headline can use that accent color at slightly reduced saturation for elegance.
+- The result: text and image should feel like they were art-directed together, part of the same visual system — not text floating over a photo.
+- Ensure sufficient readability contrast despite the harmonized color choice (minimum 3:1 contrast ratio against the local background behind the text).`
 
       const safeAreaRule = `CRITICAL - Text must be fully inside the frame: The entire headline (every letter and word) must be fully visible with wide margins (at least 8–12% from each edge). No clipping at left/right/top/bottom. No partial words at the edge. The full phrase sits well within the frame with padding on all sides.`
 
@@ -455,7 +464,7 @@ app.post('/api/detail-set/generate', async (req, res) => {
 - FORBIDDEN: (1) Product floating or suspended in mid-air. (2) Product placed on an inappropriate surface (e.g. stool/chair on top of a table, desk, counter, or shelf—seating belongs on the floor; small objects may sit on tables only when that is their normal use). (3) Product balanced impossibly, hanging, or in any unnatural or gravity-defying position.
 - The reference photo may show the product on a table or in a studio—use it only for the product’s appearance. In your image, place the product in a physically correct, realistic scene. When in doubt: put it on the floor or on a surface that matches how the product is actually used in real life.`
 
-      const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation. Aim for the visual quality of high-end brand product ads: clear composition, generous negative space, and premium typography.
+      const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation. Aim for the visual quality of high-end brand product ads: clear composition, generous negative space, premium typography, and harmonious color.
 
 ${placementRule}
 
@@ -464,6 +473,8 @@ ${aspectRule}
 ${compositionRule}
 
 ${textQualityRule}
+
+${colorHarmonyRule}
 
 ${safeAreaRule}
 
@@ -479,7 +490,7 @@ ${item?.contentMarkdown || 'Highlight product, consistent style.'}
 
 You must render at most ONE line of text (the main title only). No subtitle, no second line, no tagline. If the plan mentions 副标题 or 说明文字 as 留空 or empty, do not invent or add any such text.
 
-Typography: The headline must look like premium brand advertising—elegant, harmonious, refined sans-serif with good proportions and spacing. Generate the image that meets the above. Do not add any text that violates the language rule.`
+Typography and color (reminder): The headline must feel art-directed — elegant sans-serif with wide tracking, and a color drawn from the image's own palette so text and image look like one unified design. Generate the image that meets all the above rules.`
       const contents = []
       if (parsedRef) {
         contents.push({ inlineData: { mimeType: parsedRef.mimeType, data: parsedRef.data } })
@@ -493,15 +504,40 @@ Typography: The headline must look like premium brand advertising—elegant, har
         const imageConfig = is25Image
           ? { aspectRatio: aspectRatioVal }
           : { aspectRatio: aspectRatioVal, imageSize: String(imageSize || '1K') }
-        console.log('[后端 API] 生图中', i + 1, '/', count, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig))
-        const response = await ai.models.generateContent({
-          model: modelId,
-          contents,
-          config: {
-            responseModalities: ['TEXT', 'IMAGE'],
-            imageConfig,
-          },
-        })
+        // Pro / Nano Banana 2 生成时间更长，且可能遇到 503 高负载，最多重试 3 次
+        const isHeavyModel = modelId.includes('pro') || modelId.includes('3.1')
+        const maxImageTries = isHeavyModel ? 3 : 2
+        const retryLabel = isHeavyModel ? '(重型模型 最多重试3次)' : '(最多重试2次)'
+        console.log('[后端 API] 生图中', i + 1, '/', count, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig), retryLabel)
+        let response
+        let lastImageErr
+        for (let t = 1; t <= maxImageTries; t++) {
+          try {
+            response = await ai.models.generateContent({
+              model: modelId,
+              contents,
+              config: {
+                responseModalities: ['TEXT', 'IMAGE'],
+                imageConfig,
+              },
+            })
+            lastImageErr = null
+            break
+          } catch (e) {
+            lastImageErr = e
+            const cause = e?.cause || e
+            const is503 = e?.status === 503 || /high demand|503|UNAVAILABLE/i.test(e.message || '')
+            const isNetworkErr = /fetch failed|UND_ERR_SOCKET|UND_ERR_CONNECT_TIMEOUT|other side closed/i.test(e.message || '') || cause?.code?.startsWith('UND_ERR')
+            if ((is503 || isNetworkErr) && t < maxImageTries) {
+              const delay = is503 ? 8000 * t : 3000 * t
+              console.log(`[后端 API] 生图第 ${t} 次失败（${is503 ? '503 高负载' : '网络抖动'}），${delay / 1000}s 后重试…`)
+              await new Promise((r) => setTimeout(r, delay))
+            } else {
+              throw e
+            }
+          }
+        }
+        if (lastImageErr) throw lastImageErr
         const parts = response?.candidates?.[0]?.content?.parts || []
         const imagePart = parts.find((p) => p.inlineData?.data)
         if (imagePart?.inlineData?.data) {
@@ -520,12 +556,26 @@ Typography: The headline must look like premium brand advertising—elegant, har
           })
         }
       } catch (err) {
-        console.error('[后端 API] 生图单张失败', i, err.message)
+        const cause = err?.cause || err
+        console.error('[后端 API] 生图单张失败', i,
+          '| message:', err.message,
+          '| status:', err.status ?? err.statusCode ?? '(无)',
+          '| cause.code:', cause?.code ?? '(无)',
+          '| cause.message:', cause?.message ?? '(无)'
+        )
+        let errMsg = err.message || '生成失败'
+        if (err.status === 403 || /permission|forbidden|access denied/i.test(errMsg)) {
+          errMsg = `模型 ${modelId} 无访问权限（403），该模型可能需要特殊白名单或付费计划`
+        } else if (err.status === 404 || /not found/i.test(errMsg)) {
+          errMsg = `模型 ${modelId} 不存在（404），请检查模型 ID 是否正确`
+        } else if (/fetch failed|ECONNREFUSED|ENOTFOUND|UND_ERR/i.test(errMsg) || cause?.code?.startsWith('UND_ERR')) {
+          errMsg = `网络连接失败（${cause?.code || 'fetch failed'}），请检查代理是否可访问该模型端点`
+        }
         images.push({
           id: `gen-${Date.now()}-${i}`,
           title,
           url: null,
-          error: err.message || '生成失败',
+          error: errMsg,
         })
       }
     }
@@ -738,6 +788,83 @@ app.delete('/api/gallery/:id', requireAuth, (req, res) => {
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '删除失败' })
+  }
+})
+
+// ---------- 修改图片（7种模式） ----------
+app.post('/api/image-edit', async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { mode, prompt, images, model: modelName, aspectRatio, clarity } = req.body
+    if (!prompt || !prompt.trim()) return res.status(400).json({ error: '请填写修改指令' })
+    if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张图片' })
+
+    // 解析所有参考图
+    const parsedImages = images.map((img) => parseDataUrl(img)).filter(Boolean)
+    if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
+
+    // 推荐模型：Nano Banana 2；也支持 Pro
+    const modelId = getImageModelId(modelName || 'Nano Banana 2')
+    const is25Image = modelId === 'gemini-2.5-flash-image'
+    const { clarity: resolvedClarity } = normalizeClarityForModel(modelName || 'Nano Banana 2', clarity || '1K 标准')
+    const imageSize = CLARITY_TO_SIZE[resolvedClarity] || '1K'
+    const aspectRatioVal = String(ASPECT_RATIO_MAP[aspectRatio] || '1:1')
+    const imageConfig = is25Image
+      ? { aspectRatio: aspectRatioVal }
+      : { aspectRatio: aspectRatioVal, imageSize: String(imageSize) }
+
+    console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig))
+
+    // 构建 contents：所有参考图 + 文字指令
+    const contents = [
+      ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
+      { text: prompt.trim() },
+    ]
+
+    const ai = new GoogleGenAI({ apiKey })
+    const isHeavy = modelId.includes('pro') || modelId.includes('3.1')
+    const maxTries = isHeavy ? 3 : 2
+    let response, lastErr
+    for (let t = 1; t <= maxTries; t++) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelId,
+          contents,
+          config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig },
+        })
+        lastErr = null
+        break
+      } catch (e) {
+        lastErr = e
+        const cause = e?.cause || e
+        const is503 = e?.status === 503 || /high demand|503|UNAVAILABLE/i.test(e.message || '')
+        const isNet = /fetch failed|UND_ERR/i.test(e.message || '') || cause?.code?.startsWith('UND_ERR')
+        if ((is503 || isNet) && t < maxTries) {
+          const delay = is503 ? 8000 * t : 3000 * t
+          console.log(`[后端 API] 修改图片第 ${t} 次失败，${delay / 1000}s 后重试…`)
+          await new Promise((r) => setTimeout(r, delay))
+        } else throw e
+      }
+    }
+    if (lastErr) throw lastErr
+
+    const parts = response?.candidates?.[0]?.content?.parts || []
+    const imagePart = parts.find((p) => p.inlineData?.data)
+    if (!imagePart?.inlineData?.data) {
+      const textPart = parts.find((p) => p.text)
+      return res.status(500).json({ error: textPart?.text || '模型未返回图片，请调整指令后重试' })
+    }
+    const { mimeType, data } = imagePart.inlineData
+    return res.json({ image: `data:${mimeType || 'image/png'};base64,${data}` })
+  } catch (e) {
+    console.error('[后端 API] 修改图片失败', e.message)
+    const cause = e?.cause || e
+    let msg = e.message || '修改失败，请稍后重试'
+    if (e.status === 403) msg = '无访问权限（403），请检查 API Key'
+    else if (e.status === 503 || /high demand/i.test(msg)) msg = '模型当前高负载（503），请稍后重试'
+    else if (/fetch failed|UND_ERR/i.test(msg) || cause?.code?.startsWith('UND_ERR')) msg = `网络连接失败（${cause?.code || 'fetch failed'}），请检查代理`
+    return res.status(500).json({ error: msg })
   }
 })
 
