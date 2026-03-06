@@ -152,7 +152,11 @@ export default function DetailSet() {
   const [step, setStep] = useState(1)
   const [savingToGallery, setSavingToGallery] = useState(null)
   const [productImages, setProductImages] = useState([])
-  const [requirements, setRequirements] = useState('')
+  const [productName, setProductName] = useState('')
+  const [sellingPoints, setSellingPoints] = useState('')
+  const [targetAudience, setTargetAudience] = useState('')
+  const [styleDesc, setStyleDesc] = useState('')
+  const [otherRequirements, setOtherRequirements] = useState('')
   const [model, setModel] = useState('Nano Banana Pro')
   const [clarity, setClarity] = useState('2K 高清')
   const [analyzing, setAnalyzing] = useState(false)
@@ -219,10 +223,21 @@ export default function DetailSet() {
       setAnalyzeError('请先点击上方「产品图」区域，选择至少一张图片后再点分析')
       return
     }
+    if (!productName.trim()) {
+      setAnalyzeError('请填写产品名称后再开始分析')
+      return
+    }
     setAnalyzeError('')
     setStep(2)
     setAnalyzing(true)
     try {
+      const requirementsParts = []
+      if (productName.trim()) requirementsParts.push(`产品名称：${productName.trim()}`)
+      if (sellingPoints.trim()) requirementsParts.push(`卖点：${sellingPoints.trim()}`)
+      if (targetAudience.trim()) requirementsParts.push(`目标人群：${targetAudience.trim()}`)
+      if (styleDesc.trim()) requirementsParts.push(`风格：${styleDesc.trim()}`)
+      if (otherRequirements.trim()) requirementsParts.push(`其他要求：${otherRequirements.trim()}`)
+      const combinedRequirements = requirementsParts.join('\n')
       const first = productImages[0]
       const base64 = await fileToCompressedDataUrl(first.file)
       const res = await fetch('/api/detail-set/analyze', {
@@ -230,7 +245,7 @@ export default function DetailSet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: base64,
-          requirements: requirements.trim() || undefined,
+          requirements: combinedRequirements || undefined,
           model,
           quantity: parseInt(quantity.replace(/\D/g, ''), 10) || 3,
         }),
@@ -416,17 +431,76 @@ export default function DetailSet() {
             {/* 组图要求 */}
             <div>
               <h2 className="text-sm font-semibold text-gray-900">组图要求</h2>
-              <p className="mt-0.5 text-xs text-gray-500">描述您的产品信息和期望的图片风格</p>
-              <textarea
-                className="mt-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                rows={5}
-                placeholder={'建议输入：产品名称、卖点、目标人群、详情图风格等\n例如：这是一款日式抹茶沐浴露，主打天然成分和舒缓放松功效，目标人群为 25-40 岁...'}
-                value={requirements}
-                onChange={(e) => {
-                  setRequirements(e.target.value)
-                  resetToInputIfEdited()
-                }}
-              />
+              <p className="mt-0.5 text-xs text-gray-500">填写产品信息，越详细 AI 生成效果越好</p>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">
+                    产品名称 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="例如：日式抹茶沐浴露"
+                    value={productName}
+                    onChange={(e) => {
+                      setProductName(e.target.value)
+                      resetToInputIfEdited()
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">卖点</label>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="例如：天然成分、舒缓放松、无刺激"
+                    value={sellingPoints}
+                    onChange={(e) => {
+                      setSellingPoints(e.target.value)
+                      resetToInputIfEdited()
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">目标人群</label>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="例如：25-40 岁女性、注重生活品质"
+                    value={targetAudience}
+                    onChange={(e) => {
+                      setTargetAudience(e.target.value)
+                      resetToInputIfEdited()
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">风格</label>
+                  <input
+                    type="text"
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="例如：日式极简、清新自然、高端质感"
+                    value={styleDesc}
+                    onChange={(e) => {
+                      setStyleDesc(e.target.value)
+                      resetToInputIfEdited()
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">其他要求</label>
+                  <textarea
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    rows={3}
+                    placeholder="其他补充说明，如特殊场景、禁忌元素等"
+                    value={otherRequirements}
+                    onChange={(e) => {
+                      setOtherRequirements(e.target.value)
+                      resetToInputIfEdited()
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* 下拉设置 */}
@@ -505,18 +579,21 @@ export default function DetailSet() {
             {!productImages.length && !analyzeError && step < 3 && (
               <p className="text-xs text-amber-600">请先在上方「产品图」区域点击并选择至少一张图片，再点下方按钮</p>
             )}
+            {productImages.length > 0 && !productName.trim() && !analyzeError && step < 3 && (
+              <p className="text-xs text-amber-600">请填写产品名称后再开始分析</p>
+            )}
             {step < 3 && (
               <button
                 type="button"
-                disabled={analyzing || !productImages.length}
+                disabled={analyzing || !productImages.length || !productName.trim()}
                 onClick={runAnalyze}
-                title={!productImages.length ? '请先上传产品图' : ''}
+                title={!productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : ''}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 py-3 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                {analyzing ? '分析中...' : productImages.length ? '分析产品' : '请先上传产品图'}
+                {analyzing ? '分析中...' : !productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : '分析产品'}
               </button>
             )}
             {(step === 3 || step === 5) && planCount > 0 && (
