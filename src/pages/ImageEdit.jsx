@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import ImageLightbox from '../components/ImageLightbox'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
@@ -198,11 +198,101 @@ const MODES = [
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
 
+// 与 server/points.js POINTS_MAP 保持一致
+const POINTS_MAP = {
+  'Nano Banana':     { '1K 标准': 3 },
+  'Nano Banana Pro': { '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
+  'Nano Banana 2':   { '0.5K 快速': 3, '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
+}
+function getPointsEstimate(model, clarity) {
+  return POINTS_MAP[model]?.[clarity] ?? 3
+}
+
 const LANGUAGE_OPTIONS = [
-  '简体中文', '繁體中文', 'English', '日本語', '한국어',
-  'Français', 'Español', 'Deutsch', 'Português', 'Italiano',
-  'Русский', 'العربية', 'ภาษาไทย', 'Tiếng Việt',
+  { value: 'Simplified Chinese',  label: '简体中文' },
+  { value: 'Traditional Chinese', label: '繁体中文' },
+  { value: 'English',             label: '英文' },
+  { value: 'Japanese',            label: '日语' },
+  { value: 'Korean',              label: '韩语' },
+  { value: 'French',              label: '法语' },
+  { value: 'Spanish',             label: '西班牙语' },
+  { value: 'German',              label: '德语' },
+  { value: 'Portuguese',          label: '葡萄牙语' },
+  { value: 'Italian',             label: '意大利语' },
+  { value: 'Russian',             label: '俄语' },
+  { value: 'Arabic',              label: '阿拉伯语' },
+  { value: 'Thai',                label: '泰语' },
+  { value: 'Vietnamese',          label: '越南语' },
 ]
+
+const FONT_STYLE_OPTIONS = [
+  { value: 'original', label: '与原图保持一致', prompt: '' },
+  { value: 'sans-serif', label: '无衬线体 — 现代简洁', prompt: '字体使用现代无衬线风格（如 Helvetica / Arial 类），线条干净简洁' },
+  { value: 'serif', label: '衬线体 — 经典优雅', prompt: '字体使用衬线风格（如 Times / Georgia 类），笔画末端带装饰衬线，气质经典优雅' },
+  { value: 'bold-black', label: '粗黑体 — 醒目有力', prompt: '字体使用极粗黑体风格，笔画粗壮有力、视觉冲击强' },
+  { value: 'thin', label: '细线体 — 轻盈精致', prompt: '字体使用超细线体风格，笔画纤细轻盈，气质高级精致' },
+  { value: 'handwritten', label: '手写体 — 活泼自然', prompt: '字体使用手写风格，笔触自然随性，富有人情味' },
+  { value: 'tech', label: '等宽体 — 科技感', prompt: '字体使用等宽字体风格（如 Courier / Consolas 类），具有代码与科技感' },
+  { value: 'display', label: '展示体 — 设计感强', prompt: '字体使用装饰性展示字体风格，独特有设计感，适合标题与品牌展示' },
+]
+
+const FONT_SIZE_DIR_OPTIONS = [
+  { value: 'original', label: '与原文字相同' },
+  { value: 'larger', label: '放大' },
+  { value: 'smaller', label: '缩小' },
+]
+
+// 字体风格 + 字号选择器（文字替换/语言转换模式专用）
+function FontStylePicker({ fontStyle, setFontStyle, fontSizeDir, setFontSizeDir, fontSizePercent, setFontSizePercent }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-3">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">字体设置（AI 近似渲染）</p>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">字体风格</label>
+        <select
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          value={fontStyle}
+          onChange={(e) => setFontStyle(e.target.value)}
+        >
+          {FONT_STYLE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">字号大小</label>
+        <div className="flex items-center gap-2">
+          <select
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            value={fontSizeDir}
+            onChange={(e) => setFontSizeDir(e.target.value)}
+          >
+            {FONT_SIZE_DIR_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          {fontSizeDir !== 'original' && (
+            <>
+              <input
+                type="number"
+                min={5}
+                max={200}
+                step={5}
+                className="w-20 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 text-center focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                value={fontSizePercent}
+                onChange={(e) => {
+                  const v = Math.min(200, Math.max(5, Number(e.target.value) || 5))
+                  setFontSizePercent(v)
+                }}
+              />
+              <span className="text-sm text-gray-500 shrink-0">%</span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // 占位图：用 SVG 内联表示「暂无示例图」
 function PlaceholderImage({ label }) {
@@ -317,6 +407,37 @@ function ModeDemo({ mode }) {
   )
 }
 
+// 用 auth header 加载图库图片缩略图（img 标签无法携带请求头，需要此组件）
+function GalleryThumb({ url, title, token, onClick }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  useEffect(() => {
+    if (!url) return
+    let revoked = false
+    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    fetch(url, { headers })
+      .then((r) => r.ok ? r.blob() : Promise.reject())
+      .then((blob) => { if (!revoked) setBlobUrl(URL.createObjectURL(blob)) })
+      .catch(() => {})
+    return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl) }
+  }, [url, token])
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative aspect-square overflow-hidden rounded-xl border-2 border-transparent hover:border-gray-800 transition"
+    >
+      {blobUrl ? (
+        <img src={blobUrl} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200" />
+      ) : (
+        <div className="h-full w-full bg-gray-100 animate-pulse" />
+      )}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 opacity-0 group-hover:opacity-100 transition">
+        <p className="text-[10px] text-white truncate">{title}</p>
+      </div>
+    </button>
+  )
+}
+
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -340,7 +461,7 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
 }
 
 export default function ImageEdit() {
-  const { getToken } = useAuth()
+  const { getToken, refreshUser = null } = useAuth()
   const [selectedMode, setSelectedMode] = useState(MODES[0].id)
   const [images, setImages] = useState([]) // [{ file, dataUrl, slot }]
   const [prompt, setPrompt] = useState('')
@@ -348,14 +469,23 @@ export default function ImageEdit() {
   const [textOriginal, setTextOriginal] = useState('')
   const [textReplacement, setTextReplacement] = useState('')
   // text-translate 专用字段
-  const [targetLang, setTargetLang] = useState('简体中文')
+  const [targetLang, setTargetLang] = useState('Simplified Chinese')
+  // 文字替换 / 语言转换共用的字体选项
+  const [fontStyle, setFontStyle] = useState('original')
+  const [fontSizeDir, setFontSizeDir] = useState('original')
+  const [fontSizePercent, setFontSizePercent] = useState(30)
   const [model, setModel] = useState('Nano Banana 2')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState(null) // data URL
+  const [lastPointsUsed, setLastPointsUsed] = useState(null)
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState({ open: false, src: null })
+  // 从图库选取
+  const [galleryPicker, setGalleryPicker] = useState({ open: false, slot: 0 })
+  const [galleryItems, setGalleryItems] = useState([])
+  const [galleryLoading, setGalleryLoading] = useState(false)
   const fileInputRefs = useRef({})
 
   const mode = MODES.find((m) => m.id === selectedMode)
@@ -366,21 +496,37 @@ export default function ImageEdit() {
     setPrompt('')
     setTextOriginal('')
     setTextReplacement('')
-    setTargetLang('简体中文')
+    setTargetLang('Simplified Chinese')
+    setFontStyle('original')
+    setFontSizeDir('original')
+    setFontSizePercent(30)
     setResult(null)
+    setLastPointsUsed(null)
     setError('')
   }
 
   // 根据专属字段或通用 prompt 组装最终指令
   const buildFinalPrompt = () => {
+    const fontStylePrompt = FONT_STYLE_OPTIONS.find((o) => o.value === fontStyle)?.prompt || ''
+    const fontSizePrompt = fontSizeDir === 'larger'
+      ? `新文字字号比原文字放大约${fontSizePercent}%`
+      : fontSizeDir === 'smaller'
+        ? `新文字字号比原文字缩小约${fontSizePercent}%`
+        : ''
+    const fontDesc = [fontStylePrompt, fontSizePrompt].filter(Boolean).join('；')
+
     if (selectedMode === 'text-replace') {
-      const base = `将图片中的文字「${textOriginal.trim()}」替换为「${textReplacement.trim()}」，保持原有字体样式、大小、颜色、位置和整体排版设计完全不变，替换后文字需与周围视觉元素自然融合`
-      const extra = prompt.trim() ? `。${prompt.trim()}` : ''
+      const orig = textOriginal.trim()
+      const repl = textReplacement.trim()
+      const fontInstruction = fontDesc ? ` 新文字字体要求：${fontDesc}。` : ''
+      const base = `Replace the text "${orig}" with "${repl}" in this image.${fontInstruction} Do not change any other elements of the image.`
+      const extra = prompt.trim() ? ` ${prompt.trim()}` : ''
       return base + extra
     }
     if (selectedMode === 'text-translate') {
-      const base = `将图片中所有文字翻译为${targetLang}，保持原有字体样式、大小、颜色、位置和整体视觉设计完全不变，翻译内容需自然流畅、符合目标语言习惯`
-      const extra = prompt.trim() ? `。${prompt.trim()}` : ''
+      const fontInstruction = fontDesc ? ` 翻译后文字字体要求：${fontDesc}。` : ''
+      const base = `Update all text in this image to be in ${targetLang}. Translate each text element naturally as a complete phrase, not word by word.${fontInstruction} Do not change any other elements of the image.`
+      const extra = prompt.trim() ? ` ${prompt.trim()}` : ''
       return base + extra
     }
     return prompt.trim()
@@ -413,6 +559,39 @@ export default function ImageEdit() {
   }
 
   const getImageForSlot = (slotIndex) => images.find((img) => img.slot === slotIndex)
+
+  const openGalleryPicker = async (slotIndex) => {
+    setGalleryPicker({ open: true, slot: slotIndex })
+    if (galleryItems.length > 0) return
+    setGalleryLoading(true)
+    try {
+      const token = getToken()
+      if (!token) { setGalleryLoading(false); return }
+      const res = await fetch('/api/gallery', { headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json().catch(() => ({}))
+      setGalleryItems(data.items || [])
+    } catch (_) {}
+    setGalleryLoading(false)
+  }
+
+  const handlePickFromGallery = async (item) => {
+    setGalleryPicker((p) => ({ ...p, open: false }))
+    const slotIndex = galleryPicker.slot
+    try {
+      const token = getToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(item.url, { headers })
+      const blob = await res.blob()
+      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
+      const dataUrl = URL.createObjectURL(file)
+      setImages((prev) => {
+        const next = prev.filter((img) => img.slot !== slotIndex)
+        return [...next, { file, dataUrl, slot: slotIndex }]
+      })
+      setResult(null)
+      setError('')
+    } catch (_) {}
+  }
 
   const handleGenerate = async () => {
     const finalPrompt = buildFinalPrompt()
@@ -452,6 +631,8 @@ export default function ImageEdit() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || '生成失败')
       setResult(data.image)
+      if (data.pointsUsed != null) setLastPointsUsed(data.pointsUsed)
+      if (refreshUser) refreshUser()
     } catch (err) {
       setError(err.message || '生成失败，请稍后重试')
     } finally {
@@ -554,19 +735,33 @@ export default function ImageEdit() {
                               </button>
                             </div>
                           ) : (
-                            <label className="flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                ref={(el) => { fileInputRefs.current[i] = el }}
-                                onChange={(e) => handleFileChange(e, i)}
-                              />
-                              <svg className="h-7 w-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                              </svg>
-                              <span className="mt-1 text-xs text-gray-400">点击上传</span>
-                            </label>
+                            <div className="flex gap-2">
+                              <label className="flex flex-1 h-24 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  ref={(el) => { fileInputRefs.current[i] = el }}
+                                  onChange={(e) => handleFileChange(e, i)}
+                                />
+                                <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span className="mt-1 text-xs text-gray-400">本地上传</span>
+                              </label>
+                              {getToken() && (
+                                <button
+                                  type="button"
+                                  onClick={() => openGalleryPicker(i)}
+                                  className="flex flex-1 h-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 transition"
+                                >
+                                  <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="mt-1 text-xs text-gray-400">从图库选取</span>
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )
@@ -601,6 +796,7 @@ export default function ImageEdit() {
                         onChange={(e) => setTextReplacement(e.target.value)}
                       />
                     </div>
+                    <FontStylePicker fontStyle={fontStyle} setFontStyle={setFontStyle} fontSizeDir={fontSizeDir} setFontSizeDir={setFontSizeDir} fontSizePercent={fontSizePercent} setFontSizePercent={setFontSizePercent} />
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">
                         补充要求（可选）
@@ -625,11 +821,12 @@ export default function ImageEdit() {
                         value={targetLang}
                         onChange={(e) => setTargetLang(e.target.value)}
                       >
-                        {LANGUAGE_OPTIONS.map((lang) => (
-                          <option key={lang} value={lang}>{lang}</option>
+                        {LANGUAGE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
                         ))}
                       </select>
                     </div>
+                    <FontStylePicker fontStyle={fontStyle} setFontStyle={setFontStyle} fontSizeDir={fontSizeDir} setFontSizeDir={setFontSizeDir} fontSizePercent={fontSizePercent} setFontSizePercent={setFontSizePercent} />
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">
                         补充要求（可选）
@@ -659,7 +856,7 @@ export default function ImageEdit() {
                 )}
 
                 {/* 设置（可折叠） */}
-                <details className="group rounded-xl border border-gray-200 bg-white">
+                <details open className="group rounded-xl border border-gray-200 bg-white">
                   <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 select-none">
                     <span>输出设置</span>
                     <svg className="h-4 w-4 text-gray-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -676,6 +873,14 @@ export default function ImageEdit() {
                       >
                         {MODEL_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
+                      {(mode.specialUI === 'text-replace' || mode.specialUI === 'text-translate') && model === 'Nano Banana' && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs text-amber-600">
+                          <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          文字编辑任务建议选择 <strong className="font-semibold">Nano Banana 2</strong> 或 <strong className="font-semibold">Pro</strong>
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600">输出尺寸比例</label>
@@ -702,6 +907,17 @@ export default function ImageEdit() {
 
                 {error && <p className="text-sm text-red-600">{error}</p>}
 
+                {/* 积分预估提示 */}
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                  <span className="text-xs text-gray-500">本次预计消耗</span>
+                  <span className="flex items-center gap-1 text-sm font-semibold text-gray-800">
+                    <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3 3.25a.75.75 0 001.1 0l3-3.25a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
+                    </svg>
+                    {getPointsEstimate(model, clarity)} 积分
+                  </span>
+                </div>
+
                 <button
                   type="button"
                   disabled={generating || !canGenerate}
@@ -727,7 +943,15 @@ export default function ImageEdit() {
                     >
                       <img src={result} alt="修改结果" className="w-full h-auto object-contain" />
                     </button>
-                    <div className="mt-4 flex gap-2">
+                    {lastPointsUsed != null && (
+                      <div className="mt-3 flex items-center gap-1.5 text-xs text-gray-500">
+                        <svg className="h-3.5 w-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 2a8 8 0 100 16A8 8 0 0010 2zm.75 4.75a.75.75 0 00-1.5 0v3.5l-1.72 1.72a.75.75 0 001.06 1.06l2-2a.75.75 0 00.22-.53V6.75z" />
+                        </svg>
+                        本次消耗 <span className="font-semibold text-gray-700">{lastPointsUsed}</span> 积分，已自动保存至仓库
+                      </div>
+                    )}
+                    <div className="mt-3 flex gap-2">
                       <button
                         type="button"
                         onClick={async () => {
@@ -783,6 +1007,50 @@ export default function ImageEdit() {
         alt="图片预览"
         onClose={() => setLightbox((p) => ({ ...p, open: false }))}
       />
+
+      {/* 图库选取弹窗 */}
+      {galleryPicker.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">从图库选取图片</h3>
+              <button
+                type="button"
+                onClick={() => setGalleryPicker((p) => ({ ...p, open: false }))}
+                className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 flex-1">
+              {galleryLoading ? (
+                <div className="flex items-center justify-center py-16 text-sm text-gray-400">加载中…</div>
+              ) : galleryItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-sm text-gray-400 gap-2">
+                  <svg className="h-10 w-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  图库暂无图片
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {galleryItems.map((item) => (
+                    <GalleryThumb
+                      key={item.id}
+                      url={item.url}
+                      title={item.title}
+                      token={getToken()}
+                      onClick={() => handlePickFromGallery(item)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

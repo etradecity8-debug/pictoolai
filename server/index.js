@@ -816,22 +816,25 @@ app.post('/api/image-edit', async (req, res) => {
 
     console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig))
 
-    // 构建 contents：所有参考图 + 文字指令
+    const ai = new GoogleGenAI({ apiKey })
+    const isHeavy = modelId.includes('pro') || modelId.includes('3.1')
+    const maxTries = isHeavy ? 3 : 2
+    const genConfig = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+
+    // 所有模式统一使用单次 generateContent：图片 + 指令一并发送
+    // 多轮 chat 方案因 Nano Banana 2 的 thought_signature 机制报 400，已放弃
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
       { text: prompt.trim() },
     ]
 
-    const ai = new GoogleGenAI({ apiKey })
-    const isHeavy = modelId.includes('pro') || modelId.includes('3.1')
-    const maxTries = isHeavy ? 3 : 2
     let response, lastErr
     for (let t = 1; t <= maxTries; t++) {
       try {
         response = await ai.models.generateContent({
           model: modelId,
           contents,
-          config: { responseModalities: ['TEXT', 'IMAGE'], imageConfig },
+          config: genConfig,
         })
         lastErr = null
         break
@@ -856,7 +859,41 @@ app.post('/api/image-edit', async (req, res) => {
       return res.status(500).json({ error: textPart?.text || '模型未返回图片，请调整指令后重试' })
     }
     const { mimeType, data } = imagePart.inlineData
-    return res.json({ image: `data:${mimeType || 'image/png'};base64,${data}` })
+    const resultDataUrl = `data:${mimeType || 'image/png'};base64,${data}`
+
+    // 积分扣减 + 自动存图库（登录用户）
+    const auth = req.headers.authorization
+    const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+    const pointsUsed = getPointsPerImage(modelName || 'Nano Banana 2', resolvedClarity || '1K 标准')
+    let newBalance = null
+    if (token) {
+      try {
+        const payload = jwt.verify(token, JWT_SECRET)
+        const email = payload.email
+        const balance = getBalance(email)
+        if (balance < pointsUsed) {
+          return res.status(402).json({ error: '积分不足', required: pointsUsed, balance })
+        }
+        deductPoints(email, pointsUsed, `修改图片 (${modelName || 'Nano Banana 2'}, ${resolvedClarity || '1K 标准'}, ${mode})`)
+        newBalance = getBalance(email)
+        const imgId = `edit-${Date.now()}`
+        const modeLabel = {
+          'add-remove': '添加/移除元素', inpainting: '局部重绘', 'style-transfer': '风格迁移',
+          composition: '高级合成', 'hi-fidelity': '高保真细节', 'bring-to-life': '让草图变生动',
+          'character-360': '角色一致性', 'text-replace': '文字替换', 'text-translate': '文字翻译',
+        }[mode] || mode
+        try {
+          saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelName || null, resolvedClarity || null)
+        } catch (e) {
+          console.error('[后端 API] 修改图片存图库失败', e.message)
+        }
+      } catch (e) {
+        if (e.message === '积分不足') throw e
+        // token 验证失败（未登录）静默忽略，不存图库也不扣积分
+      }
+    }
+
+    return res.json({ image: resultDataUrl, pointsUsed: token ? pointsUsed : null, newBalance })
   } catch (e) {
     console.error('[后端 API] 修改图片失败', e.message)
     const cause = e?.cause || e
@@ -865,6 +902,186 @@ app.post('/api/image-edit', async (req, res) => {
     else if (e.status === 503 || /high demand/i.test(msg)) msg = '模型当前高负载（503），请稍后重试'
     else if (/fetch failed|UND_ERR/i.test(msg) || cause?.code?.startsWith('UND_ERR')) msg = `网络连接失败（${cause?.code || 'fetch failed'}），请检查代理`
     return res.status(500).json({ error: msg })
+  }
+})
+
+// ────────────────────────────────────────────────────────────────
+// 亚马逊 A+ — Step 1：仅生成文案（快速，无积分消耗）
+// ────────────────────────────────────────────────────────────────
+app.post('/api/amazon-aplus/analyze', async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { brand, product, features, story, style, language } = req.body
+    if (!brand?.trim() || !product?.trim()) return res.status(400).json({ error: '请填写品牌名和产品名' })
+    if (!Array.isArray(features) || features.length < 3) return res.status(400).json({ error: '请填写 3 条核心卖点' })
+
+    const lang = language || 'English'
+    console.log(`[A+ 文案] 开始生成 | 品牌: ${brand} | 产品: ${product} | 风格: ${style} | 语言: ${lang} | 模型: ${ANALYSIS_MODEL_ID}`)
+
+    const ai = new GoogleGenAI({ apiKey })
+    const copyPrompt = `You are an Amazon A+ content copywriter. Generate marketing copy in ${lang} for:
+Brand: ${brand}
+Product: ${product}
+Key Features: ${features.join(' | ')}
+Brand Story: ${story || '(not provided)'}
+Style: ${style === 'luxury' ? 'premium luxury' : style === 'lifestyle' ? 'warm lifestyle' : 'clean minimal'}
+
+IMPORTANT: ALL copy text (heroTagline, heroSubtext, feature titles/descriptions, brandStoryTitle, brandStoryBody) MUST be written entirely in ${lang}. Do not mix languages.
+
+Return ONLY valid JSON (no markdown):
+{
+  "heroTagline": "compelling headline ≤12 words in ${lang}",
+  "heroSubtext": "supporting subtitle ≤20 words in ${lang}",
+  "features": [
+    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"},
+    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"},
+    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"}
+  ],
+  "brandStoryTitle": "brand story headline ≤8 words in ${lang}",
+  "brandStoryBody": "brand story paragraph 60-80 words in ${lang}"
+}`
+    const copyResp = await ai.models.generateContent({
+      model: ANALYSIS_MODEL_ID,
+      contents: [{ text: copyPrompt }],
+    })
+    const copyRaw = copyResp?.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text || ''
+    console.log(`[A+ 文案] 模型返回 ${copyRaw.length} 字符，尝试解析 JSON...`)
+    const copy = extractAnalyzeJson(copyRaw, true) || {
+      heroTagline: `${product} by ${brand}`,
+      heroSubtext: features[0],
+      features: features.slice(0, 3).map((f) => ({ title: f.slice(0, 30), desc: f })),
+      brandStoryTitle: `About ${brand}`,
+      brandStoryBody: story || `${brand} delivers quality products designed for modern life.`,
+    }
+    console.log(`[A+ 文案] 生成完成 ✓ | heroTagline: "${copy.heroTagline}"`)
+    return res.json({ copy })
+  } catch (e) {
+    console.error('[A+ 文案] 生成失败', e.message)
+    return res.status(500).json({ error: e.message || '文案生成失败，请稍后重试' })
+  }
+})
+
+// ────────────────────────────────────────────────────────────────
+// 亚马逊 A+ — Step 2：根据确认的文案生成图片（消耗积分）
+// ────────────────────────────────────────────────────────────────
+app.post('/api/amazon-aplus/generate', async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { brand, product, features, copy, productImage, style, model: modelName, language } = req.body
+    if (!brand?.trim() || !product?.trim()) return res.status(400).json({ error: '请填写品牌名和产品名' })
+    if (!Array.isArray(features) || features.length < 3) return res.status(400).json({ error: '请填写 3 条核心卖点' })
+
+    const lang = language || 'English'
+    const ai = new GoogleGenAI({ apiKey })
+    const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
+    console.log(`[A+ 图片] 开始生成 | 品牌: ${brand} | 产品: ${product} | 模型: ${imageModelId} | 风格: ${style} | 语言: ${lang} | 参考图: ${productImage ? '有' : '无'}`)
+    const is25Image = imageModelId === 'gemini-2.5-flash-image'
+    const imageConfig1x1 = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
+    const imageConfig16x9 = is25Image ? { aspectRatio: '16:9' } : { aspectRatio: '16:9', imageSize: '1K' }
+    const genCfg1x1 = { responseModalities: ['TEXT', 'IMAGE'], imageConfig: imageConfig1x1 }
+    const genCfg16x9 = { responseModalities: ['TEXT', 'IMAGE'], imageConfig: imageConfig16x9 }
+
+    const styleDesc = {
+      minimal:   'clean white studio background, minimalist professional product photography, bright even lighting',
+      lifestyle: 'warm natural lifestyle setting, cozy home environment, natural soft window lighting',
+      luxury:    'dark moody premium background, dramatic side lighting, gold and matte black accents, high-end editorial aesthetic',
+    }[style] || 'clean white studio background'
+
+    // copy 由前端传入（用户在 Step 2 确认/编辑后的版本）
+    // ── 图片生成（4 张并行） ──
+    const productRef = productImage ? parseDataUrl(productImage) : null
+    const refParts = productRef
+      ? [{ inlineData: { mimeType: productRef.mimeType, data: productRef.data } }]
+      : []
+
+    const makeImagePrompt = (desc) => [...refParts, { text: desc }]
+
+    // 优先使用用户确认的文案中的特点标题；fallback 到原始卖点输入
+    const f0 = copy?.features?.[0]?.title || features[0]
+    const f1 = copy?.features?.[1]?.title || features[1]
+    const f2 = copy?.features?.[2]?.title || features[2]
+
+    // 通用规则（放在最前）：纯摄影，绝对不渲染任何文字
+    const noTextRule = `CRITICAL RULE (highest priority): This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO characters of any language (no English, no Chinese, no Japanese, no Korean, no numbers, no labels, no brand name overlay, no product name overlay). The product name and brand mentioned below are CONTEXT ONLY for the AI to understand the product — do NOT render them as visible text in the image. Pure clean commercial photography, zero text.`
+
+    const heroPrompt = `${noTextRule} --- Amazon A+ hero banner. Product context (do not render as text): ${product} by ${brand}. Visual style: ${styleDesc}. Wide elegant product shot, high resolution, professional commercial photography.`
+    const feat1Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f0}. Visual style: ${styleDesc}. Square format, clean centered composition.`
+    const feat2Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f1}. Visual style: ${styleDesc}. Square format, clean centered composition.`
+    const feat3Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f2}. Visual style: ${styleDesc}. Square format, clean centered composition.`
+
+    const generateImg = async (label, prompt, cfg) => {
+      console.log(`[A+ 图片]   → 开始生成「${label}」| ratio: ${cfg.imageConfig?.aspectRatio}`)
+      try {
+        const resp = await ai.models.generateContent({
+          model: imageModelId,
+          contents: makeImagePrompt(prompt),
+          config: cfg,
+        })
+        const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+        if (!part) {
+          console.warn(`[A+ 图片]   ✗ 「${label}」未返回图片`)
+          return null
+        }
+        console.log(`[A+ 图片]   ✓ 「${label}」生成成功 (${part.inlineData.mimeType})`)
+        return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      } catch (e) {
+        console.error(`[A+ 图片]   ✗ 「${label}」失败: ${e.message}`)
+        return null
+      }
+    }
+
+    // 顺序生成，避免并发触发 Gemini 速率限制
+    console.log('[A+ 图片] 顺序生成 4 张图片（避免并发限速）...')
+    const heroImage = await generateImg('Hero 横幅 16:9', heroPrompt, genCfg16x9)
+    const feat1 = await generateImg(`特点图1 (${f0})`, feat1Prompt, genCfg1x1)
+    const feat2 = await generateImg(`特点图2 (${f1})`, feat2Prompt, genCfg1x1)
+    const feat3 = await generateImg(`特点图3 (${f2})`, feat3Prompt, genCfg1x1)
+
+    const featureImages = [feat1, feat2, feat3]
+    // 带标题的完整列表，用于正确存图库
+    const namedImages = [
+      { label: 'A+ Hero横幅', data: heroImage },
+      { label: 'A+ 特点图1',  data: feat1 },
+      { label: 'A+ 特点图2',  data: feat2 },
+      { label: 'A+ 特点图3',  data: feat3 },
+    ]
+    const successCount = namedImages.filter((x) => x.data).length
+    console.log(`[A+ 图片] 全部完成 | 成功 ${successCount}/4 张`)
+
+    // ── Step 3：积分扣除 + 存图库 ──
+    const auth = req.headers.authorization
+    const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const pointsUsed = pointsPerImg * successCount
+    let newBalance = null
+    if (token) {
+      try {
+        const payload = jwt.verify(token, JWT_SECRET)
+        const email = payload.email
+        const balance = getBalance(email)
+        if (balance < pointsUsed) return res.status(402).json({ error: '积分不足', required: pointsUsed, balance })
+        deductPoints(email, pointsUsed, `A+ 页面生成 (${successCount} 张, ${modelName || 'Nano Banana 2'})`)
+        newBalance = getBalance(email)
+        console.log(`[A+ 积分] 扣除 ${pointsUsed} 积分 | 用户: ${email} | 剩余: ${newBalance}`)
+        namedImages.forEach(({ label, data }, i) => {
+          if (!data) return
+          try {
+            saveImageToGallery(email, `aplus-${Date.now()}-${i}`, `${product}·${label}`, data, pointsPerImg, modelName || null, '1K 标准')
+            console.log(`[A+ 图库] 已保存「${label}」`)
+          } catch (e) { console.error(`[A+ 图库] 保存「${label}」失败`, e.message) }
+        })
+      } catch (e) {
+        if (e.message === '积分不足') throw e
+      }
+    }
+
+    console.log('[A+ 图片] 全流程结束，返回结果 ✓')
+    return res.json({ copy, heroImage, featureImages, pointsUsed: token ? pointsUsed : null, newBalance })
+  } catch (e) {
+    console.error('[A+ 图片] 生成失败', e.message)
+    return res.status(500).json({ error: e.message || 'A+ 页面生成失败，请稍后重试' })
   }
 })
 
