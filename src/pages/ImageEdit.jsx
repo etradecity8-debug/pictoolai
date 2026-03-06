@@ -58,6 +58,20 @@ const MODE_DEMOS = {
     afterLabels: ['正面输出', '侧面输出'],
     prompt: '基于参考图，分别生成该人物的正面白底棚拍肖像，以及右侧侧面视图，保持面部特征、发型、眼镜与服装完全一致。',
   },
+  'text-replace': {
+    before: null,
+    beforeLabel: '含文字的图片',
+    after: null,
+    afterLabel: '文字替换后',
+    prompt: '将图片中的文字「SALE 50% OFF」替换为「限时特惠 买一送一」，保持原有字体样式、大小、颜色、位置与排版完全不变。',
+  },
+  'text-translate': {
+    before: null,
+    beforeLabel: '原语言图片',
+    after: null,
+    afterLabel: '翻译后',
+    prompt: '将图片中所有英文文字翻译为简体中文，保持原有字体样式、大小、颜色、位置和整体视觉设计完全不变，翻译内容自然流畅。',
+  },
 }
 
 const MODES = [
@@ -152,9 +166,43 @@ const MODES = [
     imageLabels: ['角色参考图'],
     promptPlaceholder: '例如：该人物的右侧侧面视图，白色棚拍背景，保持面部特征、发型、眼镜与服装完全一致',
   },
+  {
+    id: 'text-replace',
+    label: '图片文字替换',
+    specialUI: 'text-replace',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 013 3L12 14l-4 1 1-4 7.5-7.5z" />
+      </svg>
+    ),
+    desc: '将图片中的指定文字替换为新内容，保持原有字体样式、大小、颜色、位置完全不变。',
+    imageCount: 1,
+    imageLabels: ['含文字的图片'],
+    promptPlaceholder: '',
+  },
+  {
+    id: 'text-translate',
+    label: '图片文字语言转换',
+    specialUI: 'text-translate',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+      </svg>
+    ),
+    desc: '将图片中所有文字翻译为目标语言，保持原有字体样式、排版与视觉设计完全不变。',
+    imageCount: 1,
+    imageLabels: ['含文字的图片'],
+    promptPlaceholder: '（可选）补充要求，例如：品牌名保留英文不翻译',
+  },
 ]
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
+
+const LANGUAGE_OPTIONS = [
+  '简体中文', '繁體中文', 'English', '日本語', '한국어',
+  'Français', 'Español', 'Deutsch', 'Português', 'Italiano',
+  'Русский', 'العربية', 'ภาษาไทย', 'Tiếng Việt',
+]
 
 // 占位图：用 SVG 内联表示「暂无示例图」
 function PlaceholderImage({ label }) {
@@ -296,6 +344,11 @@ export default function ImageEdit() {
   const [selectedMode, setSelectedMode] = useState(MODES[0].id)
   const [images, setImages] = useState([]) // [{ file, dataUrl, slot }]
   const [prompt, setPrompt] = useState('')
+  // text-replace 专用字段
+  const [textOriginal, setTextOriginal] = useState('')
+  const [textReplacement, setTextReplacement] = useState('')
+  // text-translate 专用字段
+  const [targetLang, setTargetLang] = useState('简体中文')
   const [model, setModel] = useState('Nano Banana 2')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
@@ -311,8 +364,26 @@ export default function ImageEdit() {
     setSelectedMode(id)
     setImages([])
     setPrompt('')
+    setTextOriginal('')
+    setTextReplacement('')
+    setTargetLang('简体中文')
     setResult(null)
     setError('')
+  }
+
+  // 根据专属字段或通用 prompt 组装最终指令
+  const buildFinalPrompt = () => {
+    if (selectedMode === 'text-replace') {
+      const base = `将图片中的文字「${textOriginal.trim()}」替换为「${textReplacement.trim()}」，保持原有字体样式、大小、颜色、位置和整体排版设计完全不变，替换后文字需与周围视觉元素自然融合`
+      const extra = prompt.trim() ? `。${prompt.trim()}` : ''
+      return base + extra
+    }
+    if (selectedMode === 'text-translate') {
+      const base = `将图片中所有文字翻译为${targetLang}，保持原有字体样式、大小、颜色、位置和整体视觉设计完全不变，翻译内容需自然流畅、符合目标语言习惯`
+      const extra = prompt.trim() ? `。${prompt.trim()}` : ''
+      return base + extra
+    }
+    return prompt.trim()
   }
 
   const handleModelChange = (m) => {
@@ -344,7 +415,13 @@ export default function ImageEdit() {
   const getImageForSlot = (slotIndex) => images.find((img) => img.slot === slotIndex)
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) { setError('请填写修改指令'); return }
+    const finalPrompt = buildFinalPrompt()
+    if (!finalPrompt) {
+      if (selectedMode === 'text-replace') { setError('请填写原文字和替换文字'); return }
+      if (selectedMode === 'text-translate') { setError('请选择目标语言'); return }
+      setError('请填写修改指令')
+      return
+    }
     const requiredImages = selectedMode === 'composition' ? 2 : 1
     if (images.length < requiredImages) {
       setError(requiredImages === 1 ? '请上传图片' : `请至少上传 ${requiredImages} 张图片`)
@@ -365,7 +442,7 @@ export default function ImageEdit() {
         headers,
         body: JSON.stringify({
           mode: selectedMode,
-          prompt: prompt.trim(),
+          prompt: finalPrompt,
           images: base64Images,
           model,
           aspectRatio,
@@ -382,7 +459,13 @@ export default function ImageEdit() {
     }
   }
 
-  const canGenerate = prompt.trim() && images.length >= (selectedMode === 'composition' ? 2 : 1)
+  const canGenerate = (() => {
+    const hasImages = images.length >= (selectedMode === 'composition' ? 2 : 1)
+    if (!hasImages) return false
+    if (selectedMode === 'text-replace') return textOriginal.trim() && textReplacement.trim()
+    if (selectedMode === 'text-translate') return !!targetLang
+    return !!prompt.trim()
+  })()
 
   return (
     <div className="min-h-screen bg-gray-100/80">
@@ -491,19 +574,89 @@ export default function ImageEdit() {
                   </div>
                 </div>
 
-                {/* 修改指令 */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    修改指令 <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    rows={4}
-                    placeholder={mode.promptPlaceholder}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                  />
-                </div>
+                {/* 修改指令 —— 根据模式渲染不同 UI */}
+                {mode.specialUI === 'text-replace' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1.5">
+                        原文字 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="输入图片中要替换的原始文字"
+                        value={textOriginal}
+                        onChange={(e) => setTextOriginal(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1.5">
+                        替换为 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="输入新的文字内容"
+                        value={textReplacement}
+                        onChange={(e) => setTextReplacement(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        补充要求（可选）
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        rows={2}
+                        placeholder="例如：替换后保持与图片整体色调一致"
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : mode.specialUI === 'text-translate' ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1.5">
+                        翻译成 <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value)}
+                      >
+                        {LANGUAGE_OPTIONS.map((lang) => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">
+                        补充要求（可选）
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        rows={2}
+                        placeholder={mode.promptPlaceholder}
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      修改指令 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      rows={4}
+                      placeholder={mode.promptPlaceholder}
+                      value={prompt}
+                      onChange={(e) => setPrompt(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 {/* 设置（可折叠） */}
                 <details className="group rounded-xl border border-gray-200 bg-white">
