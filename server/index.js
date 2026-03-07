@@ -1191,14 +1191,17 @@ app.post('/api/admin/users/:email/grant', requireAdmin, (req, res) => {
   }
 })
 
-// 删除客户
+// 删除客户（同时清除该用户的积分与流水，重注册后积分为 0）
 app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
   try {
     const targetEmail = req.params.email.toLowerCase()
     if (targetEmail === req.user.email) return res.status(400).json({ error: '不能删除自己的账号' })
     const user = dbFindUser(targetEmail)
     if (!user) return res.status(404).json({ error: '用户不存在' })
-    getDb().prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
+    const db = getDb()
+    db.prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
+    db.prepare('DELETE FROM user_points WHERE user_email = ?').run(targetEmail)
+    db.prepare('DELETE FROM points_transactions WHERE user_email = ?').run(targetEmail)
     console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}`)
     return res.json({ ok: true })
   } catch (e) {
