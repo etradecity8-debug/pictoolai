@@ -34,3 +34,4 @@ alwaysApply: true
 - **导航栏**：当前显示「产品组图」「修改图片」「A+ 页面」；「服装组图」「风格复刻」「万能画布」已隐藏（暂不开放）。
 - **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。
 - **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除；`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。待后续：支付接入、到期提醒邮件、前端套餐页、注册审批。详见 `docs/KNOWN_ISSUES.md`。
+- **部署**：目标服务器为腾讯云香港轻量（IP: 43.161.215.41，Ubuntu 22.04，锐驰型 ¥55/月）。环境已装好（Node.js v20、npm、PM2、Nginx、Git）。剩余步骤：上传代码（需先推 GitHub）→ 配 .env → npm install → npm run build → pm2 启动后端 → 配 Nginx → 验证。完整步骤见 `docs/DEPLOY.md`。香港服务器 Gemini API 直连，.env 中删除 HTTPS_PROXY。
