@@ -57,7 +57,8 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
-  const value = { user, loading, login, logout, getToken, refreshUser }
+  const isAdmin = user?.role === 'admin'
+  const value = { user, loading, login, logout, getToken, refreshUser, isAdmin }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 

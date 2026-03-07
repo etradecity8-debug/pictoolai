@@ -21,6 +21,7 @@ import ApparelSet from './pages/ApparelSet'
 import ImageRetouch from './pages/ImageRetouch'
 import ImageEdit from './pages/ImageEdit'
 import AmazonAPlus from './pages/AmazonAPlus'
+import Admin from './pages/Admin'
 
 function MarketingLayout({ children }) {
   return (
@@ -58,6 +59,8 @@ export default function App() {
         <Route path="points" element={<Points />} />
         <Route path="settings" element={<Navigate to="/dashboard" replace />} />
       </Route>
+      {/* 管理后台：仅 admin 角色可访问，非管理员在 Admin.jsx 内部跳回首页 */}
+      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

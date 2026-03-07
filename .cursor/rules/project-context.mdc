@@ -10,9 +10,9 @@ alwaysApply: true
 - 核心流程：全品类组图 = 上传产品图 + 组图要求 → 分析（文+图→文）→ 确认规划 → 生图（Nano Banana/2/Pro）→ 完成。
 
 ## 关键文件
-- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、整体设计规范与图片规划 Markdown 渲染、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地/仓库）、`src/pages/ImageEdit.jsx`（**修改图片**，9种编辑模式，含 ModeDemo 可视化示例、GalleryThumb 认证加载组件）、`src/pages/AmazonAPlus.jsx`（**A+ 详情页生成**，4步流程，MVP）、`src/pages/dashboard/Gallery.jsx`（仓库列表、按日期分组、多选、批量保存到本地、批量删除）、`src/components/layout/DashboardLayout.jsx`（侧栏仅「仓库」入口）、`src/components/layout/Header.jsx`（导航：产品组图/修改图片/A+页面，隐藏服装组图/风格复刻/万能画布）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库）。
-- **后端**：`server/index.js`（注册/登录、分析、生图、**仓库 API**、`/api/image-edit`（修改图片9种模式）、**`/api/amazon-aplus/analyze`（文案生成，不扣积分）**、**`/api/amazon-aplus/generate`（生图4张，顺序生成，扣积分，存图库）**；生图请求带 token 时自动将本批图写入该用户仓库）、`server/db.js`（SQLite、gallery 表）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
-- **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY），从 `.env.example` 复制，不提交。
+- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、整体设计规范与图片规划 Markdown 渲染、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地/仓库）、`src/pages/ImageEdit.jsx`（**修改图片**，9种编辑模式，含 ModeDemo 可视化示例、GalleryThumb 认证加载组件）、`src/pages/AmazonAPlus.jsx`（**A+ 详情页生成**，4步流程，MVP）、`src/pages/Admin.jsx`（**管理后台**，客户列表/充值弹窗/流水弹窗/删除，路由 `/admin`，仅 admin 角色可访问）、`src/pages/dashboard/Gallery.jsx`（仓库列表、按日期分组、多选、批量保存到本地、批量删除）、`src/components/layout/DashboardLayout.jsx`（侧栏仅「仓库」入口）、`src/components/layout/Header.jsx`（导航：产品组图/修改图片/A+页面，隐藏服装组图/风格复刻/万能画布）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库；`isAdmin` 便捷属性判断角色）。
+- **后端**：`server/index.js`（注册/登录（读写 SQLite users 表）、分析、生图、**仓库 API**、`/api/image-edit`（修改图片9种模式）、`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate`、**管理员 API**（`/api/admin/users` 列表/充值/删除/流水/改角色，需 requireAdmin 中间件）；启动时自动迁移 users.json → SQLite、自动提升 ADMIN_EMAIL 为管理员）、`server/db.js`（SQLite：users/gallery/user_points/points_transactions 四张表）、`server/points.js`（积分规则、getBalance 含惰性清零、grantPoints 含有效期、getSubscriptionInfo）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型、Nano 仅 1K 清晰度）。
+- **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY、**ADMIN_EMAIL、ADMIN_PASSWORD**），从 `.env.example` 复制，不提交。
 - **静态演示图**：`public/demo-*.png`（修改图片各模式 before/after 示例图，共 14 张）。
 
 ## 约定
@@ -33,3 +33,4 @@ alwaysApply: true
 - **A+ 图片生成注意**：4张图顺序生成（非并行），避免 Nano Banana 2 并发限速；prompt 中加最高优先级禁文字规则，防止 AI 将产品名渲染到图上（尤其中文产品名）；积分按实际成功张数扣除；图库标题与实际生成图绑定（不因失败导致标题错位）。
 - **导航栏**：当前显示「产品组图」「修改图片」「A+ 页面」；「服装组图」「风格复刻」「万能画布」已隐藏（暂不开放）。
 - **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。
+- **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除；`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。待后续：支付接入、到期提醒邮件、前端套餐页、注册审批。详见 `docs/KNOWN_ISSUES.md`。

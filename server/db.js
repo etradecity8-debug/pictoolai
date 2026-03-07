@@ -1,5 +1,5 @@
 /**
- * SQLite 数据库：仓库图片元数据
+ * SQLite 数据库：用户、仓库图片元数据、积分
  * 图片文件仍存在 server/gallery/ 下，数据库只存 id、用户、标题、文件路径、时间
  */
 import Database from 'better-sqlite3'
@@ -16,6 +16,12 @@ export function getDb() {
     db = new Database(dbPath)
     db.pragma('journal_mode = WAL')
     db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      email TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      created_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS gallery (
       id TEXT PRIMARY KEY,
       user_email TEXT NOT NULL,
@@ -30,7 +36,9 @@ export function getDb() {
     CREATE INDEX IF NOT EXISTS idx_gallery_saved_at ON gallery(saved_at DESC);
     CREATE TABLE IF NOT EXISTS user_points (
       user_email TEXT PRIMARY KEY,
-      balance INTEGER NOT NULL DEFAULT 0
+      balance INTEGER NOT NULL DEFAULT 0,
+      expires_at INTEGER DEFAULT NULL,
+      last_granted_at INTEGER DEFAULT NULL
     );
     CREATE TABLE IF NOT EXISTS points_transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,11 +51,17 @@ export function getDb() {
     CREATE INDEX IF NOT EXISTS idx_points_transactions_created ON points_transactions(created_at DESC);
   `)
     try {
-      const info = db.prepare('PRAGMA table_info(gallery)').all()
-      const names = info.map((c) => c.name)
-      if (!names.includes('points_used')) db.exec('ALTER TABLE gallery ADD COLUMN points_used INTEGER')
-      if (!names.includes('model')) db.exec('ALTER TABLE gallery ADD COLUMN model TEXT')
-      if (!names.includes('clarity')) db.exec('ALTER TABLE gallery ADD COLUMN clarity TEXT')
+      const galleryInfo = db.prepare('PRAGMA table_info(gallery)').all()
+      const galleryNames = galleryInfo.map((c) => c.name)
+      if (!galleryNames.includes('points_used')) db.exec('ALTER TABLE gallery ADD COLUMN points_used INTEGER')
+      if (!galleryNames.includes('model')) db.exec('ALTER TABLE gallery ADD COLUMN model TEXT')
+      if (!galleryNames.includes('clarity')) db.exec('ALTER TABLE gallery ADD COLUMN clarity TEXT')
+    } catch (_) {}
+    try {
+      const ptInfo = db.prepare('PRAGMA table_info(user_points)').all()
+      const ptNames = ptInfo.map((c) => c.name)
+      if (!ptNames.includes('expires_at')) db.exec('ALTER TABLE user_points ADD COLUMN expires_at INTEGER DEFAULT NULL')
+      if (!ptNames.includes('last_granted_at')) db.exec('ALTER TABLE user_points ADD COLUMN last_granted_at INTEGER DEFAULT NULL')
     } catch (_) {}
   }
   return db

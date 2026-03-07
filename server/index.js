@@ -24,6 +24,8 @@ import {
   addTransaction,
   getTransactions,
   deductPoints,
+  grantPoints,
+  getSubscriptionInfo,
 } from './points.js'
 
 setGetDb(getDb)
@@ -40,7 +42,8 @@ function getGeminiApiKey() {
 
 const usersPath = join(__dirname, 'users.json')
 
-function readUsers() {
+// 读 users.json（仅用于迁移，保留文件作为备份）
+function readUsersJson() {
   if (!existsSync(usersPath)) return []
   try {
     return JSON.parse(readFileSync(usersPath, 'utf8'))
@@ -49,8 +52,58 @@ function readUsers() {
   }
 }
 
-function writeUsers(users) {
-  writeFileSync(usersPath, JSON.stringify(users, null, 2), 'utf8')
+// ── SQLite 用户操作 ──────────────────────────────────────────────────────────
+
+function dbFindUser(email) {
+  return getDb().prepare('SELECT email, password_hash, role, created_at FROM users WHERE email = ?').get(email.toLowerCase())
+}
+
+function dbCreateUser(email, passwordHash, role = 'user') {
+  getDb()
+    .prepare('INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO NOTHING')
+    .run(email.toLowerCase(), passwordHash, role, Date.now())
+}
+
+/** 启动时将 users.json 中的现有用户迁移到 SQLite */
+function dbMigrateFromJson() {
+  const users = readUsersJson()
+  if (!users.length) return
+  let count = 0
+  for (const u of users) {
+    try {
+      const existing = getDb().prepare('SELECT email FROM users WHERE email = ?').get(u.email)
+      if (!existing) {
+        getDb()
+          .prepare('INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, ?, ?)')
+          .run(u.email, u.passwordHash, 'user', Date.now())
+        count++
+      }
+    } catch (_) {}
+  }
+  if (count > 0) console.log(`[DB] 已将 ${count} 个用户从 users.json 迁移到 SQLite`)
+}
+
+/** 确保环境变量 ADMIN_EMAIL 对应的用户拥有 admin 角色 */
+function dbEnsureAdmin() {
+  const adminEmail = process.env.ADMIN_EMAIL
+  if (!adminEmail) return
+  const email = adminEmail.toLowerCase()
+  const existing = getDb().prepare('SELECT role FROM users WHERE email = ?').get(email)
+  if (existing) {
+    if (existing.role !== 'admin') {
+      getDb().prepare("UPDATE users SET role = 'admin' WHERE email = ?").run(email)
+      console.log(`[DB] 已将 ${email} 设为管理员`)
+    }
+  } else {
+    const adminPassword = process.env.ADMIN_PASSWORD
+    if (adminPassword) {
+      const hash = bcrypt.hashSync(adminPassword, 10)
+      getDb()
+        .prepare("INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, 'admin', ?)")
+        .run(email, hash, Date.now())
+      console.log(`[DB] 已创建管理员账号: ${email}`)
+    }
+  }
 }
 
 app.use(cors({ origin: true, credentials: true }))
@@ -66,17 +119,15 @@ app.post('/api/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: '密码至少 6 位' })
     }
-    const users = readUsers()
-    if (users.some((u) => u.email === email.toLowerCase())) {
+    const normalizedEmail = email.toLowerCase()
+    if (dbFindUser(normalizedEmail)) {
       return res.status(400).json({ error: '该邮箱已注册' })
     }
     const hash = await bcrypt.hash(password, 10)
-    const user = { email: email.toLowerCase(), passwordHash: hash }
-    users.push(user)
-    writeUsers(users)
-    const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '7d' })
-    const balance = getBalance(user.email)
-    return res.json({ token, user: { email: user.email, pointsBalance: balance } })
+    dbCreateUser(normalizedEmail, hash)
+    const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '7d' })
+    const balance = getBalance(normalizedEmail)
+    return res.json({ token, user: { email: normalizedEmail, role: 'user', pointsBalance: balance } })
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '注册失败' })
@@ -90,14 +141,14 @@ app.post('/api/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: '请填写邮箱和密码' })
     }
-    const users = readUsers()
-    const user = users.find((u) => u.email === email.toLowerCase())
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    const normalizedEmail = email.toLowerCase()
+    const user = dbFindUser(normalizedEmail)
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: '邮箱或密码错误' })
     }
     const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '7d' })
     const balance = getBalance(user.email)
-    return res.json({ token, user: { email: user.email, pointsBalance: balance } })
+    return res.json({ token, user: { email: user.email, role: user.role, pointsBalance: balance } })
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '登录失败' })
@@ -622,15 +673,16 @@ Typography and color (reminder): The headline must feel art-directed — elegant
   }
 })
 
-// 获取当前用户（校验 token）+ 积分余额
+// 获取当前用户（校验 token）+ 积分余额 + 角色
 app.get('/api/me', (req, res) => {
   const auth = req.headers.authorization
   const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
   if (!token) return res.status(401).json({ error: '未登录' })
   try {
     const payload = jwt.verify(token, JWT_SECRET)
+    const dbUser = dbFindUser(payload.email)
     const balance = getBalance(payload.email)
-    return res.json({ user: { email: payload.email, pointsBalance: balance } })
+    return res.json({ user: { email: payload.email, role: dbUser?.role ?? 'user', pointsBalance: balance } })
   } catch {
     return res.status(401).json({ error: '登录已过期' })
   }
@@ -678,14 +730,22 @@ app.get('/api/points/transactions', requireAuth, (req, res) => {
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization
   const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
-  if (!token) return res.status(401).json({ error: '请先登录后再使用仓库' })
+  if (!token) return res.status(401).json({ error: '请先登录后再使用' })
   try {
     const payload = jwt.verify(token, JWT_SECRET)
-    req.user = { email: payload.email }
+    const dbUser = dbFindUser(payload.email)
+    req.user = { email: payload.email, role: dbUser?.role ?? 'user' }
     next()
   } catch {
     return res.status(401).json({ error: '登录已过期，请重新登录' })
   }
+}
+
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: '无权限，需要管理员账号' })
+    next()
+  })
 }
 
 const galleryRoot = join(__dirname, 'gallery')
@@ -1084,6 +1144,101 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
     return res.status(500).json({ error: e.message || 'A+ 页面生成失败，请稍后重试' })
   }
 })
+
+// ── 管理员 API ────────────────────────────────────────────────────────────────
+
+// 客户列表（含余额、订阅到期时间、总消耗）
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  try {
+    const users = getDb().prepare('SELECT email, role, created_at FROM users ORDER BY created_at DESC').all()
+    const result = users.map((u) => {
+      const info = getSubscriptionInfo(u.email)
+      const spentRow = getDb()
+        .prepare('SELECT COALESCE(SUM(ABS(amount)), 0) AS total FROM points_transactions WHERE user_email = ? AND amount < 0')
+        .get(u.email)
+      return {
+        email: u.email,
+        role: u.role,
+        createdAt: u.created_at,
+        balance: info.balance,
+        expiresAt: info.expiresAt,
+        lastGrantedAt: info.lastGrantedAt,
+        totalSpent: spentRow?.total ?? 0,
+      }
+    })
+    return res.json({ users: result })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取客户列表失败' })
+  }
+})
+
+// 给指定客户充值积分并设置有效期
+app.post('/api/admin/users/:email/grant', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    const amount = parseInt(req.body?.amount, 10)
+    const days = parseInt(req.body?.days, 10) || 30
+    if (!amount || amount <= 0) return res.status(400).json({ error: '请填写有效积分数量' })
+    const user = dbFindUser(targetEmail)
+    if (!user) return res.status(404).json({ error: '用户不存在' })
+    const newBalance = grantPoints(targetEmail, amount, days)
+    console.log(`[Admin] ${req.user.email} 给 ${targetEmail} 充值 ${amount} 积分，有效期 ${days} 天，剩余: ${newBalance}`)
+    return res.json({ balance: newBalance, expiresAt: Date.now() + days * 24 * 60 * 60 * 1000 })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '充值失败' })
+  }
+})
+
+// 删除客户
+app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    if (targetEmail === req.user.email) return res.status(400).json({ error: '不能删除自己的账号' })
+    const user = dbFindUser(targetEmail)
+    if (!user) return res.status(404).json({ error: '用户不存在' })
+    getDb().prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
+    console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}`)
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '删除失败' })
+  }
+})
+
+// 查看某客户的积分流水
+app.get('/api/admin/users/:email/transactions', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    const items = getTransactions(targetEmail, 200)
+    return res.json({ items })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '获取流水失败' })
+  }
+})
+
+// 修改用户角色（升/降 admin）
+app.patch('/api/admin/users/:email/role', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    const { role } = req.body
+    if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: '无效角色' })
+    if (targetEmail === req.user.email) return res.status(400).json({ error: '不能修改自己的角色' })
+    const user = dbFindUser(targetEmail)
+    if (!user) return res.status(404).json({ error: '用户不存在' })
+    getDb().prepare('UPDATE users SET role = ? WHERE email = ?').run(role, targetEmail)
+    return res.json({ ok: true, role })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '修改角色失败' })
+  }
+})
+
+// 启动时迁移用户数据并确保管理员账号
+dbMigrateFromJson()
+dbEnsureAdmin()
 
 app.listen(PORT, () => {
   console.log('')
