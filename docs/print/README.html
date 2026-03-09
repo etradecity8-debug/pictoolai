@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>README</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">README.md → 打印版 · 2026/3/9</div>
+  <h1>项目文档索引</h1>
+<p>根目录 <strong>README.md</strong> 只做入口（项目简介 + 快速开始 + 本目录链接）。<strong>所有详细文档都在本目录</strong>，下面按用途分类。</p>
+<hr>
+<h2>项目与功能</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./PROJECT-OVERVIEW.md">PROJECT-OVERVIEW.md</a></td>
+<td>项目结构、技术栈、主要功能一览（组图/修改图片/A+/亚马逊 Listing/仓库）、本地运行要点。</td>
+</tr>
+<tr>
+<td><a href="./AMAZON-LISTING-SPEC.md">AMAZON-LISTING-SPEC.md</a></td>
+<td>亚马逊 Listing 生成功能产品设计方案：输入/输出、类目、AI 流程、<strong>亚马逊规则与合规</strong>（7.1 标题～7.7 A+）、实现细节。</td>
+</tr>
+<tr>
+<td><a href="./AMAZON-LISTING-IMAGE-PROMPTS.md">AMAZON-LISTING-IMAGE-PROMPTS.md</a></td>
+<td>亚马逊主图与 A+ 图片的提示词与准则；与官方要求对照及当前实现说明。</td>
+</tr>
+<tr>
+<td><a href="./DATA-FLOW.md">DATA-FLOW.md</a></td>
+<td>全品类组图页的字段与 AI 传参说明、数据流。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>运维与部署</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./DEPLOY.md">DEPLOY.md</a></td>
+<td>部署到腾讯云香港轻量的完整步骤（环境、上传代码、PM2、Nginx、验证）。</td>
+</tr>
+<tr>
+<td><a href="./GEMINI-REGION-ISSUE.md">GEMINI-REGION-ISSUE.md</a></td>
+<td>Gemini API 地区限制说明（香港等不支持时的处理思路）。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>已知问题与待办</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
+<td>已知问题、待办、运营须知（数据隐私、仓库下载、A+ 迭代、积分/支付、部署优先级等）。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>打印版（HTML）</h2>
+<ul>
+<li><strong><code>docs/print/</code></strong>：所有上述 .md 已转为可打印的 HTML。用浏览器打开 <strong><code>docs/print/index.html</code></strong> 可看到目录，点击任一文档后按 <strong>Ctrl+P</strong>（Mac：⌘+P）打印。重新生成打印版请在项目根目录执行：<code>npm run docs:print</code>。</li>
+</ul>
+<hr>
+<h2>约定</h2>
+<ul>
+<li><strong>外面</strong>：只有根目录一个 <code>README.md</code>（简短入口）。</li>
+<li><strong>里面</strong>：本目录 <code>docs/</code> 放全部详细文档，本文件是总索引。日常会话记忆见 <code>.cursor/rules/project-context.mdc</code>。</li>
+</ul>
+
+</body>
+</html>

@@ -15,6 +15,14 @@ alwaysApply: true
 - **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY、**ADMIN_EMAIL、ADMIN_PASSWORD**），从 `.env.example` 复制，不提交。
 - **静态演示图**：`public/demo-*.png`（修改图片各模式 before/after 示例图，共 14 张）。
 
+## 文档约定（重要，不丢失）
+
+- **根目录**：只有 **README.md** 一个文档，仅做入口（项目一句话介绍、快速开始、指向 docs 的链接表）。不在此写长说明、不重复 docs 里的内容。
+- **所有详细文档都在 `docs/`**：产品设计、运维部署、已知问题、项目概览等，一律写在 `docs/*.md`。**新增或大改文档时，只往 docs 里放，不要在外面新建散落的 .md。**
+- **`docs/README.md` = 文档总索引**：新增或重命名文档后，**必须**在 `docs/README.md` 里对应分类下加一行（表格或列表），写清文件名和一句话说明，避免文档「找不到」。
+- **打印版**：`docs/print/` 下为可打印 HTML。生成方式：项目根目录执行 `npm run docs:print`（会遍历 `docs/*.md` 生成 HTML）。若在 `docs/print/index.html` 里做了手工链接，新增文档后记得在索引页补一条。
+- **写文档时**：新功能/新设计/运维说明 → 在 `docs/` 下新建或更新对应 .md → 更新 `docs/README.md` 索引。不确定放哪时，优先放在「项目与功能」或「已知问题」类，或新建一个语义清晰的文件名（如 `XXX-SPEC.md`、`XXX-GUIDE.md`）。
+
 ## 约定
 - 分析模型默认 `gemini-2.5-flash`（`server/gemini-models.js` 中 `ANALYSIS_MODEL_ID`，可通过环境变量 `GEMINI_ANALYSIS_MODEL` 覆盖）；主备模型相同，503 重试机制保留但实际不切换。生图用 `getImageModelId(displayName)`。
 - **组图要求输入字段**：已拆分为 5 个独立输入框——产品名称（必填）、卖点、目标人群、风格、其他要求。前端在 `runAnalyze` 中组装为结构化文本（`产品名称：...\n卖点：...\n`）后作为 `requirements` 发给后端，后端/AI prompt 不变。产品名称未填则禁止分析。

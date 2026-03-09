@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KNOWN_ISSUES</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/9</div>
+  <h1>已知问题与待办（后续再改）</h1>
+<h2>运营须知：数据隐私与客户信任</h2>
+<h3>技术层面：管理员能看到什么</h3>
+<table>
+<thead>
+<tr>
+<th>数据</th>
+<th>能看到吗</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>账号邮箱</td>
+<td>✅ 能</td>
+<td>存在 users 表</td>
+</tr>
+<tr>
+<td>密码</td>
+<td>❌ 不能</td>
+<td>bcrypt 加密，不可逆</td>
+</tr>
+<tr>
+<td>积分余额/流水</td>
+<td>✅ 能</td>
+<td>存在 user_points / points_transactions 表</td>
+</tr>
+<tr>
+<td>生成的图片</td>
+<td>✅ 能</td>
+<td>存在服务器 server/gallery/ 目录</td>
+</tr>
+<tr>
+<td>上传的产品图</td>
+<td>❌ 不存储</td>
+<td>只做分析，处理完即丢弃，不落盘</td>
+</tr>
+<tr>
+<td>输入的文字要求</td>
+<td>❌ 不存储</td>
+<td>只传给 Gemini，不写入数据库</td>
+</tr>
+</tbody></table>
+<h3>如何和客户真诚沟通</h3>
+<p><strong>建议直接告知</strong>，不要回避：</p>
+<blockquote>
+<p>「作为平台管理员，我技术上能看到你生成的图片和账号信息，但我不会主动去查看。这和你用 Canva、Notion 等任何 SaaS 工具是一样的——服务方都有管理员权限，信任来自我们的关系和我的承诺。」</p>
+</blockquote>
+<p>绝大多数做跨境/亚马逊的卖家可以接受这一点，因为产品图本来就是要公开销售的，不属于高度机密。</p>
+<h3>哪类客户需要额外说明</h3>
+<p>如果客户的产品图属于以下情况，需要提前告知限制：</p>
+<ul>
+<li>未上市产品、核心专利外观</li>
+<li>高度保密的商业设计</li>
+</ul>
+<p>对这类客户的建议：</p>
+<ul>
+<li>用完后在仓库里手动删除图片（管理后台可帮忙删）</li>
+<li>或等后续「用户自带 API Key」功能上线后再使用</li>
+</ul>
+<h3>后续可做的隐私增强（记录备用）</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>说明</th>
+<th>优先级</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户自带 API Key</td>
+<td>用户填自己的 Gemini Key，生成请求不过本服务器</td>
+<td>中</td>
+</tr>
+<tr>
+<td>图片定期自动清理</td>
+<td>N 天后自动删除仓库中的图片文件</td>
+<td>低</td>
+</tr>
+<tr>
+<td>隐私政策页面</td>
+<td>前端加一页说明数据存储范围与用途</td>
+<td>低</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>待后续改进</h2>
+<h3>仓库保存/下载体验</h3>
+<ul>
+<li><strong>现状与不满</strong>：当前单张用「另存为」（showSaveFilePicker）可正常选路径保存；多张用「选择文件夹」（showDirectoryPicker）一次性写入，但部分目录（如含系统/隐藏文件）会被浏览器拒绝并提示「含有系统文件」，导致无法保存。用户对该块体验不满意，后续需再改。</li>
+<li><strong>约束</strong>：多张若改为「每张弹一次另存为」（showSaveFilePicker 循环），选 1 万张就要点 1 万次，不可接受；因此多张仍需「选一次文件夹」的机制，但需在浏览器限制下找到更好方案（例如引导用户选子文件夹、或后续有更合适的 API/产品方案再优化）。</li>
+</ul>
+<h2>今日完成（2026-03-07，续2）</h2>
+<h3>部署准备（进行中）</h3>
+<ul>
+<li>选定部署方案：腾讯云香港轻量 VPS（锐驰型，跨境优化，¥55/月，IP: 43.161.215.41）</li>
+<li>香港服务器 Gemini API 直连无需代理</li>
+<li>服务器环境已安装完毕：Node.js v20.20.1 / npm 10.8.2 / PM2 6.0.14 / Nginx 1.18.0 / Git</li>
+<li>新建部署文档 <code>docs/DEPLOY.md</code>，记录完整 8 阶段部署步骤</li>
+</ul>
+<p><strong>待继续的部署步骤（从阶段二开始）：</strong></p>
+<ol>
+<li>代码推送到 GitHub → 服务器 git clone</li>
+<li>服务器创建 server/.env（填 API Key，删 HTTPS_PROXY）</li>
+<li>npm install（前端 + 后端）</li>
+<li>npm run build（构建前端）</li>
+<li>pm2 启动后端</li>
+<li>配置 Nginx（静态文件 + /api/ 反代）</li>
+<li>浏览器验证 <a href="http://43.161.215.41">http://43.161.215.41</a></li>
+</ol>
+<hr>
+<h2>今日完成（2026-03-07，续）</h2>
+<h3>客户积分管理系统（手动运营版）</h3>
+<p><strong>已完成：</strong></p>
+<ul>
+<li>新建 <code>users</code> 表（SQLite），替代 <code>users.json</code>；用户注册/登录全部改为读写数据库</li>
+<li>启动时自动将 <code>users.json</code> 中的历史账号迁移到 <code>users</code> 表（幂等，不重复插入）</li>
+<li><code>user_points</code> 表新增 <code>expires_at</code>（订阅到期时间戳）、<code>last_granted_at</code>（最后充值时间）字段，旧数据库自动 <code>ALTER TABLE</code> 升级</li>
+<li><code>getBalance</code> 加入惰性清零逻辑：每次读取余额时检查 <code>expires_at</code>，过期则自动归零并写一条「订阅到期，积分清零」流水</li>
+<li>新增 <code>grantPoints(email, amount, days)</code> 函数：管理员充值专用，每次充值同时重置有效期（新到期时间 = 现在 + days 天）</li>
+<li><code>requireAuth</code> 中间件改为从数据库实时读取用户角色，注入 <code>req.user.role</code></li>
+<li>新增 <code>requireAdmin</code> 中间件（role !== &#39;admin&#39; 返回 403）</li>
+<li>新增 5 个管理员 API（均需 admin 角色）：<ul>
+<li><code>GET /api/admin/users</code>：客户列表（邮箱、角色、余额、到期时间、总消耗、注册时间）</li>
+<li><code>POST /api/admin/users/:email/grant</code>：充值积分并设置有效期</li>
+<li><code>DELETE /api/admin/users/:email</code>：删除客户</li>
+<li><code>GET /api/admin/users/:email/transactions</code>：查看某客户积分流水</li>
+<li><code>PATCH /api/admin/users/:email/role</code>：修改用户角色（user/admin）</li>
+</ul>
+</li>
+<li>新增前端管理后台页面 <code>src/pages/Admin.jsx</code>（路由 <code>/admin</code>，需登录且角色为 admin）：<ul>
+<li>客户列表表格（余额/到期时间/已消耗积分实时显示，颜色区分「即将到期/已过期/正常」）</li>
+<li>充值弹窗（快捷选 7/30/90 天，支持自定义天数）</li>
+<li>积分流水弹窗</li>
+<li>删除客户确认弹窗</li>
+</ul>
+</li>
+<li><code>AuthContext</code> 新增 <code>isAdmin</code> 便捷属性</li>
+<li><code>server/.env</code> 新增 <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code> 配置项，后端启动时自动提升/创建管理员账号</li>
+</ul>
+<p><strong>客户购买套餐的完整流程（当前手动运营模式）：</strong></p>
+<ol>
+<li>客户通过微信/邮件等渠道联系，选择套餐（如 100 积分，30 天有效）</li>
+<li>客户付款（微信/支付宝等线下方式）</li>
+<li>管理员收款确认后，打开 <code>/admin</code> 后台</li>
+<li>若客户无账号，引导客户先去 <code>/register</code> 注册</li>
+<li>在客户列表找到该邮箱，点「充值」，填写积分数量 + 有效天数，确认</li>
+<li>系统自动设置 <code>expires_at = 现在 + N 天</code>，客户即可正常使用</li>
+<li>到期后，客户下次请求时系统自动清零余额，显示「积分不足」</li>
+<li>续费时：客户再次付款 → 管理员再次充值，有效期从充值当天重新起算，未用完积分累加</li>
+</ol>
+<p><strong>待后续完善/升级：</strong></p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>说明</th>
+<th>现状</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>支付接入</td>
+<td>微信支付/支付宝，客户自助下单，付款后自动触发充值</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>到期提醒</td>
+<td>提前 3～7 天发邮件/消息通知客户积分即将到期</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>前端套餐页</td>
+<td>客户自助选套餐、查看当前余额和到期时间</td>
+<td>❌ 待做（当前仅管理员可见信息）</td>
+</tr>
+<tr>
+<td>套餐配置化</td>
+<td>后台可配置套餐名称/价格/积分数/天数，无需改代码</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>财务记录</td>
+<td>订单/收款单据，用于对账和开票</td>
+<td>❌ 待做（当前只有积分流水）</td>
+</tr>
+<tr>
+<td>批量操作</td>
+<td>管理后台批量充值/批量删除客户</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>注册审批</td>
+<td>新用户注册后需管理员审批才能使用，防止随意注册</td>
+<td>❌ 待做</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>今日完成（2026-03-07）</h2>
+<h3>亚马逊 A+ 详情页生成（MVP）</h3>
+<p><strong>已完成：</strong></p>
+<ul>
+<li>前端新增 <code>src/pages/AmazonAPlus.jsx</code>，4 步流程：填写信息 → 确认文案 → 生成图片 → 查看结果</li>
+<li>后端新增两个接口：<ul>
+<li><code>POST /api/amazon-aplus/analyze</code>：调用文本模型生成文案（不扣积分），返回 heroTagline/heroSubtext/3 个特点/品牌故事</li>
+<li><code>POST /api/amazon-aplus/generate</code>：根据确认后的文案生图（顺序生成 4 张，避免并发限速）、扣积分、自动存图库</li>
+</ul>
+</li>
+<li>支持 10 种语言选择（英/德/法/意/西/日/中/荷/瑞/波），文案和图片 prompt 均注入语言指令</li>
+<li>3 种视觉风格：白底简洁 / 场景生活 / 高端黑金</li>
+<li>文案和图片一一对应展示，所有文字字段支持一键复制（<code>CopyableText</code>）</li>
+<li>图片自动存图库，成功后显示消耗积分数</li>
+<li>后端全程调试日志（文案生成、每张图状态、积分扣除、图库保存）</li>
+<li>图片 prompt 加入最高优先级禁文字规则，防止 AI 将产品名/参考图中的文字渲染到图上</li>
+<li>导航栏新增「A+ 页面」入口（<code>/amazon-aplus</code>）</li>
+<li>隐藏「服装组图」「风格复刻」「万能画布」导航入口（暂不开放）</li>
+</ul>
+<p><strong>A+ 完整方案（尚未实现，记录备用）：</strong></p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>说明</th>
+<th>现状</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hero 横幅</td>
+<td>1464×600 px，16:9，主标题+副标题</td>
+<td>✅ MVP 已有</td>
+</tr>
+<tr>
+<td>三栏特点图</td>
+<td>300×300 px，1:1，标题+描述</td>
+<td>✅ MVP 已有</td>
+</tr>
+<tr>
+<td>品牌故事</td>
+<td>纯文字模块，标题+正文</td>
+<td>✅ MVP 已有（仅文字，无图）</td>
+</tr>
+<tr>
+<td>对比图（A/B 模块）</td>
+<td>左右分栏对比，含标题+描述</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>产品规格图</td>
+<td>含技术参数表格，标注尺寸/重量等</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>场景生活图</td>
+<td>产品在真实使用环境中的大图</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>视频缩略图/封面</td>
+<td>亚马逊 A+ 支持嵌入视频</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>多语言版本切换</td>
+<td>一套信息生成多语言版本</td>
+<td>部分（单次选语言，不支持批量）</td>
+</tr>
+<tr>
+<td>自定义模块顺序</td>
+<td>用户拖拽调整模块顺序</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>导出为 HTML/ZIP</td>
+<td>供卖家后台直接上传</td>
+<td>❌ 待做</td>
+</tr>
+<tr>
+<td>图片尺寸精准裁剪</td>
+<td>按亚马逊规格精确输出 px</td>
+<td>❌ 待做（当前为比例生成）</td>
+</tr>
+</tbody></table>
+<p><strong>修改图片模块补充（本周完成）：</strong></p>
+<ul>
+<li>新增「图片文字替换」「图片文字语言转换」两种模式（共 9 种）</li>
+<li>文字替换/翻译支持字体样式选择（字重/颜色/字号放大缩小+百分比）</li>
+<li>输出设置默认展开</li>
+<li>模型选择旁加入黄色提示（文字操作推荐 Nano Banana 2/Pro）</li>
+<li>修改后图片自动入图库、显示积分消耗</li>
+<li>图库选图入口（<code>GalleryThumb</code> 组件，fetch + blob URL 认证加载）</li>
+<li>语言选项统一改为中文标识（英文→英文、German→德文 等）</li>
+</ul>
+<hr>
+<h2>今日完成（2026-03-05）</h2>
+<ul>
+<li><strong>设计规范与图片规划</strong>：改为 Markdown 渲染（<code>react-markdown</code> + <code>remark-breaks</code>），不再做自定义换行/字体解析；支持单换行显示。</li>
+<li><strong>重置</strong>：整体设计规范、图片规划在编辑时可「重置」到分析首次返回的原始内容。</li>
+<li><strong>步骤 5</strong>：「返回上一步」→ 步骤 3；「新建项目」→ 步骤 1；确认弹窗改为自定义（不显示 localhost、字体更大）。</li>
+<li><strong>图片展示</strong>：一行两图、更大；图片规划分析只填主标题，副标题/说明留空供用户自填。</li>
+<li><strong>进度条</strong>：分析中/生成中全页遮罩内增加不确定进度条。</li>
+<li><strong>仓库</strong>：SQLite 数据库（<code>server/db.js</code> + <code>picaitool.db</code>）+ <code>server/gallery/</code> 存图；登录用户生成图<strong>自动</strong>写入仓库；每张图可「保存到本地」下载；工作台 → 仓库从接口拉取并展示。</li>
+<li><strong>README</strong>：补充数据库概念（SQLite vs MySQL/PostgreSQL）、已知问题/后续可做与文档同步。</li>
+<li><strong>侧栏与路由</strong>：「工作台」改为仅保留「仓库」入口（<code>/dashboard/gallery</code>）；访问 <code>/dashboard</code> 重定向到 <code>/dashboard/gallery</code>。</li>
+<li><strong>仓库批量删除</strong>：仓库页增加「删除选中」按钮，对选中图片逐个调用 DELETE 并更新列表与选中状态。</li>
+<li><strong>生图文字不裁切</strong>：在 <code>server/index.js</code> 生图 prompt 中强化 <code>safeAreaRule</code>，要求整段标题完整在画面内、四周留足边距、禁止单词在边缘被裁切（如 &quot;DURABILITY&quot; 不得只露出一部分）。</li>
+</ul>
+<h2>历史记录（已处理）</h2>
+<h3>整体设计规范显示方式（已改为 Markdown 渲染）</h3>
+<ul>
+<li>前端已删除 <code>SECONDARY_LABELS</code>、<code>splitBySecondaryLabels</code>、<code>parseLabelLine</code>；<code>SpecPreview</code> 与图片规划描述均用 <code>react-markdown</code> 渲染。</li>
+<li>若分析结果格式不规范，可在 <code>server/index.js</code> 的分析 prompt 中约定输出为规范 Markdown。</li>
+</ul>
+<hr>
+<h2>文档与代码归档说明</h2>
+<ul>
+<li>项目说明与结构见根目录 <code>README.md</code>。</li>
+<li>后端接口与模型配置见 <code>server/index.js</code>、<code>server/gemini-models.js</code>、<code>server/db.js</code>。</li>
+<li>全品类组图流程、设计规范与图片规划逻辑见 <code>src/pages/DetailSet.jsx</code> 及本目录下的记录。</li>
+</ul>
+
+</body>
+</html>

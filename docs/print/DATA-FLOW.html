@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DATA FLOW</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">DATA-FLOW.md → 打印版 · 2026/3/9</div>
+  <h1>字段与 AI 传参说明</h1>
+<blockquote>
+<p>本文档说明「全品类组图」页面（<code>src/pages/DetailSet.jsx</code>）中每个用户输入字段，在前端和后端的作用，以及最终如何传给 AI。</p>
+</blockquote>
+<hr>
+<h2>一、输入字段总览</h2>
+<table>
+<thead>
+<tr>
+<th>前端字段</th>
+<th>是否必填</th>
+<th>触发「回到步骤1重新分析」</th>
+<th>作用阶段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>产品图</td>
+<td>是</td>
+<td>是</td>
+<td>分析 + 生图</td>
+</tr>
+<tr>
+<td>产品名称</td>
+<td>是</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>卖点</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>目标人群</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>风格</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>其他要求</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>生成数量</td>
+<td>是（默认3）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>目标语言</td>
+<td>是（默认英语）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>模型</td>
+<td>是（默认Pro）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>尺寸比例</td>
+<td>是（默认3:4）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>清晰度</td>
+<td>是（默认2K）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>逻辑约定</strong>：修改上半部分字段（产品信息/产品图/数量）需重新分析；修改下半部分（语言/模型/尺寸/清晰度）不影响已有规划，可直接「再次生成」。</p>
+</blockquote>
+<hr>
+<h2>二、分析阶段（POST /api/detail-set/analyze）</h2>
+<h3>前端组装逻辑（<code>runAnalyze</code>）</h3>
+<p>五个组图要求输入框在前端拼接成一段结构化文本，再作为 <code>requirements</code> 字段发给后端：</p>
+<pre><code>产品名称：日式抹茶沐浴露
+卖点：天然成分、舒缓放松
+目标人群：25-40 岁女性
+风格：日式极简
+其他要求：...
+</code></pre>
+<p>只有有内容的字段才会加入，空字段不传。</p>
+<h3>发给后端的请求体</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>来源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>image</code></td>
+<td>产品图第一张（压缩后 base64）</td>
+<td>长边 ≤ 1024px，JPEG 0.82</td>
+</tr>
+<tr>
+<td><code>requirements</code></td>
+<td>五个输入框拼接的结构化文本</td>
+<td>有内容才传，否则 <code>undefined</code></td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>模型选择</td>
+<td><strong>后端分析阶段不使用</strong>，固定用 <code>gemini-2.5-flash</code></td>
+</tr>
+<tr>
+<td><code>quantity</code></td>
+<td>生成数量</td>
+<td>转为整数，决定 AI 输出几条图片规划</td>
+</tr>
+</tbody></table>
+<h3>后端如何用（<code>server/index.js</code>）</h3>
+<pre><code>用户组图要求：${requirements || &#39;（未填写）&#39;}
+请输出恰好 ${planCount} 条图片规划，不要多也不要少。
+</code></pre>
+<ul>
+<li><code>requirements</code> → 嵌入分析 prompt 的「用户组图要求」段落</li>
+<li><code>quantity</code> → 决定 AI 返回的 <code>imagePlan</code> 数组长度</li>
+<li><code>image</code> → 作为图片 <code>inlineData</code> 与 prompt 一起传给 Gemini</li>
+</ul>
+<h3>返回结果</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>designSpecMarkdown</code></td>
+<td>整体设计规范（Markdown 格式，前端渲染展示，用户可编辑）</td>
+</tr>
+<tr>
+<td><code>imagePlan</code></td>
+<td>图片规划数组，每条含 <code>title</code> + <code>contentMarkdown</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、生图阶段（POST /api/detail-set/generate）</h2>
+<h3>发给后端的请求体</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>来源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>designSpecMarkdown</code></td>
+<td>分析结果（可被用户编辑）</td>
+<td>整体设计规范</td>
+</tr>
+<tr>
+<td><code>imagePlan</code></td>
+<td>分析结果（可被用户编辑）</td>
+<td>图片规划数组</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>模型选择</td>
+<td>用于 <code>getImageModelId()</code> 确定 Gemini 生图模型</td>
+</tr>
+<tr>
+<td><code>clarity</code></td>
+<td>清晰度选择</td>
+<td>转为 <code>imageConfig.imageSize</code>（如 <code>2K</code>）</td>
+</tr>
+<tr>
+<td><code>aspectRatio</code></td>
+<td>尺寸比例选择</td>
+<td>转为 <code>imageConfig.aspectRatio</code>（如 <code>3:4</code>）</td>
+</tr>
+<tr>
+<td><code>targetLanguage</code></td>
+<td>目标语言选择</td>
+<td>转为语言约束规则注入 prompt</td>
+</tr>
+<tr>
+<td><code>quantity</code></td>
+<td><code>imagePlan.length</code></td>
+<td>生图张数（按规划条数）</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>产品图第一张（压缩后 base64）</td>
+<td>作为参考图传给生图 AI</td>
+</tr>
+</tbody></table>
+<h3>后端生图 prompt 结构（每张图独立调用一次）</h3>
+<pre><code>[产品摆放规则]       placementRule   产品必须放在真实支撑面上，禁止悬空
+[尺寸规则]           aspectRule      输出必须严格符合 aspectRatioVal
+[构图规则]           compositionRule 留白 25-35%，产品区与文字区分离
+[排版规则]           textQualityRule 标题仅一行，精致无衬线字体
+[文字安全区]         safeAreaRule    标题整句完整在画面内，四边留边距
+[语言规则]           langRule        由 targetLanguage 生成的强制语言约束
+[整体设计规范]       designSpecMarkdown
+[本张图片规划]       imagePlan[i].title + imagePlan[i].contentMarkdown
+</code></pre>
+<h3>模型对应关系</h3>
+<table>
+<thead>
+<tr>
+<th>前端展示名</th>
+<th>Gemini 模型 ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nano Banana</td>
+<td><code>gemini-2.5-flash-image</code></td>
+</tr>
+<tr>
+<td>Nano Banana 2</td>
+<td><code>gemini-3.1-flash-image-preview</code></td>
+</tr>
+<tr>
+<td>Nano Banana Pro</td>
+<td><code>gemini-3-pro-image-preview</code></td>
+</tr>
+</tbody></table>
+<h3>清晰度对应关系</h3>
+<table>
+<thead>
+<tr>
+<th>前端文案</th>
+<th>API imageSize</th>
+<th>支持模型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0.5K 快速</td>
+<td><code>512</code></td>
+<td>仅 Nano Banana 2</td>
+</tr>
+<tr>
+<td>1K 标准</td>
+<td><code>1K</code></td>
+<td>全部</td>
+</tr>
+<tr>
+<td>2K 高清</td>
+<td><code>2K</code></td>
+<td>Nano Banana 2、Pro</td>
+</tr>
+<tr>
+<td>4K 超清</td>
+<td><code>4K</code></td>
+<td>Nano Banana 2、Pro</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：Nano Banana（<code>gemini-2.5-flash-image</code>）不支持 <code>imageSize</code> 参数，只传 <code>aspectRatio</code>。</p>
+</blockquote>
+<hr>
+<h2>四、分析模型说明</h2>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>默认模型</td>
+<td><code>gemini-2.5-flash</code></td>
+</tr>
+<tr>
+<td>环境变量覆盖</td>
+<td><code>GEMINI_ANALYSIS_MODEL</code></td>
+</tr>
+<tr>
+<td>503 备用模型</td>
+<td><code>gemini-2.5-flash</code>（当前主备相同，实际不切换）</td>
+</tr>
+<tr>
+<td>环境变量覆盖备用</td>
+<td><code>GEMINI_ANALYSIS_MODEL_FALLBACK</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>五、图片压缩策略</h2>
+<p>前端在发请求前统一压缩产品图（<code>fileToCompressedDataUrl</code>）：</p>
+<ul>
+<li>长边压缩至 ≤ 1024px，保持原始比例</li>
+<li>输出格式：JPEG，质量 0.82</li>
+<li>目的：防止大图导致代理连接关闭或请求超时</li>
+</ul>
+
+</body>
+</html>

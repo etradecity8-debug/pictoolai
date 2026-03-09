@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AMAZON LISTING SPEC</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">AMAZON-LISTING-SPEC.md → 打印版 · 2026/3/9</div>
+  <h1>亚马逊 Listing 生成功能 — 产品设计方案</h1>
+<p><strong>版本</strong>：v0.2 已确认<br><strong>日期</strong>：2026-03-08<br><strong>状态</strong>：已确认，开发中</p>
+<p><strong>合规承诺</strong>：本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9（传统搜索）、Cosmo（语义搜索）、Rufus（AI 购物助手）、GEO（AI 搜索引擎优化）等原则。</p>
+<hr>
+<h2>一、功能概述</h2>
+<p>在「AI 运营助手 → 亚马逊」模块中新增「生成 Listing」功能。<br>用户填写产品信息后，AI 分多步自动生成符合亚马逊规则的完整 Listing，包括标题、后台关键词、五点描述、产品描述，并可进一步生成 A+ 页面文案和产品图。</p>
+<hr>
+<h2>二、输入设计</h2>
+<h3>必填项（缺少任一项不允许提交）</h3>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>产品图片（至少 1 张）</td>
+<td>随手拍、供应商图均可；AI 从图中提取产品信息，上传数量建议 1–5 张</td>
+</tr>
+<tr>
+<td>2</td>
+<td>产品类别（二级联动下拉）</td>
+<td>一级约 15 个大类，二级联动子类；决定 Listing 格式与优化方向</td>
+</tr>
+<tr>
+<td>3</td>
+<td>品牌名</td>
+<td>亚马逊店铺品牌名；无品牌填 Generic</td>
+</tr>
+<tr>
+<td>4</td>
+<td>核心卖点（至少 2 条）</td>
+<td>用户最了解自己产品的差异化点；每条一行填写</td>
+</tr>
+<tr>
+<td>5</td>
+<td>目标市场</td>
+<td>美国、英国、德国、法国、日本、加拿大、澳大利亚、墨西哥等</td>
+</tr>
+</tbody></table>
+<h3>可选项（填写后 AI 输出质量更高）</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>货源链接</td>
+<td>1688 / 速卖通 / Alibaba 等供应商页面链接；后端自动读取页面内容并补充产品信息</td>
+</tr>
+<tr>
+<td>参考关键词</td>
+<td>用户自己做过关键词研究的可以填入，AI 会优先覆盖这些词</td>
+</tr>
+<tr>
+<td>特殊认证 / 备注</td>
+<td>如 CE、FCC、BPA-free、专利、特别要强调的功能点等</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、产品类别设计（二级联动下拉）</h2>
+<p><strong>设计决策</strong>：不抓取亚马逊完整类目树。原因：类目层级过深（叶子节点达数千个）、维护成本高，且对 Listing 文案生成而言，一二级大类已足够指导 AI 的写作风格和关键词策略。精确的 Browse Node 是卖家在 Seller Central 上架时才需要填写的，不属于文案范畴。</p>
+<h3>一级 → 二级示例</h3>
+<table>
+<thead>
+<tr>
+<th>一级</th>
+<th>二级示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>家居厨房</td>
+<td>厨具、收纳整理、家纺、灯具、清洁用品、浴室用品</td>
+</tr>
+<tr>
+<td>运动户外</td>
+<td>户外装备、健身器材、自行车、游泳用品、球类运动</td>
+</tr>
+<tr>
+<td>电子数码</td>
+<td>手机配件、电脑配件、音频设备、摄影器材、智能家居</td>
+</tr>
+<tr>
+<td>美容个护</td>
+<td>护肤、彩妆、发型护理、香水、健康护理</td>
+</tr>
+<tr>
+<td>宠物用品</td>
+<td>犬用、猫用、小动物、水族</td>
+</tr>
+<tr>
+<td>婴儿用品</td>
+<td>喂养、婴儿衣物、婴儿玩具、婴儿安全</td>
+</tr>
+<tr>
+<td>服装鞋包</td>
+<td>男装、女装、鞋类、箱包配件</td>
+</tr>
+<tr>
+<td>玩具游戏</td>
+<td>益智玩具、遥控玩具、户外玩具、桌游</td>
+</tr>
+<tr>
+<td>汽车用品</td>
+<td>内饰配件、外饰改装、工具、电子设备</td>
+</tr>
+<tr>
+<td>工具五金</td>
+<td>电动工具、手工具、建材五金</td>
+</tr>
+<tr>
+<td>园艺</td>
+<td>园林工具、种植用品、户外家具</td>
+</tr>
+<tr>
+<td>健康医疗</td>
+<td>维生素/保健品、医疗器具、急救用品</td>
+</tr>
+<tr>
+<td>办公文具</td>
+<td>文具耗材、打印耗材、办公家具</td>
+</tr>
+<tr>
+<td>其他</td>
+<td>用户手动补充描述</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>四、输出设计</h2>
+<h3>4.1 输出内容与字符限制</h3>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>输出项</th>
+<th>亚马逊字符限制</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>标题（Title）</td>
+<td>≤200 字符</td>
+<td>含品牌名、核心搜索词、主要卖点</td>
+</tr>
+<tr>
+<td>2</td>
+<td>后台搜索关键词（Search Terms）</td>
+<td>≤250 bytes</td>
+<td>不与标题中已有的词重复</td>
+</tr>
+<tr>
+<td>3</td>
+<td>五点描述（Bullet Points）</td>
+<td>每条 ≤500 字符，共 5 条</td>
+<td>按 Rufus 问答逻辑组织</td>
+</tr>
+<tr>
+<td>4</td>
+<td>产品描述（Product Description）</td>
+<td>≤2000 字符</td>
+<td>适合尚未注册品牌的卖家</td>
+</tr>
+<tr>
+<td>5</td>
+<td>A+ 文案（Enhanced Brand Content）</td>
+<td>多模块，约 3–5 个</td>
+<td>本模块内新建 A+ 子流程，原有 A+ 页面暂不用</td>
+</tr>
+<tr>
+<td>6</td>
+<td>产品图</td>
+<td>—</td>
+<td>本模块内生成（符合亚马逊主图/附图规则）</td>
+</tr>
+</tbody></table>
+<h3>4.2 四大优化维度</h3>
+<p>生成的所有文案需同时满足以下维度：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>说明</th>
+<th>写法要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>A9</strong>（传统搜索算法）</td>
+<td>关键词相关性、点击率、转化率</td>
+<td>标题前 80 字符含高搜索量核心词；五点自然分布长尾词；后台关键词不重复标题</td>
+</tr>
+<tr>
+<td><strong>Cosmo</strong>（语义搜索，2023+）</td>
+<td>理解语义和使用场景，不只做关键词匹配</td>
+<td>每个 bullet 用自然语言描述：谁在用、什么场景、解决什么问题</td>
+</tr>
+<tr>
+<td><strong>Rufus</strong>（AI 购物助手，2024+）</td>
+<td>直接读取 Listing 回答买家问题</td>
+<td>每个 bullet 隐含回答一个买家常见问题（如：会不会漏水？用多久？）</td>
+</tr>
+<tr>
+<td><strong>GEO</strong>（AI 搜索引擎优化）</td>
+<td>内容结构化、事实性强，可被 AI 引用</td>
+<td>包含精确数据：尺寸、重量、材质、认证、测试结论等</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>五、AI 调用流程（多步生成）</h2>
+<p>分步调用 AI，前端按步骤逐步展示进度。每步独立，某步失败不影响其他步骤，用户可以单步重试或单步重新生成。</p>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>内容</th>
+<th>输入</th>
+<th>预估输出量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Step 1</td>
+<td><strong>产品分析</strong></td>
+<td>图片 + 货源链接（可选）</td>
+<td>结构化 JSON：品类、材质、特点、潜在关键词</td>
+</tr>
+<tr>
+<td>Step 2</td>
+<td><strong>标题 + 后台关键词 + 五点描述</strong></td>
+<td>Step1 结果 + 用户输入</td>
+<td>约 1–1.5K tokens</td>
+</tr>
+<tr>
+<td>Step 3</td>
+<td><strong>产品描述</strong></td>
+<td>Step1 结果 + Step2 结果</td>
+<td>约 1K tokens</td>
+</tr>
+<tr>
+<td>Step 4</td>
+<td><strong>A+ 文案</strong>（可选）</td>
+<td>以上全部结果</td>
+<td>约 2–3K tokens，多模块</td>
+</tr>
+<tr>
+<td>Step 5</td>
+<td><strong>产品图</strong>（可选）</td>
+<td>跳转至「产品组图」模块</td>
+<td>走图像生成流程</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>六、已确认结论（2026-03-08）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>问题</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>货源链接</td>
+<td>后续做，不纳入第一期</td>
+</tr>
+<tr>
+<td>2</td>
+<td>A+ 文案</td>
+<td>本模块内重新做新模块，原有 A+ 页面暂不用</td>
+</tr>
+<tr>
+<td>3</td>
+<td>产品图</td>
+<td>本模块内生成，不跳转产品组图</td>
+</tr>
+<tr>
+<td>4</td>
+<td>输出语言</td>
+<td>由用户单独选择，不与目标市场绑定</td>
+</tr>
+<tr>
+<td>5</td>
+<td>积分消耗</td>
+<td>方案 C：仅生图步骤扣积分，文字生成免费（引流）</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>七、亚马逊规则与合规约束</h2>
+<p>生成与优化 Listing 时，除 A9/Cosmo/Rufus/GEO 外，必须符合亚马逊以下硬性规则，并在 prompt 中显式约束。</p>
+<h3>7.1 标题（Title）</h3>
+<ul>
+<li><strong>长度</strong>：多数类目 ≤200 字符（2025 年 1 月起强制）；部分类目更短（如 80/50），需按类目校验。</li>
+<li><strong>禁止</strong>：全大写、堆砌无关关键词、竞品/他人品牌名；<strong>同一单词不得重复超过 2 次</strong>（冠词/介词/连词除外）；<strong>禁止使用</strong> <code>! $ ? _ { } ^ ¬ ¦</code> 等符号（除非为品牌名一部分）。</li>
+<li><strong>建议结构</strong>：<code>品牌 + 核心产品词 + 关键属性（材质/尺寸/数量等）+ 主要卖点</code>；<strong>前 80 字符含核心搜索词</strong>（亚马逊推荐，利于点击与搜索）。</li>
+</ul>
+<h3>7.2 五点描述（Bullet Points）</h3>
+<ul>
+<li><strong>长度</strong>：每条 ≤500 字符（Brand Registry/部分类目）；部分类目或账号为 255 字符，建议每条尽量控制在 255 以内以兼容；共 5 条，须全部使用且内容不重复。</li>
+<li><strong>禁止</strong>：价格、促销、站外链接；夸大/绝对化/医疗未证宣称；<strong>特殊符号</strong>（™ ® €）与 <strong>emoji</strong>；<strong>跨条重复</strong>；ASIN、「N/A」「TBD」「not applicable」；公司信息、联系方式、网址；退款/质保承诺用语；类目禁用营销用语（如 eco-friendly、anti-bacterial、bamboo、soy 等，除非有认证）。</li>
+<li><strong>建议</strong>：每条对应一个卖点或一个买家常见问题；信息具体、可验证（尺寸、材质、认证）；以利益为导向、简洁可读（移动端前 3 条与截断约 70–80 字符）。</li>
+</ul>
+<h3>7.3 产品描述（Product Description）</h3>
+<ul>
+<li><strong>长度</strong>：通常 ≤2000 字符（部分类目不同）。</li>
+<li><strong>禁止</strong>：与五点逐句重复堆砌、站外链接、联系方式、违禁词（医疗/疗效/绝对化等）；<strong>不得出现竞品对比、「best seller」「top-rated」等宣称</strong>。</li>
+<li><strong>建议</strong>：补充使用场景、规格、保养、包装内容等，与五点形成互补。</li>
+</ul>
+<h3>7.4 后台关键词（Search Terms）</h3>
+<ul>
+<li>总长 ≤250 bytes（多字节语言如中文、日文占更多 bytes）。</li>
+<li>禁止：重复标题/五点中已有的词、竞品品牌、无关词堆砌。</li>
+<li>建议：只填标题和五点中未出现的长尾词、同义词、拼写变体。</li>
+</ul>
+<h3>7.5 图片（参考亚马逊官方与 2024–2026 卖家指南）</h3>
+<ul>
+<li><strong>主图</strong>：纯白底 <strong>RGB(255,255,255)</strong>（不可偏灰/米白，否则可能被系统拒绝）；产品占画面 <strong>≥85%</strong>、完整可见、居中；<strong>无文字/logo/水印/边框/多角度拼图</strong>；<strong>长边 ≥1000px</strong> 方可启用缩放（建议 1600px 以上）；比例建议 1:1；格式 JPEG/PNG/TIFF/GIF，单文件 ≤10MB；仅展示实际售卖商品，无未含在售内的道具或包装。</li>
+<li><strong>附加图</strong>：不违反类目与内容政策，不侵犯他人品牌/IP；可用于场景图、信息图等。</li>
+<li><strong>注意</strong>：亚马逊政策要求主图为「实际拍摄」照片；AI 生成图在严格解读下可能不符合主图要求，建议用户将本工具生成图用作参考或附加图，或根据类目与站点政策自行判断。</li>
+</ul>
+<h3>7.6 通用合规</h3>
+<ul>
+<li>禁止：仿品、侵权（商标/版权/专利）、虚假陈述、成人/违禁内容。</li>
+<li>谨慎：医疗/美容/食品等类目有额外合规要求（认证、禁用词表），生成与优化时需考虑类目限制。</li>
+</ul>
+<h3>7.7 A+ 内容（Enhanced Brand Content）</h3>
+<ul>
+<li><strong>禁止</strong>：提及竞品名称；使用「best seller」「top-rated」「Amazon&#39;s Choice」；保证/质保类表述；外部链接、社媒、二维码；联系方式或配送细节；医疗或未经支持的宣称；文案中出现特殊符号（™ ® €）或 emoji。</li>
+<li><strong>要求</strong>：以利益为导向、版面清晰、品牌一致；图片符合亚马逊分辨率与版权要求；所有文案与图片需拥有使用权。</li>
+</ul>
+<hr>
+<h2>八、与现有功能的关系</h2>
+<table>
+<thead>
+<tr>
+<th>现有功能</th>
+<th>与本功能关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A+ 页面（<code>/amazon-aplus</code>）</td>
+<td>暂不用；本模块内新建 A+ 子流程</td>
+</tr>
+<tr>
+<td>产品组图（<code>/detail-set</code>）</td>
+<td>不跳转；本模块内生成产品图</td>
+</tr>
+<tr>
+<td>AI 运营助手框架（<code>/ai-assistant</code>）</td>
+<td>本功能是「亚马逊」平台下的第一个子功能</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>九、实现细节（开发记录）</h2>
+<h3>9.1 前端</h3>
+<ul>
+<li><strong>文件</strong>：<code>src/pages/AiAssistant.jsx</code>。</li>
+<li><strong>生成 Listing 表单</strong>：<ul>
+<li>必填：产品图片（≥1 张，最多 5 张，压缩为 JPEG data URL 后上传）、一级类目 + 二级类目（联动下拉）、品牌名、核心卖点（textarea 按行解析，≥2 条）、目标市场、输出语言。</li>
+<li>可选：参考关键词、特殊认证/备注。</li>
+<li>校验：未登录提示「请先登录」；缺必填项时按钮禁用并提示。</li>
+</ul>
+</li>
+<li><strong>产品类别</strong>：常量 <code>CATEGORY_TREE</code>，一级 14 类（家居厨房、运动户外、电子数码、美容个护、宠物用品、婴儿用品、服装鞋包、玩具游戏、汽车用品、工具五金、园艺、健康医疗、办公文具、其他），二级为各类子项数组，与本文档第三节一致。</li>
+<li><strong>流程</strong>：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。步骤条为「1 分析 / 2 标题·关键词·五点·描述 / 3 产品图 / 4 A+」，支持 done/active 状态。</li>
+<li><strong>结果展示</strong>：标题、后台关键词、五点、产品描述（可复制）；Step 3 区块「生成产品图」→ 主图展示并入库；Step 4 区块「生成 A+ 文案」→ 展示 copy，「生成 A+ 图片」→ 展示 Hero + 特点图并入库。支持「重新生成」清空回到表单。</li>
+<li><strong>保存与历史</strong>：结果页提供「保存到我的 Listing」按钮，将当前标题/关键词/五点/描述及可选 analyzeResult、aplusCopy 写入表 <code>amazon_listing_snapshots</code>；保存后显示「查看历史 →」链接。工作台侧栏新增「Listing 历史」入口（<code>/dashboard/listings</code>），列表展示已保存记录，点击可查看详情并再次复制。</li>
+<li><strong>导出 CSV</strong>：结果页与 Listing 历史详情页均提供「导出 CSV」按钮。CSV 使用亚马逊通用列头：<code>item_name</code>, <code>bullet_point_1</code>～<code>bullet_point_5</code>, <code>product_description</code>, <code>generic_keyword</code>，UTF-8 带 BOM，用户可将对应列复制到自己的批量上传文件中。实现见 <code>src/lib/exportAmazonListingCsv.js</code>。</li>
+<li><strong>生图准则与提示词</strong>：Step 3 主图、Step 4 A+ 图片的完整 prompt 与准则见 <code>docs/AMAZON-LISTING-IMAGE-PROMPTS.md</code>。前端生图前展示「预计消耗 X 积分」、生图时展示进度条与「正在生成第 1 张 / 共 4 张… 请稍候」；后端日志按「正在生成第 n/4 张」输出。</li>
+</ul>
+<h3>9.2 后端接口</h3>
+<ul>
+<li><strong>鉴权</strong>：<code>/api/ai-assistant/amazon/*</code> 均使用 <code>requireAuth</code>，请求头 <code>Authorization: Bearer &lt;token&gt;</code>。</li>
+<li><strong>Step 1 — <code>POST /api/ai-assistant/amazon/analyze</code></strong><ul>
+<li>请求体：<code>images</code>（字符串数组，每项为 data URL，至少 1 个）、<code>category1</code>、<code>category2</code>、<code>brand</code>、<code>sellingPoints</code>（字符串数组，至少 2 条）、<code>market</code>、<code>lang</code>；可选 <code>keywords</code>、<code>notes</code>。</li>
+<li>响应：<code>{ productName, productSummary, keyAttributes, suggestedCategory }</code>。使用首张图 + 表单内容调用 Gemini 多模态分析，不扣积分。</li>
+</ul>
+</li>
+<li><strong>Step 2 — <code>POST /api/ai-assistant/amazon/generate-listing</code></strong><ul>
+<li>请求体：<code>analyzeResult</code>（Step 1 的完整响应）、以及同上表单字段（category1、category2、brand、sellingPoints、market、lang、keywords、notes）。</li>
+<li>响应：<code>{ title, searchTerms, bullets, description }</code>。纯文本 Gemini 调用，不扣积分。后端对输出做合规截断：标题 ≤200 字符、五点每条 ≤500 字符、描述 ≤2000 字符、searchTerms ≤250 bytes（按 UTF-8 字节）。</li>
+</ul>
+</li>
+<li><strong>Step 3 — <code>POST /api/ai-assistant/amazon/generate-product-images</code></strong>（requireAuth，扣积分）<ul>
+<li>请求体：<code>productImage</code>（data URL，步骤 1 首图）、<code>productName</code>、<code>brand</code>；可选 <code>model</code>（默认 Nano Banana 2）。</li>
+<li>响应：<code>{ mainImage, pointsUsed, newBalance }</code>。生成 1 张亚马逊主图（纯白底、产品约 85%、无文字），存图库并扣积分。</li>
+</ul>
+</li>
+<li><strong>Step 4 A+</strong>：复用现有 <code>POST /api/amazon-aplus/analyze</code>（文案，不扣积分）、<code>POST /api/amazon-aplus/generate</code>（4 张 A+ 图，扣积分）。前端从 Listing 结果页传入 brand、product、features（卖点≥3）、copy、productImage、style、language 等。</li>
+<li><strong>积分</strong>：方案 C；Step 1/2 及 A+ 文案不扣积分；Step 3 主图、Step 4 A+ 图片按张扣积分。</li>
+<li><strong>存储（方案一）</strong>：表 <code>amazon_listing_snapshots</code>（id, user_email, created_at, name, title, search_terms, bullets, description, analyze_result, aplus_copy, main_image_id, aplus_image_ids）。<code>POST /api/ai-assistant/amazon/save-listing</code> 保存当前结果；<code>GET /api/ai-assistant/amazon/listings</code> 列表；<code>GET /api/ai-assistant/amazon/listings/:id</code> 详情。图片仍存图库，表内可存 main_image_id、aplus_image_ids 引用（当前保存时未回传图库 id，可后续补齐）。</li>
+</ul>
+<h3>9.3 合规与 prompt</h3>
+<ul>
+<li><code>analyze</code>：根据产品图与表单输出结构化 productSummary，供下一步使用。</li>
+<li><code>generate-listing</code>：prompt 已按第七章 7.1–7.3、7.4 全面约束：<strong>标题</strong>（≤200、前 80 字核心词、同词不超 2 次、禁止 <code>! $ ? _ { } ^ ¬ ¦</code>、禁止全大写/竞品/堆砌）；<strong>五点</strong>（5 条、每条 ≤500、建议 ≤255 以兼容部分类目、禁止价格/促销/站外/特殊符号/emoji/跨条重复/N/A/TBD/联系/质保/类目禁用词）；<strong>描述</strong>（≤2000、禁止与五点重复、禁止竞品/best seller 类宣称）；<strong>searchTerms</strong>（≤250 bytes、不重复标题与五点、逗号或空格分隔）。输出 JSON 后后端：标题去除上述禁用符号并截断至 200 字符；五点每条截断至 500；描述截断至 2000；searchTerms 按 UTF-8 字节截断至 250。</li>
+<li><strong>A+ 文案</strong>（<code>/api/amazon-aplus/analyze</code>）：prompt 已加入 7.7 合规：禁止竞品、best seller/top-rated/Amazon&#39;s Choice、质保表述、外链/社媒/二维码、联系方式或配送细节、医疗或未证宣称、特殊符号与 emoji；要求利益导向、仅目标语言。</li>
+</ul>
+
+</body>
+</html>
