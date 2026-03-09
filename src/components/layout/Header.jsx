@@ -39,6 +39,7 @@ const toolLinks = [
   {
     to: '/amazon-aplus',
     label: 'A+ 页面',
+    hidden: true, // 暂不开放，想清楚后再展示
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -83,7 +84,7 @@ export default function Header() {
 
           {/* 工具导航（居中，flex-1） */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1">
-            {toolLinks.map(({ to, label, icon }) => (
+            {toolLinks.filter((l) => !l.hidden).map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}
@@ -233,7 +234,7 @@ export default function Header() {
         {/* 移动端展开菜单 */}
         {menuOpen && (
           <nav className="lg:hidden py-3 border-t border-gray-200 space-y-0.5">
-            {toolLinks.map(({ to, label, icon }) => (
+            {toolLinks.filter((l) => !l.hidden).map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}

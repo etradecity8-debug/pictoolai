@@ -73,7 +73,7 @@
 | 3 | 五点描述（Bullet Points） | 每条 ≤500 字符，共 5 条 | 按 Rufus 问答逻辑组织 |
 | 4 | 产品描述（Product Description） | ≤2000 字符 | 适合尚未注册品牌的卖家 |
 | 5 | A+ 文案（Enhanced Brand Content） | 多模块，约 3–5 个 | 本模块内新建 A+ 子流程，原有 A+ 页面暂不用 |
-| 6 | 产品图 | — | 本模块内生成（符合亚马逊主图/附图规则） |
+| 6 | 产品图 | 1～9 张（客户可选） | 第 1 张为主图（白底），第 2～9 张为附加图（多角度/场景）；本模块内生成，符合亚马逊主图/附图规则 |
 
 ### 4.2 四大优化维度
 
@@ -181,10 +181,10 @@
   - 校验：未登录提示「请先登录」；缺必填项时按钮禁用并提示。
 - **产品类别**：常量 `CATEGORY_TREE`，一级 14 类（家居厨房、运动户外、电子数码、美容个护、宠物用品、婴儿用品、服装鞋包、玩具游戏、汽车用品、工具五金、园艺、健康医疗、办公文具、其他），二级为各类子项数组，与本文档第三节一致。
 - **流程**：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。步骤条为「1 分析 / 2 标题·关键词·五点·描述 / 3 产品图 / 4 A+」，支持 done/active 状态。
-- **结果展示**：标题、后台关键词、五点、产品描述（可复制）；Step 3 区块「生成产品图」→ 主图展示并入库；Step 4 区块「生成 A+ 文案」→ 展示 copy，「生成 A+ 图片」→ 展示 Hero + 特点图并入库。支持「重新生成」清空回到表单。
+- **结果展示**：标题、后台关键词、五点、产品描述（可复制）；Step 3 区块可选「生成数量」1～9 张 → 主图 + 附加图展示并入库；Step 4 区块「生成 A+ 文案」→ 展示 copy，「生成 A+ 图片」→ 展示 Hero + 特点图并入库。支持「重新生成」清空回到表单。
 - **保存与历史**：结果页提供「保存到我的 Listing」按钮，将当前标题/关键词/五点/描述及可选 analyzeResult、aplusCopy 写入表 `amazon_listing_snapshots`；保存后显示「查看历史 →」链接。工作台侧栏新增「Listing 历史」入口（`/dashboard/listings`），列表展示已保存记录，点击可查看详情并再次复制。
 - **导出 CSV**：结果页与 Listing 历史详情页均提供「导出 CSV」按钮。CSV 使用亚马逊通用列头：`item_name`, `bullet_point_1`～`bullet_point_5`, `product_description`, `generic_keyword`，UTF-8 带 BOM，用户可将对应列复制到自己的批量上传文件中。实现见 `src/lib/exportAmazonListingCsv.js`。
-- **生图准则与提示词**：Step 3 主图、Step 4 A+ 图片的完整 prompt 与准则见 `docs/AMAZON-LISTING-IMAGE-PROMPTS.md`。前端生图前展示「预计消耗 X 积分」、生图时展示进度条与「正在生成第 1 张 / 共 4 张… 请稍候」；后端日志按「正在生成第 n/4 张」输出。
+- **生图准则与提示词**：Step 3 产品图（1～9 张可选）、Step 4 A+ 图片的完整 prompt 与准则见 `docs/AMAZON-LISTING-IMAGE-PROMPTS.md`。前端生图前展示「生成数量」与「预计消耗 X 积分」、生图时展示「正在生成产品图（共 N 张）…」；后端先校验总积分再按张顺序生成，日志按「正在生成第 n/N 张」输出。
 
 ### 9.2 后端接口
 
@@ -196,8 +196,8 @@
   - 请求体：`analyzeResult`（Step 1 的完整响应）、以及同上表单字段（category1、category2、brand、sellingPoints、market、lang、keywords、notes）。
   - 响应：`{ title, searchTerms, bullets, description }`。纯文本 Gemini 调用，不扣积分。后端对输出做合规截断：标题 ≤200 字符、五点每条 ≤500 字符、描述 ≤2000 字符、searchTerms ≤250 bytes（按 UTF-8 字节）。
 - **Step 3 — `POST /api/ai-assistant/amazon/generate-product-images`**（requireAuth，扣积分）
-  - 请求体：`productImage`（data URL，步骤 1 首图）、`productName`、`brand`；可选 `model`（默认 Nano Banana 2）。
-  - 响应：`{ mainImage, pointsUsed, newBalance }`。生成 1 张亚马逊主图（纯白底、产品约 85%、无文字），存图库并扣积分。
+  - 请求体：`productImage`（data URL，步骤 1 首图）、`productName`、`brand`；可选 `model`（默认 Nano Banana 2）、`count`（1～9，默认 1）。客户可选生成张数：1 = 仅主图，2～9 = 主图 + 附加图。
+  - 响应：`{ mainImage, additionalImages[], pointsUsed, newBalance }`。第 1 张为主图（纯白底、产品约 85%、无文字），第 2～N 张为附加图（多角度或简单场景），顺序生成，每张存图库，按张扣积分；先校验总积分再调 API。
 - **Step 4 A+**：复用现有 `POST /api/amazon-aplus/analyze`（文案，不扣积分）、`POST /api/amazon-aplus/generate`（4 张 A+ 图，扣积分）。前端从 Listing 结果页传入 brand、product、features（卖点≥3）、copy、productImage、style、language 等。
 - **积分**：方案 C；Step 1/2 及 A+ 文案不扣积分；Step 3 主图、Step 4 A+ 图片按张扣积分。
 - **存储（方案一）**：表 `amazon_listing_snapshots`（id, user_email, created_at, name, title, search_terms, bullets, description, analyze_result, aplus_copy, main_image_id, aplus_image_ids）。`POST /api/ai-assistant/amazon/save-listing` 保存当前结果；`GET /api/ai-assistant/amazon/listings` 列表；`GET /api/ai-assistant/amazon/listings/:id` 详情。图片仍存图库，表内可存 main_image_id、aplus_image_ids 引用（当前保存时未回传图库 id，可后续补齐）。

@@ -965,6 +965,19 @@ app.post('/api/image-edit', async (req, res) => {
   }
 })
 
+// A+ 支持的 17 种亚马逊标准模块 ID；每 listing 最多选 5 个
+const APLUS_MODULE_IDS = [
+  'header', 'single_highlights', 'image_dark_overlay', 'image_white_overlay', 'comparison_chart',
+  'multiple_images', 'product_description', 'company_logo', 'single_image_sidebar', 'standard_text',
+  'quad_images', 'tech_specs', 'single_right_image', 'three_images', 'single_left_image',
+  'single_image_specs', 'brand_story',
+]
+function normalizeAplusModules(modules) {
+  if (!Array.isArray(modules) || modules.length === 0) return ['header', 'three_images', 'brand_story']
+  const set = new Set(modules.filter((m) => APLUS_MODULE_IDS.includes(m)))
+  return Array.from(set).slice(0, 5)
+}
+
 // ────────────────────────────────────────────────────────────────
 // 亚马逊 A+ — Step 1：仅生成文案（快速，无积分消耗）
 // ────────────────────────────────────────────────────────────────
@@ -972,14 +985,34 @@ app.post('/api/amazon-aplus/analyze', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { brand, product, features, story, style, language } = req.body
+    const { brand, product, features: featuresInput, story, style, language, modules: reqModules } = req.body
     if (!brand?.trim() || !product?.trim()) return res.status(400).json({ error: '请填写品牌名和产品名' })
-    if (!Array.isArray(features) || features.length < 3) return res.status(400).json({ error: '请填写 3 条核心卖点' })
+    const rawFeatures = Array.isArray(featuresInput) ? featuresInput : (typeof featuresInput === 'string' ? featuresInput.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (rawFeatures.length < 1) return res.status(400).json({ error: '请填写至少 1 条核心卖点' })
+    const features = rawFeatures.length >= 3 ? rawFeatures.slice(0, 5) : [...rawFeatures, ...rawFeatures, ...rawFeatures].slice(0, 5)
+    const modules = normalizeAplusModules(reqModules)
 
     const lang = language || 'English'
-    console.log(`[A+ 文案] 开始生成 | 品牌: ${brand} | 产品: ${product} | 风格: ${style} | 语言: ${lang} | 模型: ${ANALYSIS_MODEL_ID}`)
+    console.log(`[A+ 文案] 开始生成 | 品牌: ${brand} | 产品: ${product} | 模块: ${modules.join(', ')} | 语言: ${lang}`)
 
     const ai = new GoogleGenAI({ apiKey })
+    const jsonParts = []
+    if (modules.includes('header')) jsonParts.push('"heroTagline": "≤12 words", "heroSubtext": "≤20 words"')
+    if (modules.includes('single_highlights')) jsonParts.push('"highlightTitle": "≤50 chars", "highlights": ["≤80 chars"] (exactly 4)')
+    if (modules.includes('image_dark_overlay')) jsonParts.push('"overlayDarkHeadline": "≤50 chars", "overlayDarkText": "≤100 chars"')
+    if (modules.includes('image_white_overlay')) jsonParts.push('"overlayWhiteHeadline": "≤50 chars", "overlayWhiteText": "≤100 chars"')
+    if (modules.includes('comparison_chart')) jsonParts.push('"comparisonRows": [{"feature":"≤80","value1":"≤80","value2":"≤80"},...] (up to 10 rows)')
+    if (modules.includes('product_description')) jsonParts.push('"productDescriptionText": "≤2000 chars"')
+    if (modules.includes('company_logo')) jsonParts.push('"logoCaption": "≤30 chars" (optional)')
+    if (modules.includes('single_image_sidebar')) jsonParts.push('"sidebarTitle": "≤50 chars", "sidebarBody": "≤400 chars"')
+    if (modules.includes('standard_text')) jsonParts.push('"standardTextBody": "≤500 chars"')
+    if (modules.includes('quad_images') || modules.includes('multiple_images')) jsonParts.push('"features": [{"title":"≤100","desc":"≤100"},...] (exactly 4)')
+    if (modules.includes('three_images') && !modules.includes('quad_images') && !modules.includes('multiple_images')) jsonParts.push('"features": [{"title":"≤100","desc":"≤300"},...] (exactly 3)')
+    if (modules.includes('tech_specs')) jsonParts.push('"techSpecs": [{"name":"≤20","value":"≤100"},...] (up to 10)')
+    if (modules.includes('single_right_image')) jsonParts.push('"singleRightTitle": "≤50 chars", "singleRightBody": "≤160 chars"')
+    if (modules.includes('single_left_image')) jsonParts.push('"singleLeftTitle": "≤50 chars", "singleLeftBody": "≤450 chars"')
+    if (modules.includes('single_image_specs')) jsonParts.push('"singleSpecsTitle": "≤50 chars", "singleSpecsBullets": ["≤80 chars",...] (up to 5)')
+    if (modules.includes('brand_story')) jsonParts.push('"brandStoryTitle": "≤8 words", "brandStoryBody": "60-80 words"')
     const copyPrompt = `You are an Amazon A+ content copywriter. Generate marketing copy in ${lang} for:
 Brand: ${brand}
 Product: ${product}
@@ -987,37 +1020,42 @@ Key Features: ${features.join(' | ')}
 Brand Story: ${story || '(not provided)'}
 Style: ${style === 'luxury' ? 'premium luxury' : style === 'lifestyle' ? 'warm lifestyle' : 'clean minimal'}
 
-A+ compliance (MUST follow): Do not mention competitors by name; do not use "best seller", "top-rated", "Amazon's Choice"; no guarantee or warranty text; no external links, social media, or QR codes; no contact info or shipping details; benefit-focused messaging only; no medical or unsupported claims; no special characters (™ ® €) or emojis in copy.
+A+ compliance: No competitors; no "best seller"/"top-rated"; no guarantee/warranty; no links or contact; benefit-focused; no medical claims; no ™®€ or emojis. All text in ${lang} only.
 
-IMPORTANT: ALL copy text (heroTagline, heroSubtext, feature titles/descriptions, brandStoryTitle, brandStoryBody) MUST be written entirely in ${lang}. Do not mix languages.
-
-Return ONLY valid JSON (no markdown):
-{
-  "heroTagline": "compelling headline ≤12 words in ${lang}",
-  "heroSubtext": "supporting subtitle ≤20 words in ${lang}",
-  "features": [
-    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"},
-    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"},
-    {"title": "feature title ≤5 words in ${lang}", "desc": "benefit description 25-40 words in ${lang}"}
-  ],
-  "brandStoryTitle": "brand story headline ≤8 words in ${lang}",
-  "brandStoryBody": "brand story paragraph 60-80 words in ${lang}"
-}`
+Return ONLY valid JSON (no markdown) with these keys for selected modules: { ${jsonParts.join(', ')} }`
     const copyResp = await ai.models.generateContent({
       model: ANALYSIS_MODEL_ID,
       contents: [{ text: copyPrompt }],
     })
     const copyRaw = copyResp?.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text || ''
-    console.log(`[A+ 文案] 模型返回 ${copyRaw.length} 字符，尝试解析 JSON...`)
-    const copy = extractAnalyzeJson(copyRaw, true) || {
-      heroTagline: `${product} by ${brand}`,
-      heroSubtext: features[0],
-      features: features.slice(0, 3).map((f) => ({ title: f.slice(0, 30), desc: f })),
-      brandStoryTitle: `About ${brand}`,
-      brandStoryBody: story || `${brand} delivers quality products designed for modern life.`,
+    const copy = extractAnalyzeJson(copyRaw, true) || {}
+    if (modules.includes('header') && !copy.heroTagline) copy.heroTagline = `${product} by ${brand}`
+    if (modules.includes('header') && !copy.heroSubtext) copy.heroSubtext = features[0]
+    if (modules.includes('single_highlights') && !copy.highlights) copy.highlights = features.slice(0, 4).map((f) => f.slice(0, 80))
+    if (modules.includes('single_highlights') && !copy.highlightTitle) copy.highlightTitle = product
+    if ((modules.includes('three_images') || modules.includes('quad_images') || modules.includes('multiple_images')) && !copy.features) {
+      const n = (modules.includes('quad_images') || modules.includes('multiple_images')) ? 4 : 3
+      copy.features = features.slice(0, n).map((f) => ({ title: f.slice(0, 30), desc: f }))
     }
-    console.log(`[A+ 文案] 生成完成 ✓ | heroTagline: "${copy.heroTagline}"`)
-    return res.json({ copy })
+    if (modules.includes('tech_specs') && !copy.techSpecs) copy.techSpecs = [{ name: 'Material', value: 'See description' }, { name: 'Dimensions', value: 'See description' }]
+    if (modules.includes('brand_story') && !copy.brandStoryTitle) copy.brandStoryTitle = `About ${brand}`
+    if (modules.includes('brand_story') && !copy.brandStoryBody) copy.brandStoryBody = story || `${brand} delivers quality products.`
+    if (modules.includes('image_dark_overlay') && !copy.overlayDarkHeadline) copy.overlayDarkHeadline = product
+    if (modules.includes('image_white_overlay') && !copy.overlayWhiteHeadline) copy.overlayWhiteHeadline = product
+    if (modules.includes('comparison_chart') && !copy.comparisonRows) copy.comparisonRows = [{ feature: 'Quality', value1: '✓', value2: '✓' }]
+    if (modules.includes('product_description') && !copy.productDescriptionText) copy.productDescriptionText = story || features.join('. ')
+    if (modules.includes('single_image_sidebar') && !copy.sidebarTitle) copy.sidebarTitle = product
+    if (modules.includes('single_image_sidebar') && !copy.sidebarBody) copy.sidebarBody = features[0] || ''
+    if (modules.includes('standard_text') && !copy.standardTextBody) copy.standardTextBody = features.join('. ')
+    if (modules.includes('single_right_image') && !copy.singleRightTitle) copy.singleRightTitle = product
+    if (modules.includes('single_right_image') && !copy.singleRightBody) copy.singleRightBody = features[0] || ''
+    if (modules.includes('single_left_image') && !copy.singleLeftTitle) copy.singleLeftTitle = product
+    if (modules.includes('single_left_image') && !copy.singleLeftBody) copy.singleLeftBody = features[0] || ''
+    if (modules.includes('single_image_specs') && !copy.singleSpecsTitle) copy.singleSpecsTitle = product
+    if (modules.includes('single_image_specs') && !copy.singleSpecsBullets) copy.singleSpecsBullets = features.slice(0, 5).map((f) => f.slice(0, 80))
+    copy._modules = modules
+    console.log(`[A+ 文案] 生成完成 ✓ | 模块: ${modules.join(', ')}`)
+    return res.json({ copy, modules })
   } catch (e) {
     console.error('[A+ 文案] 生成失败', e.message)
     return res.status(500).json({ error: e.message || '文案生成失败，请稍后重试' })
@@ -1031,53 +1069,59 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { brand, product, features, copy, productImage, style, model: modelName, language } = req.body
+    const { brand, product, features: featuresInput, copy, productImage, style, model: modelName, language, modules: reqModules } = req.body
     if (!brand?.trim() || !product?.trim()) return res.status(400).json({ error: '请填写品牌名和产品名' })
-    if (!Array.isArray(features) || features.length < 3) return res.status(400).json({ error: '请填写 3 条核心卖点' })
+    const rawFeatures = Array.isArray(featuresInput) ? featuresInput : (typeof featuresInput === 'string' ? featuresInput.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (rawFeatures.length < 1) return res.status(400).json({ error: '请填写至少 1 条核心卖点' })
+    const features = rawFeatures.length >= 3 ? rawFeatures.slice(0, 5) : [...rawFeatures, ...rawFeatures, ...rawFeatures].slice(0, 5)
+    const modules = normalizeAplusModules(reqModules)
+
+    const imageCountByModule = {
+      header: 1, single_highlights: 1, image_dark_overlay: 1, image_white_overlay: 1, comparison_chart: 0,
+      multiple_images: 4, product_description: 0, company_logo: 1, single_image_sidebar: 1, standard_text: 0,
+      quad_images: 4, tech_specs: 0, single_right_image: 1, three_images: 3, single_left_image: 1,
+      single_image_specs: 1, brand_story: 0,
+    }
+    const totalImages = modules.reduce((sum, m) => sum + (imageCountByModule[m] || 0), 0)
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const pointsUsed = pointsPerImg * totalImages
+    const auth = req.headers.authorization
+    const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
+    if (token && totalImages > 0) {
+      try {
+        const payload = jwt.verify(token, JWT_SECRET)
+        const email = payload.email
+        const balance = getBalance(email)
+        if (balance < pointsUsed) return res.status(402).json({ error: '积分不足', required: pointsUsed, balance })
+      } catch (e) {
+        if (e.message === '积分不足') throw e
+      }
+    }
 
     const lang = language || 'English'
     const ai = new GoogleGenAI({ apiKey })
     const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
-    console.log(`[A+ 图片] 开始生成 | 品牌: ${brand} | 产品: ${product} | 模型: ${imageModelId} | 风格: ${style} | 语言: ${lang} | 参考图: ${productImage ? '有' : '无'}`)
+    console.log(`[A+ 图片] 开始生成 | 品牌: ${brand} | 产品: ${product} | 模块: ${modules.join(', ')} | 共 ${totalImages} 张`)
     const is25Image = imageModelId === 'gemini-2.5-flash-image'
     const imageConfig1x1 = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
     const imageConfig16x9 = is25Image ? { aspectRatio: '16:9' } : { aspectRatio: '16:9', imageSize: '1K' }
     const genCfg1x1 = { responseModalities: ['TEXT', 'IMAGE'], imageConfig: imageConfig1x1 }
     const genCfg16x9 = { responseModalities: ['TEXT', 'IMAGE'], imageConfig: imageConfig16x9 }
-
     const styleDesc = {
       minimal:   'clean white studio background, minimalist professional product photography, bright even lighting',
       lifestyle: 'warm natural lifestyle setting, cozy home environment, natural soft window lighting',
       luxury:    'dark moody premium background, dramatic side lighting, gold and matte black accents, high-end editorial aesthetic',
     }[style] || 'clean white studio background'
 
-    // copy 由前端传入（用户在 Step 2 确认/编辑后的版本）
-    // ── 图片生成（4 张并行） ──
     const productRef = productImage ? parseDataUrl(productImage) : null
-    const refParts = productRef
-      ? [{ inlineData: { mimeType: productRef.mimeType, data: productRef.data } }]
-      : []
-
+    const refParts = productRef ? [{ inlineData: { mimeType: productRef.mimeType, data: productRef.data } }] : []
     const makeImagePrompt = (desc) => [...refParts, { text: desc }]
+    const noTextRule = `CRITICAL RULE (highest priority): This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO characters of any language. The product name and brand below are CONTEXT ONLY — do NOT render them in the image. Pure clean commercial photography, zero text.`
 
-    // 优先使用用户确认的文案中的特点标题；fallback 到原始卖点输入
-    const f0 = copy?.features?.[0]?.title || features[0]
-    const f1 = copy?.features?.[1]?.title || features[1]
-    const f2 = copy?.features?.[2]?.title || features[2]
-
-    // 通用规则（放在最前）：纯摄影，绝对不渲染任何文字
-    const noTextRule = `CRITICAL RULE (highest priority): This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO characters of any language (no English, no Chinese, no Japanese, no Korean, no numbers, no labels, no brand name overlay, no product name overlay). The product name and brand mentioned below are CONTEXT ONLY for the AI to understand the product — do NOT render them as visible text in the image. Pure clean commercial photography, zero text.`
-
-    const heroPrompt = `${noTextRule} --- Amazon A+ hero banner. Product context (do not render as text): ${product} by ${brand}. Visual style: ${styleDesc}. Wide elegant product shot, high resolution, professional commercial photography.`
-    const feat1Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f0}. Visual style: ${styleDesc}. Square format, clean centered composition.`
-    const feat2Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f1}. Visual style: ${styleDesc}. Square format, clean centered composition.`
-    const feat3Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f2}. Visual style: ${styleDesc}. Square format, clean centered composition.`
-
-    const totalAplus = 4
     let aplusCurrent = 0
     const generateImg = async (label, prompt, cfg) => {
       aplusCurrent++
-      console.log(`[A+ 图片] 正在生成第 ${aplusCurrent}/${totalAplus} 张（${label}）| ratio: ${cfg.imageConfig?.aspectRatio}`)
+      console.log(`[A+ 图片] 正在生成第 ${aplusCurrent}/${totalImages} 张（${label}）`)
       try {
         const resp = await ai.models.generateContent({
           model: imageModelId,
@@ -1085,65 +1129,125 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
           config: cfg,
         })
         const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
-        if (!part) {
-          console.warn(`[A+ 图片]   ✗ 「${label}」未返回图片`)
-          return null
-        }
-        console.log(`[A+ 图片]   ✓ 「${label}」生成成功 (${part.inlineData.mimeType})`)
+        if (!part) return null
         return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
       } catch (e) {
-        console.error(`[A+ 图片]   ✗ 「${label}」失败: ${e.message}`)
+        console.error(`[A+ 图片] 「${label}」失败:`, e.message)
         return null
       }
     }
 
-    // 顺序生成，避免并发触发 Gemini 速率限制
-    console.log('[A+ 图片] 顺序生成 4 张图片（避免并发限速）...')
-    const heroImage = await generateImg('Hero 横幅', heroPrompt, genCfg16x9)
-    const feat1 = await generateImg(`特点图1 (${f0})`, feat1Prompt, genCfg1x1)
-    const feat2 = await generateImg(`特点图2 (${f1})`, feat2Prompt, genCfg1x1)
-    const feat3 = await generateImg(`特点图3 (${f2})`, feat3Prompt, genCfg1x1)
+    const moduleImages = {}
+    const namedImages = []
 
-    const featureImages = [feat1, feat2, feat3]
-    // 带标题的完整列表，用于正确存图库
-    const namedImages = [
-      { label: 'A+ Hero横幅', data: heroImage },
-      { label: 'A+ 特点图1',  data: feat1 },
-      { label: 'A+ 特点图2',  data: feat2 },
-      { label: 'A+ 特点图3',  data: feat3 },
-    ]
-    const successCount = namedImages.filter((x) => x.data).length
-    console.log(`[A+ 图片] 全部完成 | 成功 ${successCount}/4 张`)
-
-    // ── Step 3：积分扣除 + 存图库 ──
-    const auth = req.headers.authorization
-    const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
-    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
-    const pointsUsed = pointsPerImg * successCount
-    let newBalance = null
-    if (token) {
-      try {
-        const payload = jwt.verify(token, JWT_SECRET)
-        const email = payload.email
-        const balance = getBalance(email)
-        if (balance < pointsUsed) return res.status(402).json({ error: '积分不足', required: pointsUsed, balance })
-        deductPoints(email, pointsUsed, `A+ 页面生成 (${successCount} 张, ${modelName || 'Nano Banana 2'})`)
-        newBalance = getBalance(email)
-        console.log(`[A+ 积分] 扣除 ${pointsUsed} 积分 | 用户: ${email} | 剩余: ${newBalance}`)
-        namedImages.forEach(({ label, data }, i) => {
-          if (!data) return
-          try {
-            saveImageToGallery(email, `aplus-${Date.now()}-${i}`, `${product}·${label}`, data, pointsPerImg, modelName || null, '1K 标准')
-            console.log(`[A+ 图库] 已保存「${label}」`)
-          } catch (e) { console.error(`[A+ 图库] 保存「${label}」失败`, e.message) }
-        })
-      } catch (e) {
-        if (e.message === '积分不足') throw e
+    for (const mod of modules) {
+      if (mod === 'header') {
+        const prompt = `${noTextRule} --- Amazon A+ hero banner. Product: ${product} by ${brand}. Style: ${styleDesc}. Wide elegant product shot, high resolution.`
+        const img = await generateImg('Header 横幅', prompt, genCfg16x9)
+        moduleImages.header = img
+        if (img) namedImages.push({ label: 'A+ Header', data: img })
+      } else if (mod === 'single_highlights') {
+        const prompt = `${noTextRule} --- Amazon A+ single image with highlights. Product: ${product} by ${brand}. Style: ${styleDesc}. Square, clean centered composition.`
+        const img = await generateImg('单图+亮点', prompt, genCfg1x1)
+        moduleImages.single_highlights = img
+        if (img) namedImages.push({ label: 'A+ 单图亮点', data: img })
+      } else if (mod === 'three_images') {
+        const feats = (copy?.features || features).slice(0, 3)
+        const arr = []
+        for (let i = 0; i < 3; i++) {
+          const f = feats[i]?.title || feats[i] || features[i] || features[0]
+          const p = `${noTextRule} --- Amazon A+ feature. Product: ${product} by ${brand}. Feature: ${f}. Style: ${styleDesc}. Square.`
+          arr.push(await generateImg(`三图-${i + 1}`, p, genCfg1x1))
+        }
+        moduleImages.three_images = arr
+        arr.forEach((data, i) => { if (data) namedImages.push({ label: `A+ 三图${i + 1}`, data }) })
+      } else if (mod === 'quad_images') {
+        const feats = (copy?.features || features).slice(0, 4)
+        const arr = []
+        for (let i = 0; i < 4; i++) {
+          const f = feats[i]?.title || feats[i] || features[i] || features[0]
+          const p = `${noTextRule} --- Amazon A+ feature. Product: ${product} by ${brand}. Feature: ${f}. Style: ${styleDesc}. Square.`
+          arr.push(await generateImg(`四图-${i + 1}`, p, genCfg1x1))
+        }
+        moduleImages.quad_images = arr
+        arr.forEach((data, i) => { if (data) namedImages.push({ label: `A+ 四图${i + 1}`, data }) })
+      } else if (mod === 'image_dark_overlay') {
+        const p = `${noTextRule} --- Amazon A+ banner, moody/dark area for text overlay. Product: ${product} by ${brand}. Style: ${styleDesc}. Wide 16:9.`
+        const img = await generateImg('深色叠加图', p, genCfg16x9)
+        moduleImages.image_dark_overlay = img
+        if (img) namedImages.push({ label: 'A+ 深色叠加', data: img })
+      } else if (mod === 'image_white_overlay') {
+        const p = `${noTextRule} --- Amazon A+ banner, bright area for text overlay. Product: ${product} by ${brand}. Style: ${styleDesc}. Wide 16:9.`
+        const img = await generateImg('浅色叠加图', p, genCfg16x9)
+        moduleImages.image_white_overlay = img
+        if (img) namedImages.push({ label: 'A+ 浅色叠加', data: img })
+      } else if (mod === 'multiple_images') {
+        const feats = (copy?.features || features).slice(0, 4)
+        const arr = []
+        for (let i = 0; i < 4; i++) {
+          const f = feats[i]?.title || feats[i] || features[i] || features[0]
+          const p = `${noTextRule} --- Amazon A+ multi-image. Product: ${product} by ${brand}. Feature: ${f}. Style: ${styleDesc}. Square.`
+          arr.push(await generateImg(`多图-${i + 1}`, p, genCfg1x1))
+        }
+        moduleImages.multiple_images = arr
+        arr.forEach((data, i) => { if (data) namedImages.push({ label: `A+ 多图${i + 1}`, data }) })
+      } else if (mod === 'company_logo') {
+        const p = `${noTextRule} --- Amazon A+ brand/logo style. Product context: ${product} by ${brand}. Clean, professional, wide format 16:9.`
+        const img = await generateImg('品牌 Logo', p, genCfg16x9)
+        moduleImages.company_logo = img
+        if (img) namedImages.push({ label: 'A+ Logo', data: img })
+      } else if (mod === 'single_image_sidebar') {
+        const p = `${noTextRule} --- Amazon A+ single image for sidebar. Product: ${product} by ${brand}. Style: ${styleDesc}. Square.`
+        const img = await generateImg('单图侧栏', p, genCfg1x1)
+        moduleImages.single_image_sidebar = img
+        if (img) namedImages.push({ label: 'A+ 单图侧栏', data: img })
+      } else if (mod === 'single_right_image') {
+        const p = `${noTextRule} --- Amazon A+ single right image. Product: ${product} by ${brand}. Style: ${styleDesc}. Square.`
+        const img = await generateImg('右图', p, genCfg1x1)
+        moduleImages.single_right_image = img
+        if (img) namedImages.push({ label: 'A+ 右图', data: img })
+      } else if (mod === 'single_left_image') {
+        const p = `${noTextRule} --- Amazon A+ single left image. Product: ${product} by ${brand}. Style: ${styleDesc}. Square.`
+        const img = await generateImg('左图', p, genCfg1x1)
+        moduleImages.single_left_image = img
+        if (img) namedImages.push({ label: 'A+ 左图', data: img })
+      } else if (mod === 'single_image_specs') {
+        const p = `${noTextRule} --- Amazon A+ single image with specs. Product: ${product} by ${brand}. Style: ${styleDesc}. Square.`
+        const img = await generateImg('单图+规格', p, genCfg1x1)
+        moduleImages.single_image_specs = img
+        if (img) namedImages.push({ label: 'A+ 单图规格', data: img })
       }
     }
 
-    console.log('[A+ 图片] 全流程结束，返回结果 ✓')
-    return res.json({ copy, heroImage, featureImages, pointsUsed: token ? pointsUsed : null, newBalance })
+    const successCount = namedImages.filter((x) => x.data).length
+    const actualPoints = pointsPerImg * successCount
+    let newBalance = null
+    if (token && successCount > 0) {
+      try {
+        const payload = jwt.verify(token, JWT_SECRET)
+        const email = payload.email
+        deductPoints(email, actualPoints, `A+ 页面 (${successCount} 张, ${modelName || 'Nano Banana 2'})`)
+        newBalance = getBalance(email)
+        const ts = Date.now()
+        namedImages.forEach(({ label, data }, i) => {
+          if (!data) return
+          try { saveImageToGallery(email, `aplus-${ts}-${i}`, `${product}·${label}`, data, pointsPerImg, modelName || null, '1K 标准') } catch (e) {}
+        })
+      } catch (e) {}
+    }
+
+    const heroImage = moduleImages.header || null
+    const featureImages = moduleImages.three_images || moduleImages.quad_images || []
+    console.log('[A+ 图片] 完成 ✓ 成功', successCount, '张')
+    return res.json({
+      copy,
+      modules,
+      moduleImages,
+      heroImage,
+      featureImages,
+      pointsUsed: token ? actualPoints : null,
+      newBalance,
+    })
   } catch (e) {
     console.error('[A+ 图片] 生成失败', e.message)
     return res.status(500).json({ error: e.message || 'A+ 页面生成失败，请稍后重试' })
@@ -1292,53 +1396,73 @@ Output ONLY valid JSON (no markdown):
   }
 })
 
-// Step 3：生成亚马逊主图（纯白底、产品约 85%、无文字，扣积分）
+// Step 3：生成亚马逊产品图（1 张主图 + 可选附加图，共 1～9 张，扣积分）
 app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { productImage, productName, brand, model: modelName } = req.body || {}
+    const { productImage, productName, brand, model: modelName, count: reqCount } = req.body || {}
     if (!productImage) return res.status(400).json({ error: '请提供产品图' })
     const parsed = parseDataUrl(productImage)
     if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
+
+    const count = Math.min(9, Math.max(1, parseInt(reqCount, 10) || 1))
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const totalPoints = count * pointsPerImg
+    const email = req.user.email
+    const balance = getBalance(email)
+    if (balance < totalPoints) return res.status(402).json({ error: '积分不足', required: totalPoints, balance })
 
     const ai = new GoogleGenAI({ apiKey })
     const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
     const is25Image = imageModelId === 'gemini-2.5-flash-image'
     const imageConfig = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
     const genCfg = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
-
     const noTextRule = `CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks. Product name and brand below are CONTEXT ONLY — do NOT render them in the image.`
-    const prompt = `${noTextRule} --- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: ${productName || 'product'}. Brand context: ${brand || ''}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
 
-    const contents = [
+    const baseContents = [
       { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
-      { text: prompt },
     ]
-    console.log('[Amazon Listing] Step 3 产品图 | 正在生成第 1/1 张（主图）| 模型:', imageModelId)
-    const resp = await ai.models.generateContent({
-      model: imageModelId,
-      contents,
-      config: genCfg,
-    })
-    const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
-    if (!part) {
-      return res.status(500).json({ error: '主图生成未返回图片，请重试' })
+
+    let mainImage = null
+    const additionalImages = []
+
+    for (let i = 0; i < count; i++) {
+      const isMain = i === 0
+      const prompt = isMain
+        ? `${noTextRule} --- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: ${productName || 'product'}. Brand context: ${brand || ''}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
+        : `${noTextRule} --- Amazon additional image (image ${i + 1} of ${count}): Same product as reference. Show a different angle or minimal lifestyle context (e.g. on a clean surface), professional product photography, high resolution. No text, no logos. Product: ${productName || 'product'}. Brand context: ${brand || ''}.`
+      const contents = [...baseContents, { text: prompt }]
+      console.log(`[Amazon Listing] Step 3 产品图 | 正在生成第 ${i + 1}/${count} 张${isMain ? '（主图）' : '（附加图）'} | 模型:`, imageModelId)
+
+      const resp = await ai.models.generateContent({
+        model: imageModelId,
+        contents,
+        config: genCfg,
+      })
+      const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+      if (!part) {
+        return res.status(500).json({ error: `第 ${i + 1} 张图生成未返回图片，请重试` })
+      }
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+
+      if (isMain) {
+        mainImage = dataUrl
+        try {
+          saveImageToGallery(email, `amazon-main-${Date.now()}`, `${productName || '产品'}·主图`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
+        } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+      } else {
+        additionalImages.push(dataUrl)
+        try {
+          saveImageToGallery(email, `amazon-extra-${Date.now()}-${i}`, `${productName || '产品'}·附加图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
+        } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+      }
     }
-    const mainImage = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
 
-    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
-    const email = req.user.email
-    const balance = getBalance(email)
-    if (balance < pointsPerImg) return res.status(402).json({ error: '积分不足', required: pointsPerImg, balance })
-    deductPoints(email, pointsPerImg, `亚马逊主图 (${modelName || 'Nano Banana 2'})`)
+    deductPoints(email, totalPoints, `亚马逊产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
     const newBalance = getBalance(email)
-    try {
-      saveImageToGallery(email, `amazon-main-${Date.now()}`, `${productName || '产品'}·主图`, mainImage, pointsPerImg, modelName || null, '1K 标准')
-    } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
-
-    console.log('[Amazon Listing] Step 3 主图完成 ✓')
-    return res.json({ mainImage, pointsUsed: pointsPerImg, newBalance })
+    console.log('[Amazon Listing] Step 3 产品图完成 ✓ 共', count, '张')
+    return res.json({ mainImage, additionalImages, pointsUsed: totalPoints, newBalance })
   } catch (e) {
     console.error('[Amazon Listing] generate-product-images 失败', e.message)
     return res.status(500).json({ error: e.message || '产品图生成失败，请稍后重试' })

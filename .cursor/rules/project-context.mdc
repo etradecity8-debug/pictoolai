@@ -40,8 +40,9 @@ alwaysApply: true
 - **修改图片**（`/image-edit`）：现有 **9 种**模式——添加/移除元素、局部重绘、风格迁移、高级合成（多图）、高保真细节保留、让草图变生动、角色一致性360°、图片文字替换、图片文字语言转换。后端接口 `/api/image-edit` 含重试逻辑（Pro/Nano2 最多3次）。每种模式顶部有真实 before→after 可视化示例（`ModeDemo` 组件）。修改后图片自动入图库，显示积分消耗，支持从仓库选图（`GalleryThumb` 组件 fetch+blob URL 认证加载）。
 - **亚马逊 A+ 详情页**（`/amazon-aplus`）：**MVP 阶段**，4步流程：填写信息→确认文案→生成图片→查看结果。两个后端接口：`/api/amazon-aplus/analyze`（文案，不扣积分）+ `/api/amazon-aplus/generate`（顺序生成4张图，扣积分，存图库）。支持10种语言、3种风格。图文一一对应，所有文案一键复制。**完整方案待后续迭代**（A/B对比模块、规格图、导出ZIP等），详见 `docs/KNOWN_ISSUES.md`。
 - **A+ 图片生成注意**：4张图顺序生成（非并行），避免 Nano Banana 2 并发限速；prompt 中加最高优先级禁文字规则，防止 AI 将产品名渲染到图上（尤其中文产品名）；积分按实际成功张数扣除；图库标题与实际生成图绑定（不因失败导致标题错位）。
-- **导航栏**：当前显示「产品组图」「修改图片」「A+ 页面」；「服装组图」「风格复刻」「万能画布」已隐藏（暂不开放）。
+- **导航栏**：当前显示「产品组图」「修改图片」「AI运营助手」；**已隐藏**（暂不开放）：「A+ 页面」「服装组图」「风格复刻」「万能画布」。A+ 页面在 Header 的 toolLinks 中设 `hidden: true`，恢复时去掉即可。
 - **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。
 - **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除。**删除用户**时会同时删除该用户在 `user_points` 与 `points_transactions` 中的记录，该邮箱重注册后积分为 0。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。待后续：支付接入、到期提醒邮件、前端套餐页、注册审批。详见 `docs/KNOWN_ISSUES.md`。
 - **部署**：目标服务器为腾讯云香港轻量（IP: 43.161.215.41，Ubuntu 22.04）。完整步骤见 `docs/DEPLOY.md`。**Gemini 地区限制**：香港不在 Gemini API 支持地区，详见 `docs/GEMINI-REGION-ISSUE.md`。**当前优先级**：部署与地区方案（迁美国/香港加代理）暂缓，先完善产品功能，再考虑部署。
 - **亚马逊 Listing 生成与合规**：AI 运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant` 选亚马逊）。Step 1 分析 → Step 2 标题/后台关键词/五点/描述（不扣积分，后端截断与标题清洗）→ Step 3 产品图（主图白底无字，扣积分）→ Step 4 A+ 文案 + A+ 图片（复用 amazon-aplus 接口）。**合规**：prompt 与后端已按 `docs/AMAZON-LISTING-SPEC.md` 第七章 7.1–7.7 约束（标题 200 字、禁用符号与同词超 2 次、五点 5 条/禁止特殊符号与类目禁用词、描述禁止 best seller 类、searchTerms 250 bytes、A+ 禁止竞品/质保/外链等）；标题返回后去除 `! $ ? _ { } ^ ¬ ¦` 并截断；文档归档见 `docs/README.md`。
+- **生成 Listing 步骤 4 生图体验**：点击「生成 A+ 图片」后，步骤 4 区域自动滚动到视区内（不折叠）、生图时卡片高亮（浅琥珀色），进度区提示「共 N 张、请勿离开页面」。**步骤 3（产品图）与步骤 4（A+ 文案与图片）可同时进行**，互不依赖，界面步骤条上方已提示。

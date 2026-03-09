@@ -11,6 +11,7 @@
 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) | 项目结构、技术栈、主要功能一览（组图/修改图片/A+/亚马逊 Listing/仓库）、本地运行要点。 |
 | [AMAZON-LISTING-SPEC.md](./AMAZON-LISTING-SPEC.md) | 亚马逊 Listing 生成功能产品设计方案：输入/输出、类目、AI 流程、**亚马逊规则与合规**（7.1 标题～7.7 A+）、实现细节。 |
 | [AMAZON-LISTING-IMAGE-PROMPTS.md](./AMAZON-LISTING-IMAGE-PROMPTS.md) | 亚马逊主图与 A+ 图片的提示词与准则；与官方要求对照及当前实现说明。 |
+| [AMAZON-APLUS-MODULES.md](./AMAZON-APLUS-MODULES.md) | A+ 模块定义、本系统支持的 17 种模块、推荐套餐与接口约定。 |
 | [DATA-FLOW.md](./DATA-FLOW.md) | 全品类组图页的字段与 AI 传参说明、数据流。 |
 
 ---

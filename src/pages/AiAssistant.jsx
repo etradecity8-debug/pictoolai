@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
@@ -122,6 +122,35 @@ const AMAZON_LISTING_STEPS = [
   { id: 4, label: 'A+' },
 ]
 
+// ── A+ 模块（亚马逊标准 17 种，与 docs/AMAZON-APLUS-MODULES.md 一致）────────────────────
+const APLUS_MODULES = [
+  { id: 'header', name: '图片页头', images: 1, desc: '顶部大图横幅 16:9' },
+  { id: 'single_highlights', name: '单图+亮点', images: 1, desc: '1 图 + 4 条亮点' },
+  { id: 'image_dark_overlay', name: '深色文字叠加图', images: 1, desc: '图上深色区叠字' },
+  { id: 'image_white_overlay', name: '浅色文字叠加图', images: 1, desc: '图上浅色区叠字' },
+  { id: 'comparison_chart', name: '对比表格', images: 0, desc: '多产品对比（纯文案）' },
+  { id: 'multiple_images', name: '多图模块', images: 4, desc: '4 张图+说明' },
+  { id: 'product_description', name: '产品描述长文', images: 0, desc: '纯文字 ≤2000 字' },
+  { id: 'company_logo', name: '品牌 Logo', images: 1, desc: '1 张品牌/Logo 图' },
+  { id: 'single_image_sidebar', name: '单图+侧栏', images: 1, desc: '1 图+侧边文案' },
+  { id: 'standard_text', name: '纯文字', images: 0, desc: '纯文字 ≤500 字' },
+  { id: 'quad_images', name: '四图+文字', images: 4, desc: '4 个功能点图文' },
+  { id: 'tech_specs', name: '技术规格', images: 0, desc: '纯文字规格表' },
+  { id: 'single_right_image', name: '右图左文', images: 1, desc: '1 图在右' },
+  { id: 'three_images', name: '三图+文字', images: 3, desc: '3 个功能点图文' },
+  { id: 'single_left_image', name: '左图右文', images: 1, desc: '1 图在左' },
+  { id: 'single_image_specs', name: '单图+规格', images: 1, desc: '1 图+要点列表' },
+  { id: 'brand_story', name: '品牌故事', images: 0, desc: '纯文字品牌段落' },
+]
+const APLUS_PRESETS = {
+  basic: ['header', 'three_images', 'tech_specs'],
+  standard: ['header', 'single_highlights', 'three_images', 'tech_specs', 'brand_story'],
+  full: ['header', 'single_highlights', 'quad_images', 'tech_specs', 'brand_story'],
+}
+function getAplusImageCount(modules) {
+  return (modules || []).reduce((sum, id) => sum + (APLUS_MODULES.find((m) => m.id === id)?.images || 0), 0)
+}
+
 // ── 初始表单 ───────────────────────────────────────────────────────────────────
 const initOptimize = { title: '', bullets: '', description: '', market: 'us', lang: 'zh' }
 
@@ -148,7 +177,7 @@ function GenerateForm() {
   const [analyzeResult, setAnalyzeResult] = useState(null)
   const [listingResult, setListingResult] = useState(null)
   const [productImageDataUrl, setProductImageDataUrl] = useState('') // 步骤 1 压缩图，供 Step 3/4 用
-  const [productImagesResult, setProductImagesResult] = useState(null) // Step 3 主图
+  const [productImagesResult, setProductImagesResult] = useState(null) // Step 3 主图 + 附加图 { mainImage, additionalImages?, pointsUsed }
   const [productImagesLoading, setProductImagesLoading] = useState(false)
   const [aplusCopy, setAplusCopy] = useState(null)
   const [aplusCopyLoading, setAplusCopyLoading] = useState(false)
@@ -157,6 +186,16 @@ function GenerateForm() {
   const [saveListingLoading, setSaveListingLoading] = useState(false)
   const [savedListingId, setSavedListingId] = useState(null)
   const [imageModel, setImageModel] = useState('Nano Banana') // Step 3/4 生图模型，默认 Nano Banana(2.5) 兼容性更好
+  const [productImageCount, setProductImageCount] = useState(3) // Step 3 生成张数 1～9（1=仅主图，2～9=主图+附加图）
+  const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选 A+ 模块，最多 5 个
+  const step4Ref = useRef(null)
+
+  // 步骤 4 生图时滚动到该区域，保持展开可见、不折叠
+  useEffect(() => {
+    if (aplusImagesLoading && step4Ref.current) {
+      step4Ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [aplusImagesLoading])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const category1 = CATEGORY_TREE.find(c => c.id === form.category1)
@@ -240,6 +279,72 @@ function GenerateForm() {
     navigator.clipboard.writeText(text).then(() => {}).catch(() => {})
   }
 
+  /** 仅重新执行 Step 1 分析，清空 Step 2～4 结果 */
+  const handleRegenerateAnalyze = async () => {
+    if (!productImageDataUrl || !getToken()) return
+    setError('')
+    setStep('analyzing')
+    try {
+      const analyzeRes = await fetch('/api/ai-assistant/amazon/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          images: [productImageDataUrl],
+          category1: category1?.name,
+          category2: form.category2,
+          brand: form.brand.trim(),
+          sellingPoints: sellingPointsLines,
+          market: form.market,
+          lang: form.lang,
+          keywords: form.keywords.trim() || undefined,
+          notes: form.notes.trim() || undefined,
+        }),
+      })
+      const analyzeData = await analyzeRes.json()
+      if (!analyzeRes.ok) throw new Error(analyzeData.error || '分析失败')
+      setAnalyzeResult(analyzeData)
+      setListingResult(null)
+      setProductImagesResult(null)
+      setAplusCopy(null)
+      setAplusImages(null)
+      setStep('done')
+    } catch (e) {
+      setError(e.message || '分析失败')
+      setStep('error')
+    }
+  }
+
+  /** 仅重新生成 Step 2 标题·五点·描述 */
+  const handleRegenerateListing = async () => {
+    if (!analyzeResult?.productSummary || !getToken()) return
+    setError('')
+    setStep('generating')
+    try {
+      const genRes = await fetch('/api/ai-assistant/amazon/generate-listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          analyzeResult,
+          category1: category1?.name,
+          category2: form.category2,
+          brand: form.brand.trim(),
+          sellingPoints: sellingPointsLines,
+          market: form.market,
+          lang: form.lang,
+          keywords: form.keywords.trim() || undefined,
+          notes: form.notes.trim() || undefined,
+        }),
+      })
+      const genData = await genRes.json()
+      if (!genRes.ok) throw new Error(genData.error || '生成失败')
+      setListingResult(genData)
+      setStep('done')
+    } catch (e) {
+      setError(e.message || '生成失败')
+      setStep('error')
+    }
+  }
+
   const handleGenerateProductImages = async () => {
     if (!productImageDataUrl || !analyzeResult?.productName || !getToken()) return
     setError('')
@@ -253,11 +358,16 @@ function GenerateForm() {
           productName: analyzeResult.productName,
           brand: form.brand.trim(),
           model: imageModel,
+          count: productImageCount,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '生成失败')
-      setProductImagesResult({ mainImage: data.mainImage, pointsUsed: data.pointsUsed })
+      setProductImagesResult({
+        mainImage: data.mainImage,
+        additionalImages: data.additionalImages || [],
+        pointsUsed: data.pointsUsed,
+      })
     } catch (e) {
       setError(e.message || '产品图生成失败')
     } finally {
@@ -287,11 +397,13 @@ function GenerateForm() {
           story: form.notes.trim() || listingResult?.description?.slice(0, 200) || '',
           style: 'minimal',
           language: form.lang,
+          modules: aplusModules,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'A+ 文案生成失败')
       setAplusCopy(data.copy)
+      if (data.modules?.length) setAplusModules(data.modules)
     } catch (e) {
       setError(e.message || 'A+ 文案生成失败')
     } finally {
@@ -320,11 +432,17 @@ function GenerateForm() {
           style: 'minimal',
           model: imageModel,
           language: form.lang,
+          modules: aplusModules,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'A+ 图片生成失败')
-      setAplusImages({ heroImage: data.heroImage, featureImages: data.featureImages || [] })
+      setAplusImages({
+        heroImage: data.heroImage,
+        featureImages: data.featureImages || [],
+        moduleImages: data.moduleImages || {},
+        modules: data.modules || aplusModules,
+      })
     } catch (e) {
       setError(e.message || 'A+ 图片生成失败')
     } finally {
@@ -335,7 +453,9 @@ function GenerateForm() {
   return (
     <div className="space-y-5">
       {(step !== 'idle' || listingResult) && (
-        <div className="flex items-center gap-2 mb-4">
+        <div className="mb-4">
+          <p className="text-xs text-gray-500 mb-2">步骤 3（产品图）与步骤 4（A+ 文案与图片）可同时进行，互不依赖。</p>
+          <div className="flex items-center gap-2">
           {AMAZON_LISTING_STEPS.map((s, i) => {
             const done = (s.id === 1 && step !== 'idle' && step !== 'analyzing') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!productImagesResult) || (s.id === 4 && !!aplusImages)
             const active = (s.id === 1 && step === 'analyzing') || (s.id === 2 && step === 'generating') || (s.id === 3 && productImagesLoading) || (s.id === 4 && (aplusCopyLoading || aplusImagesLoading))
@@ -357,29 +477,40 @@ function GenerateForm() {
               </div>
             )
           })}
+          </div>
         </div>
       )}
 
       {listingResult ? (
         <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <h3 className="text-sm font-semibold text-gray-900">生成结果（可复制）</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setListingResult(null)
-                setStep('idle')
-                setAnalyzeResult(null)
-                setProductImageDataUrl('')
-                setProductImagesResult(null)
-                setAplusCopy(null)
-                setAplusImages(null)
-                setSavedListingId(null)
-              }}
-              className="text-xs text-gray-500 hover:text-gray-900"
-            >
-              重新生成
-            </button>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={handleRegenerateAnalyze} disabled={step === 'analyzing' || !productImageDataUrl} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">
+                重新分析
+              </button>
+              <span className="text-gray-300">|</span>
+              <button type="button" onClick={handleRegenerateListing} disabled={step === 'generating' || !analyzeResult?.productSummary} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">
+                重新生成标题·五点
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setListingResult(null)
+                  setStep('idle')
+                  setAnalyzeResult(null)
+                  setProductImageDataUrl('')
+                  setProductImagesResult(null)
+                  setAplusCopy(null)
+                  setAplusImages(null)
+                  setSavedListingId(null)
+                }}
+                className="text-xs text-gray-500 hover:text-gray-900"
+              >
+                全部重新生成
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2 mb-2">
             <button
@@ -457,37 +588,71 @@ function GenerateForm() {
 
           {/* Step 3 产品图 */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">3. 产品图</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">3. 产品图</h3>
+              {productImagesResult?.mainImage && (
+                <button type="button" onClick={() => setProductImagesResult(null)} className="text-xs text-gray-500 hover:text-gray-900">
+                  重新生成产品图
+                </button>
+              )}
+            </div>
             {!productImagesResult?.mainImage && (
-              <div className="mb-3">
-                <label className="block text-xs font-medium text-gray-700 mb-1">生图模型</label>
-                <select
-                  value={imageModel}
-                  onChange={e => setImageModel(e.target.value)}
-                  className="w-full max-w-xs border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
-                >
-                  {IMAGE_MODEL_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Nano Banana(2.5) 兼容性较好；若遇网络错误可优先选此</p>
+              <div className="mb-3 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">生图模型</label>
+                  <select
+                    value={imageModel}
+                    onChange={e => setImageModel(e.target.value)}
+                    className="w-full max-w-xs border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+                  >
+                    {IMAGE_MODEL_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">Nano Banana(2.5) 兼容性较好；若遇网络错误可优先选此</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">生成数量</label>
+                  <select
+                    value={productImageCount}
+                    onChange={e => setProductImageCount(Number(e.target.value))}
+                    className="w-full max-w-xs border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                      <option key={n} value={n}>{n} 张{n === 1 ? '（仅主图）' : `（1 主图 + ${n - 1} 附加图）`}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">亚马逊最多 9 张：第 1 张为主图（白底），其余为附加图（多角度/场景）</p>
+                </div>
               </div>
             )}
             {productImagesResult?.mainImage ? (
-              <div className="flex flex-wrap gap-2">
-                <img src={productImagesResult.mainImage} alt="主图" className="w-48 h-48 object-contain rounded-lg border border-gray-200 bg-white" />
-                <p className="text-xs text-gray-500">主图已生成并保存到仓库，消耗 {productImagesResult.pointsUsed ?? 0} 积分</p>
+              <div>
+                <div className="flex flex-wrap gap-3 items-start">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">主图</p>
+                    <img src={productImagesResult.mainImage} alt="主图" className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                  </div>
+                  {(productImagesResult.additionalImages || []).map((src, i) => (
+                    <div key={i}>
+                      <p className="text-xs font-medium text-gray-500 mb-1">附加图 {i + 2}</p>
+                      <img src={src} alt={`附加图${i + 2}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">共 {1 + (productImagesResult.additionalImages?.length || 0)} 张已保存到仓库，消耗 {productImagesResult.pointsUsed ?? 0} 积分</p>
               </div>
             ) : (
               <div>
-                <p className="text-xs text-gray-500 mb-2">生成符合亚马逊主图规范的白底产品图（纯白底、产品约 85%、无文字）。亚马逊要求主图为实际拍摄，生成图建议作参考或附加图使用。</p>
-                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准')} 积分（1 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
+                <p className="text-xs text-gray-500 mb-2">第 1 张为主图（纯白底、产品约 85%、无文字）；第 2～N 张为附加图（多角度或简单场景）。亚马逊要求主图为实际拍摄，生成图建议作参考或附加图使用。</p>
+                <p className="text-xs text-gray-400 mb-2">生成后可点击上方「重新生成产品图」换一版再生成（会扣积分）。</p>
+                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * productImageCount} 积分（{productImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
                 {productImagesLoading && (
                   <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
-                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成主图（第 1 张）…</p>
-                    <p className="text-xs text-gray-500 mb-2">请稍候，通常需 20 秒～1 分钟</p>
+                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {productImageCount} 张）…</p>
+                    <p className="text-xs text-gray-500 mb-2">请稍候，每张约 20 秒～1 分钟</p>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                      <div className="h-full w-2/5 bg-gray-600 rounded-full animate-pulse" style={{ width: '40%' }} />
+                      <div className="h-full bg-gray-600 rounded-full animate-pulse" style={{ width: '50%' }} />
                     </div>
                   </div>
                 )}
@@ -497,22 +662,78 @@ function GenerateForm() {
                   onClick={handleGenerateProductImages}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {productImagesLoading ? '生成中…' : '生成产品图'}
+                  {productImagesLoading ? '生成中…' : `生成产品图（${productImageCount} 张）`}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Step 4 A+ */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">4. A+ 文案与图片</h3>
+          {/* Step 4 A+（生图时保持展开并滚动到此，步骤 3 与 4 可并行进行） */}
+          <div
+            ref={step4Ref}
+            className={`rounded-xl border p-4 transition-colors ${aplusImagesLoading ? 'border-gray-400 bg-amber-50/50 ring-1 ring-amber-200' : 'border-gray-200 bg-white'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">4. A+ 文案与图片</h3>
+              <div className="flex items-center gap-2">
+                {aplusCopy && (
+                  <button type="button" onClick={() => { setAplusCopy(null); setAplusImages(null) }} className="text-xs text-gray-500 hover:text-gray-900">
+                    重新生成文案
+                  </button>
+                )}
+                {aplusImages && (
+                  <>
+                    {aplusCopy && <span className="text-gray-300">|</span>}
+                    <button type="button" onClick={() => setAplusImages(null)} className="text-xs text-gray-500 hover:text-gray-900">
+                      重新生成图片
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
             {!aplusCopy && !aplusCopyLoading && (
-              <div className="mb-3">
-                <p className="text-xs text-gray-500 mb-2">生成 A+ 模块文案（不扣积分），可再生成 A+ 配图（扣积分）。</p>
+              <div className="mb-3 space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-gray-700 mb-1">推荐套餐（一键选用）</p>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {['basic', 'standard', 'full'].map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setAplusModules([...APLUS_PRESETS[key]])}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                          JSON.stringify(aplusModules) === JSON.stringify(APLUS_PRESETS[key])
+                            ? 'bg-gray-800 text-white border-gray-800'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {key === 'basic' ? '基础（3 模块）' : key === 'standard' ? '标准（5 模块）' : '精品（5 模块）'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs font-medium text-gray-700 mb-1">自定义选择（从下方 17 种亚马逊标准模块中勾选，最多 5 个）</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                    {APLUS_MODULES.map((m) => {
+                      const on = aplusModules.includes(m.id)
+                      const toggle = () => {
+                        if (on) setAplusModules((prev) => prev.filter((x) => x !== m.id))
+                        else if (aplusModules.length < 5) setAplusModules((prev) => [...prev, m.id])
+                      }
+                      return (
+                        <label key={m.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <input type="checkbox" checked={on} onChange={toggle} className="rounded border-gray-300" />
+                          <span>{m.name}</span>
+                          {m.images > 0 && <span className="text-gray-400">({m.images} 图)</span>}
+                        </label>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">已选 {aplusModules.length}/5 个模块，共 {getAplusImageCount(aplusModules)} 张图</p>
+                </div>
                 <button
                   type="button"
                   onClick={handleGenerateAplusCopy}
-                  disabled={aplusCopyLoading}
+                  disabled={aplusCopyLoading || aplusModules.length === 0}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-600 disabled:opacity-50"
                 >
                   {aplusCopyLoading ? '生成中…' : '生成 A+ 文案'}
@@ -521,23 +742,58 @@ function GenerateForm() {
             )}
             {aplusCopy && (
               <>
-                <div className="mb-3 text-sm text-gray-700 space-y-1">
-                  <p><strong>Hero:</strong> {aplusCopy.heroTagline}</p>
-                  <p className="text-gray-600">{aplusCopy.heroSubtext}</p>
-                  {(aplusCopy.features || []).map((f, i) => (
-                    <p key={i}>{f.title}: {f.desc}</p>
+                <div className="mb-3 text-sm text-gray-700 space-y-2">
+                  {(aplusCopy._modules || aplusModules).includes('header') && (aplusCopy.heroTagline || aplusCopy.heroSubtext) && (
+                    <div><strong>页头：</strong> {aplusCopy.heroTagline} — {aplusCopy.heroSubtext}</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('single_highlights') && (aplusCopy.highlightTitle || aplusCopy.highlights?.length) && (
+                    <div><strong>单图+亮点：</strong> {aplusCopy.highlightTitle} · {(aplusCopy.highlights || []).join('；')}</div>
+                  )}
+                  {['image_dark_overlay', 'image_white_overlay'].some(m => (aplusCopy._modules || aplusModules).includes(m)) && (
+                    (aplusCopy.overlayDarkHeadline || aplusCopy.overlayWhiteHeadline) && (
+                      <div><strong>叠加图文案：</strong> {aplusCopy.overlayDarkHeadline || aplusCopy.overlayWhiteHeadline}</div>
+                    )
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('comparison_chart') && (aplusCopy.comparisonRows || []).length > 0 && (
+                    <div><strong>对比表：</strong> {(aplusCopy.comparisonRows || []).map((r) => `${r.feature}: ${r.value1 || ''}/${r.value2 || ''}`).join('；')}</div>
+                  )}
+                  {['three_images', 'quad_images', 'multiple_images'].some(m => (aplusCopy._modules || aplusModules).includes(m)) && (aplusCopy.features || []).map((f, i) => (
+                    <div key={i}><strong>{(f.title || '').slice(0, 20)}：</strong> {(f.desc || '').slice(0, 80)}…</div>
                   ))}
-                  <p><strong>{aplusCopy.brandStoryTitle}</strong> {aplusCopy.brandStoryBody}</p>
+                  {(aplusCopy._modules || aplusModules).includes('product_description') && aplusCopy.productDescriptionText && (
+                    <div><strong>产品描述：</strong> {(aplusCopy.productDescriptionText || '').slice(0, 120)}…</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('single_image_sidebar') && (aplusCopy.sidebarTitle || aplusCopy.sidebarBody) && (
+                    <div><strong>单图侧栏：</strong> {aplusCopy.sidebarTitle} — {(aplusCopy.sidebarBody || '').slice(0, 60)}…</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('standard_text') && aplusCopy.standardTextBody && (
+                    <div><strong>纯文字：</strong> {(aplusCopy.standardTextBody || '').slice(0, 80)}…</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('tech_specs') && (aplusCopy.techSpecs || []).length > 0 && (
+                    <div><strong>技术规格：</strong> {(aplusCopy.techSpecs || []).map((r) => `${r.name}: ${r.value}`).join('；')}</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('single_right_image') && (aplusCopy.singleRightTitle || aplusCopy.singleRightBody) && (
+                    <div><strong>右图左文：</strong> {aplusCopy.singleRightTitle} — {(aplusCopy.singleRightBody || '').slice(0, 50)}…</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('single_left_image') && (aplusCopy.singleLeftTitle || aplusCopy.singleLeftBody) && (
+                    <div><strong>左图右文：</strong> {aplusCopy.singleLeftTitle} — {(aplusCopy.singleLeftBody || '').slice(0, 50)}…</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('single_image_specs') && (aplusCopy.singleSpecsTitle || (aplusCopy.singleSpecsBullets || []).length) && (
+                    <div><strong>单图+规格：</strong> {aplusCopy.singleSpecsTitle} · {(aplusCopy.singleSpecsBullets || []).join('；')}</div>
+                  )}
+                  {(aplusCopy._modules || aplusModules).includes('brand_story') && (aplusCopy.brandStoryTitle || aplusCopy.brandStoryBody) && (
+                    <div><strong>{aplusCopy.brandStoryTitle}</strong> {aplusCopy.brandStoryBody}</div>
+                  )}
                 </div>
                 {!aplusImages ? (
                   <>
-                    <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * 4} 积分（4 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
+                    <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * getAplusImageCount(aplusModules)} 积分（{getAplusImageCount(aplusModules)} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
                     {aplusImagesLoading && (
-                      <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
-                        <p className="text-sm font-medium text-gray-800 mb-1">正在生成 A+ 图片（共 4 张）…</p>
-                        <p className="text-xs text-gray-500 mb-2">顺序生成 Hero + 3 张特点图，请稍候，通常需 1～3 分钟</p>
-                        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full w-2/5 bg-gray-600 rounded-full animate-pulse" style={{ width: '40%' }} />
+                      <div className="mb-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">正在生成 A+ 图片（共 {getAplusImageCount(aplusModules)} 张）</p>
+                        <p className="text-xs text-gray-600 mb-2">按模块顺序生成，每张约 20 秒～1 分钟，请勿离开页面</p>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: '60%' }} />
                         </div>
                       </div>
                     )}
@@ -547,18 +803,45 @@ function GenerateForm() {
                       onClick={handleGenerateAplusImages}
                       className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50"
                     >
-                      {aplusImagesLoading ? '生成中…' : '生成 A+ 图片（扣积分）'}
+                      {aplusImagesLoading ? '生成中…' : `生成 A+ 图片（${getAplusImageCount(aplusModules)} 张，扣积分）`}
                     </button>
                   </>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {aplusImages.heroImage && (
-                      <img src={aplusImages.heroImage} alt="A+ Hero" className="w-full max-w-md h-32 object-cover rounded-lg border border-gray-200" />
+                  <div className="space-y-3">
+                    {aplusImages.moduleImages?.header && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">页头</p><img src={aplusImages.moduleImages.header} alt="Header" className="w-full max-w-md h-32 object-cover rounded-lg border border-gray-200" /></div>
                     )}
-                    {(aplusImages.featureImages || []).filter(Boolean).map((img, i) => (
-                      <img key={i} src={img} alt={`A+ 图${i + 1}`} className="w-32 h-32 object-cover rounded-lg border border-gray-200" />
-                    ))}
-                    <p className="text-xs text-gray-500 w-full">A+ 图片已保存到仓库</p>
+                    {aplusImages.moduleImages?.single_highlights && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">单图+亮点</p><img src={aplusImages.moduleImages.single_highlights} alt="Highlights" className="w-40 h-40 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {aplusImages.moduleImages?.image_dark_overlay && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">深色叠加图</p><img src={aplusImages.moduleImages.image_dark_overlay} alt="Dark overlay" className="w-full max-w-md h-28 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {aplusImages.moduleImages?.image_white_overlay && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">浅色叠加图</p><img src={aplusImages.moduleImages.image_white_overlay} alt="White overlay" className="w-full max-w-md h-28 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {(aplusImages.moduleImages?.multiple_images || []).filter(Boolean).length > 0 && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">多图模块</p><div className="flex flex-wrap gap-2">{(aplusImages.moduleImages.multiple_images || []).filter(Boolean).map((img, i) => <img key={i} src={img} alt="" className="w-32 h-32 object-cover rounded-lg border border-gray-200" />)}</div></div>
+                    )}
+                    {aplusImages.moduleImages?.company_logo && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">品牌 Logo</p><img src={aplusImages.moduleImages.company_logo} alt="Logo" className="max-w-xs h-20 object-contain rounded-lg border border-gray-200" /></div>
+                    )}
+                    {aplusImages.moduleImages?.single_image_sidebar && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">单图侧栏</p><img src={aplusImages.moduleImages.single_image_sidebar} alt="Sidebar" className="w-40 h-40 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {[...(aplusImages.moduleImages?.three_images || []), ...(aplusImages.moduleImages?.quad_images || []), ...(aplusImages.featureImages || [])].filter(Boolean).length > 0 && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">功能图</p><div className="flex flex-wrap gap-2">{[...(aplusImages.moduleImages?.three_images || []), ...(aplusImages.moduleImages?.quad_images || []), ...(aplusImages.featureImages || [])].filter(Boolean).map((img, i) => <img key={i} src={img} alt="" className="w-32 h-32 object-cover rounded-lg border border-gray-200" />)}</div></div>
+                    )}
+                    {aplusImages.moduleImages?.single_right_image && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">右图左文</p><img src={aplusImages.moduleImages.single_right_image} alt="Right" className="w-40 h-40 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {aplusImages.moduleImages?.single_left_image && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">左图右文</p><img src={aplusImages.moduleImages.single_left_image} alt="Left" className="w-40 h-40 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    {aplusImages.moduleImages?.single_image_specs && (
+                      <div><p className="text-xs font-medium text-gray-500 mb-1">单图+规格</p><img src={aplusImages.moduleImages.single_image_specs} alt="Specs" className="w-40 h-40 object-cover rounded-lg border border-gray-200" /></div>
+                    )}
+                    <p className="text-xs text-gray-500">A+ 图片已保存到仓库</p>
                   </div>
                 )}
               </>
