@@ -1,6 +1,18 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+
+const assistantPlatforms = [
+  { id: 'amazon',      name: '亚马逊',     available: true  },
+  { id: 'ebay',        name: 'eBay',        available: false },
+  { id: 'aliexpress',  name: '速卖通',     available: false },
+  { id: 'shopify',     name: 'Shopify',     available: false },
+  { id: 'tiktok',      name: 'TikTok Shop', available: false },
+  { id: 'walmart',     name: '沃尔玛',     available: false },
+  { id: 'etsy',        name: 'Etsy',        available: false },
+  { id: 'temu',        name: 'TEMU',        available: false },
+  { id: 'independent', name: '独立站',     available: false },
+]
 
 const iconClass = 'w-4 h-4 shrink-0'
 
@@ -37,6 +49,8 @@ const toolLinks = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const assistantRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -45,6 +59,17 @@ export default function Header() {
     if (to === '/') return location.pathname === '/'
     return location.pathname === to
   }
+
+  // 点击下拉外部时关闭
+  useEffect(() => {
+    const handler = (e) => {
+      if (assistantRef.current && !assistantRef.current.contains(e.target)) {
+        setAssistantOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 bg-[#f5f5f5]/95 backdrop-blur border-b border-gray-200">
@@ -72,6 +97,60 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
+
+            {/* AI 运营助手下拉 */}
+            <div className="relative" ref={assistantRef}>
+              <button
+                onClick={() => setAssistantOpen(o => !o)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                  location.pathname === '/ai-assistant'
+                    ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
+                }`}
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <span>AI运营助手</span>
+                <svg
+                  className={`w-3 h-3 transition-transform ${assistantOpen ? 'rotate-180' : ''}`}
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* 下拉面板 */}
+              {assistantOpen && (
+                <div className="absolute top-full left-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-50">
+                  <div className="px-3 pb-1.5 pt-0.5 mb-0.5 border-b border-gray-100">
+                    <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">选择平台</span>
+                  </div>
+                  {assistantPlatforms.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        if (!p.available) return
+                        setAssistantOpen(false)
+                        navigate(`/ai-assistant?platform=${p.id}`)
+                      }}
+                      disabled={!p.available}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-sm transition ${
+                        p.available
+                          ? 'text-gray-700 hover:bg-gray-50 cursor-pointer'
+                          : 'text-gray-300 cursor-not-allowed'
+                      }`}
+                    >
+                      <span>{p.name}</span>
+                      {!p.available && (
+                        <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">即将</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* 右侧：订阅 + 语言 + 用户 */}
@@ -167,6 +246,20 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
+            {/* AI运营助手（移动端） */}
+            <Link
+              to="/ai-assistant?platform=amazon"
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
+                location.pathname === '/ai-assistant' ? 'text-gray-900 bg-white font-medium' : 'text-gray-600 hover:bg-white/60 hover:text-gray-900'
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <span>AI运营助手</span>
+            </Link>
             <Link
               to="/pricing"
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-white/60 hover:text-gray-900"

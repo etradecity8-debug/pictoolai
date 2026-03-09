@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 
 const sidebarLinks = [
   { to: '/dashboard/gallery', label: '仓库' },
+  { to: '/dashboard/listings', label: 'Listing 历史' },
   { to: '/dashboard/points', label: '积分明细' },
 ]
 

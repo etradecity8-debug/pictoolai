@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import DashboardLayout from './components/layout/DashboardLayout'
 import Dashboard from './pages/dashboard/Dashboard'
 import Gallery from './pages/dashboard/Gallery'
+import ListingHistory from './pages/dashboard/ListingHistory'
 import Points from './pages/dashboard/Points'
 import DetailSet from './pages/DetailSet'
 import StyleClone from './pages/StyleClone'
@@ -21,6 +22,7 @@ import ApparelSet from './pages/ApparelSet'
 import ImageRetouch from './pages/ImageRetouch'
 import ImageEdit from './pages/ImageEdit'
 import AmazonAPlus from './pages/AmazonAPlus'
+import AiAssistant from './pages/AiAssistant'
 import Admin from './pages/Admin'
 
 function MarketingLayout({ children }) {
@@ -53,9 +55,11 @@ export default function App() {
       <Route path="/image-retouch" element={<ProtectedRoute><MarketingLayout><ImageRetouch /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-edit" element={<ProtectedRoute><MarketingLayout><ImageEdit /></MarketingLayout></ProtectedRoute>} />
       <Route path="/amazon-aplus" element={<ProtectedRoute><MarketingLayout><AmazonAPlus /></MarketingLayout></ProtectedRoute>} />
+      <Route path="/ai-assistant" element={<ProtectedRoute><MarketingLayout><AiAssistant /></MarketingLayout></ProtectedRoute>} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard/gallery" replace />} />
         <Route path="gallery" element={<Gallery />} />
+        <Route path="listings" element={<ListingHistory />} />
         <Route path="points" element={<Points />} />
         <Route path="settings" element={<Navigate to="/dashboard" replace />} />
       </Route>

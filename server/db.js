@@ -49,6 +49,22 @@ export function getDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_points_transactions_user ON points_transactions(user_email);
     CREATE INDEX IF NOT EXISTS idx_points_transactions_created ON points_transactions(created_at DESC);
+    CREATE TABLE IF NOT EXISTS amazon_listing_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      name TEXT DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      search_terms TEXT NOT NULL DEFAULT '',
+      bullets TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      analyze_result TEXT,
+      aplus_copy TEXT,
+      main_image_id TEXT,
+      aplus_image_ids TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_listing_snapshots_user ON amazon_listing_snapshots(user_email);
+    CREATE INDEX IF NOT EXISTS idx_listing_snapshots_created ON amazon_listing_snapshots(created_at DESC);
   `)
     try {
       const galleryInfo = db.prepare('PRAGMA table_info(gallery)').all()

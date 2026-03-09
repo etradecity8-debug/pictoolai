@@ -987,6 +987,8 @@ Key Features: ${features.join(' | ')}
 Brand Story: ${story || '(not provided)'}
 Style: ${style === 'luxury' ? 'premium luxury' : style === 'lifestyle' ? 'warm lifestyle' : 'clean minimal'}
 
+A+ compliance (MUST follow): Do not mention competitors by name; do not use "best seller", "top-rated", "Amazon's Choice"; no guarantee or warranty text; no external links, social media, or QR codes; no contact info or shipping details; benefit-focused messaging only; no medical or unsupported claims; no special characters (™ ® €) or emojis in copy.
+
 IMPORTANT: ALL copy text (heroTagline, heroSubtext, feature titles/descriptions, brandStoryTitle, brandStoryBody) MUST be written entirely in ${lang}. Do not mix languages.
 
 Return ONLY valid JSON (no markdown):
@@ -1071,8 +1073,11 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
     const feat2Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f1}. Visual style: ${styleDesc}. Square format, clean centered composition.`
     const feat3Prompt = `${noTextRule} --- Amazon A+ feature image. Product context (do not render as text): ${product} by ${brand}. Feature to visualize: ${f2}. Visual style: ${styleDesc}. Square format, clean centered composition.`
 
+    const totalAplus = 4
+    let aplusCurrent = 0
     const generateImg = async (label, prompt, cfg) => {
-      console.log(`[A+ 图片]   → 开始生成「${label}」| ratio: ${cfg.imageConfig?.aspectRatio}`)
+      aplusCurrent++
+      console.log(`[A+ 图片] 正在生成第 ${aplusCurrent}/${totalAplus} 张（${label}）| ratio: ${cfg.imageConfig?.aspectRatio}`)
       try {
         const resp = await ai.models.generateContent({
           model: imageModelId,
@@ -1094,7 +1099,7 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
 
     // 顺序生成，避免并发触发 Gemini 速率限制
     console.log('[A+ 图片] 顺序生成 4 张图片（避免并发限速）...')
-    const heroImage = await generateImg('Hero 横幅 16:9', heroPrompt, genCfg16x9)
+    const heroImage = await generateImg('Hero 横幅', heroPrompt, genCfg16x9)
     const feat1 = await generateImg(`特点图1 (${f0})`, feat1Prompt, genCfg1x1)
     const feat2 = await generateImg(`特点图2 (${f1})`, feat2Prompt, genCfg1x1)
     const feat3 = await generateImg(`特点图3 (${f2})`, feat3Prompt, genCfg1x1)
@@ -1142,6 +1147,288 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
   } catch (e) {
     console.error('[A+ 图片] 生成失败', e.message)
     return res.status(500).json({ error: e.message || 'A+ 页面生成失败，请稍后重试' })
+  }
+})
+
+// ── AI 运营助手 · 亚马逊 Listing 生成（方案 C：仅生图扣积分，文字不扣）────────────────
+// Step 1：分析产品图 + 表单，返回结构化 productSummary（供 Step 2 使用）
+app.post('/api/ai-assistant/amazon/analyze', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { images, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张产品图' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请填写至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请填写品牌名' })
+    const firstImage = images[0]
+    const parsed = parseDataUrl(firstImage)
+    if (!parsed) return res.status(400).json({ error: '图片格式无效，请重新上传' })
+
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+    const prompt = `You are an Amazon listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, bullets, description generation).
+
+User inputs:
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Core selling points (one per line): ${points.join(' | ')}
+- Target market: ${marketLabel}
+- Output language: ${langLabel}
+${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
+
+Output a JSON object only (no markdown):
+{
+  "productName": "short product name in output language",
+  "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
+  "keyAttributes": ["attr1", "attr2", "attr3"],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+}`
+
+    const contents = [
+      { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
+      { text: prompt },
+    ]
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.productSummary) {
+      return res.status(500).json({ error: '产品分析解析失败，请重试' })
+    }
+    console.log('[Amazon Listing] 分析完成 | 产品:', out.productName)
+    return res.json({
+      productName: out.productName || '',
+      productSummary: out.productSummary || '',
+      keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [],
+      suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}`,
+    })
+  } catch (e) {
+    console.error('[Amazon Listing] analyze 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品分析失败，请稍后重试' })
+  }
+})
+
+// Step 2：根据分析结果生成标题、后台关键词、五点、描述（符合亚马逊规则，不扣积分）
+app.post('/api/ai-assistant/amazon/generate-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { analyzeResult, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!analyzeResult?.productSummary) return res.status(400).json({ error: '请先完成产品分析' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请提供至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请提供品牌名' })
+
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+    const prompt = `You are an Amazon listing copywriter. Generate a full listing in ${langLabel} that complies with Amazon policy.
+
+Amazon rules (MUST follow):
+
+Title (effective 2025):
+- Max 200 characters. Put brand + core product + key attributes in first 80 characters for search.
+- No ALL CAPS, no competitor brands, no keyword stuffing.
+- Do not repeat the same word more than twice (except articles, prepositions, conjunctions like "and", "the", "of").
+- Do not use these characters unless part of brand name: ! $ ? _ { } ^ ¬ ¦
+
+Bullet points (5 items):
+- Each bullet max 500 characters (some categories limit to 255 — prefer concise under 255 when possible).
+- No price, promotion, or off-site links; no exaggerated or medical/unsupported claims.
+- No special characters (™ ® €) or emojis; no repetition of content across bullets.
+- No ASIN, "N/A", "TBD", or "not applicable"; no company info, contact details, or website links.
+- No refund/guarantee language; no prohibited marketing phrases (e.g. eco-friendly, anti-bacterial, bamboo, soy unless product is certified). Each bullet = one clear benefit or answer to a customer question.
+
+Product description:
+- Max 2000 characters. Do not duplicate bullets; no off-site links, contact info, or prohibited words.
+- No competitor comparison; no "best seller" or "top-rated" type claims.
+
+Search terms (backend keywords):
+- Max 250 bytes total. Do NOT repeat words already in title or bullets; comma or space separated; no competitor brands.
+
+Optimize for: A9 search relevance, Cosmo discovery, Rufus Q&A style bullets, GEO/localization for ${marketLabel}.
+
+Input:
+- Product summary from analysis: ${analyzeResult.productSummary}
+- Product name: ${analyzeResult.productName || ''}
+- Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Selling points: ${points.join(' | ')}
+${keywords?.trim() ? `- Reference keywords to include where relevant: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
+
+Output ONLY valid JSON (no markdown):
+{
+  "title": "full title string, ≤200 chars, in ${langLabel}",
+  "searchTerms": "comma or space separated backend keywords, ≤250 bytes total",
+  "bullets": ["bullet1", "bullet2", "bullet3", "bullet4", "bullet5"],
+  "description": "product description paragraph(s), ≤2000 chars"
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.title) {
+      return res.status(500).json({ error: 'Listing 生成解析失败，请重试' })
+    }
+    // 强制截断并清洗标题以符合亚马逊限制（2025：禁止 ! $ ? _ { } ^ ¬ ¦ 等，除非为品牌名一部分）
+    const forbiddenTitleChars = /[!$?_{}\^¬¦]/g
+    const title = String(out.title || '').replace(forbiddenTitleChars, '').replace(/\s+/g, ' ').trim().slice(0, 200)
+    let searchTerms = String(out.searchTerms || '').trim()
+    while (Buffer.byteLength(searchTerms, 'utf8') > 250 && searchTerms.length > 0) {
+      searchTerms = searchTerms.slice(0, -1)
+    }
+    const bullets = Array.isArray(out.bullets) ? out.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+    while (bullets.length < 5) bullets.push('')
+    const description = String(out.description || '').slice(0, 2000)
+    console.log('[Amazon Listing] 生成完成 | title length:', title.length)
+    return res.json({ title, searchTerms, bullets, description })
+  } catch (e) {
+    console.error('[Amazon Listing] generate-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || 'Listing 生成失败，请稍后重试' })
+  }
+})
+
+// Step 3：生成亚马逊主图（纯白底、产品约 85%、无文字，扣积分）
+app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { productImage, productName, brand, model: modelName } = req.body || {}
+    if (!productImage) return res.status(400).json({ error: '请提供产品图' })
+    const parsed = parseDataUrl(productImage)
+    if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
+
+    const ai = new GoogleGenAI({ apiKey })
+    const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
+    const is25Image = imageModelId === 'gemini-2.5-flash-image'
+    const imageConfig = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
+    const genCfg = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+
+    const noTextRule = `CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks. Product name and brand below are CONTEXT ONLY — do NOT render them in the image.`
+    const prompt = `${noTextRule} --- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: ${productName || 'product'}. Brand context: ${brand || ''}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
+
+    const contents = [
+      { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
+      { text: prompt },
+    ]
+    console.log('[Amazon Listing] Step 3 产品图 | 正在生成第 1/1 张（主图）| 模型:', imageModelId)
+    const resp = await ai.models.generateContent({
+      model: imageModelId,
+      contents,
+      config: genCfg,
+    })
+    const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+    if (!part) {
+      return res.status(500).json({ error: '主图生成未返回图片，请重试' })
+    }
+    const mainImage = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const email = req.user.email
+    const balance = getBalance(email)
+    if (balance < pointsPerImg) return res.status(402).json({ error: '积分不足', required: pointsPerImg, balance })
+    deductPoints(email, pointsPerImg, `亚马逊主图 (${modelName || 'Nano Banana 2'})`)
+    const newBalance = getBalance(email)
+    try {
+      saveImageToGallery(email, `amazon-main-${Date.now()}`, `${productName || '产品'}·主图`, mainImage, pointsPerImg, modelName || null, '1K 标准')
+    } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+
+    console.log('[Amazon Listing] Step 3 主图完成 ✓')
+    return res.json({ mainImage, pointsUsed: pointsPerImg, newBalance })
+  } catch (e) {
+    console.error('[Amazon Listing] generate-product-images 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品图生成失败，请稍后重试' })
+  }
+})
+
+// 保存当前 Listing 到历史（方案一：独立表）
+app.post('/api/ai-assistant/amazon/save-listing', requireAuth, (req, res) => {
+  try {
+    const { name, title, searchTerms, bullets, description, analyzeResult, aplusCopy, mainImageId, aplusImageIds } = req.body || {}
+    if (!title || title.trim() === '') return res.status(400).json({ error: '请提供标题' })
+    const email = req.user.email
+    const created_at = Date.now()
+    const bulletsStr = Array.isArray(bullets) ? JSON.stringify(bullets) : (typeof bullets === 'string' ? bullets : '[]')
+    const aplusIdsStr = Array.isArray(aplusImageIds) ? JSON.stringify(aplusImageIds) : null
+    getDb()
+      .prepare(
+        `INSERT INTO amazon_listing_snapshots (user_email, created_at, name, title, search_terms, bullets, description, analyze_result, aplus_copy, main_image_id, aplus_image_ids)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .run(
+        email,
+        created_at,
+        (name || '').trim().slice(0, 200),
+        String(title).trim().slice(0, 500),
+        String(searchTerms || '').trim().slice(0, 1000),
+        bulletsStr,
+        String(description || '').slice(0, 5000),
+        analyzeResult != null ? JSON.stringify(analyzeResult) : null,
+        aplusCopy != null ? JSON.stringify(aplusCopy) : null,
+        mainImageId || null,
+        aplusIdsStr
+      )
+    const row = getDb().prepare('SELECT id, created_at, name, title FROM amazon_listing_snapshots WHERE user_email = ? AND created_at = ?').get(email, created_at)
+    console.log('[Amazon Listing] 已保存到历史 id:', row?.id)
+    return res.json({ id: row?.id, created_at })
+  } catch (e) {
+    console.error('[Amazon Listing] save-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || '保存失败' })
+  }
+})
+
+// 列出当前用户的 Listing 历史
+app.get('/api/ai-assistant/amazon/listings', requireAuth, (req, res) => {
+  try {
+    const email = req.user.email
+    const rows = getDb()
+      .prepare('SELECT id, created_at, name, title, search_terms, bullets, description FROM amazon_listing_snapshots WHERE user_email = ? ORDER BY created_at DESC LIMIT 200')
+      .all(email)
+    const list = rows.map((r) => ({
+      id: r.id,
+      createdAt: r.created_at,
+      name: r.name || '',
+      title: r.title || '',
+      titlePreview: (r.title || '').slice(0, 60) + ((r.title || '').length > 60 ? '…' : ''),
+    }))
+    return res.json({ list })
+  } catch (e) {
+    console.error('[Amazon Listing] listings 列表失败', e.message)
+    return res.status(500).json({ error: '获取列表失败' })
+  }
+})
+
+// 获取单条 Listing 详情（用于查看/复制）
+app.get('/api/ai-assistant/amazon/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    if (Number.isNaN(id)) return res.status(400).json({ error: '无效的 id' })
+    const row = getDb().prepare('SELECT * FROM amazon_listing_snapshots WHERE id = ? AND user_email = ?').get(id, req.user.email)
+    if (!row) return res.status(404).json({ error: '未找到该记录' })
+    let bullets = []
+    try {
+      bullets = JSON.parse(row.bullets || '[]')
+    } catch (_) {}
+    return res.json({
+      id: row.id,
+      createdAt: row.created_at,
+      name: row.name || '',
+      title: row.title || '',
+      searchTerms: row.search_terms || '',
+      bullets,
+      description: row.description || '',
+      analyzeResult: row.analyze_result ? JSON.parse(row.analyze_result) : null,
+      aplusCopy: row.aplus_copy ? JSON.parse(row.aplus_copy) : null,
+      mainImageId: row.main_image_id || null,
+      aplusImageIds: row.aplus_image_ids ? JSON.parse(row.aplus_image_ids) : null,
+    })
+  } catch (e) {
+    console.error('[Amazon Listing] listing 详情失败', e.message)
+    return res.status(500).json({ error: '获取详情失败' })
   }
 })
 
