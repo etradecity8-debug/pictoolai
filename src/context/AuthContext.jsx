@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null)
 
-const TOKEN_KEY = 'picaitool_token'
-const USER_KEY = 'picaitool_user'
+const TOKEN_KEY = 'pictoolai_token'
+const USER_KEY = 'pictoolai_user'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)

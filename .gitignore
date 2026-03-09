@@ -8,6 +8,6 @@ dist
 !server/.env.example
 server/users.json
 server/gallery
-server/picaitool.db
-server/picaitool.db-wal
-server/picaitool.db-shm
+server/pictoolai.db
+server/pictoolai.db-wal
+server/pictoolai.db-shm

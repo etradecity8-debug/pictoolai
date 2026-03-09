@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/9</div>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/10</div>
   <h1>已知问题与待办（后续再改）</h1>
 <h2>运营须知：数据隐私与客户信任</h2>
 <h3>技术层面：管理员能看到什么</h3>
@@ -132,24 +132,37 @@
 <li><strong>现状与不满</strong>：当前单张用「另存为」（showSaveFilePicker）可正常选路径保存；多张用「选择文件夹」（showDirectoryPicker）一次性写入，但部分目录（如含系统/隐藏文件）会被浏览器拒绝并提示「含有系统文件」，导致无法保存。用户对该块体验不满意，后续需再改。</li>
 <li><strong>约束</strong>：多张若改为「每张弹一次另存为」（showSaveFilePicker 循环），选 1 万张就要点 1 万次，不可接受；因此多张仍需「选一次文件夹」的机制，但需在浏览器限制下找到更好方案（例如引导用户选子文件夹、或后续有更合适的 API/产品方案再优化）。</li>
 </ul>
-<h2>今日完成（2026-03-07，续2）</h2>
-<h3>部署准备（进行中）</h3>
+<h2>今日完成（2026-03-10）</h2>
+<h3>界面与品牌</h3>
 <ul>
-<li>选定部署方案：腾讯云香港轻量 VPS（锐驰型，跨境优化，¥55/月，IP: 43.161.215.41）</li>
-<li>香港服务器 Gemini API 直连无需代理</li>
-<li>服务器环境已安装完毕：Node.js v20.20.1 / npm 10.8.2 / PM2 6.0.14 / Nginx 1.18.0 / Git</li>
-<li>新建部署文档 <code>docs/DEPLOY.md</code>，记录完整 8 阶段部署步骤</li>
+<li><strong>导航</strong>：「产品组图」→「电商生图」，「AI运营助手」→「电商AI运营助手」；文档与项目记忆已同步。</li>
+<li><strong>品牌统一</strong>：全项目统一为 <strong>PicToolAI</strong>（品牌名）、技术标识 <strong>pictoolai</strong>（数据库 <code>pictoolai.db</code>、localStorage 键、PM2 示例名等），避免与旧拼写 picaitool 混淆。</li>
+<li><strong>Logo</strong>：接入 <code>public/logo.png</code>，Header/Footer/标题/favicon 已用；尺寸调大、去白底（与导航栏同底 + mix-blend-multiply）、限制在栏内不溢出。</li>
 </ul>
-<p><strong>待继续的部署步骤（从阶段二开始）：</strong></p>
-<ol>
-<li>代码推送到 GitHub → 服务器 git clone</li>
-<li>服务器创建 server/.env（填 API Key，删 HTTPS_PROXY）</li>
-<li>npm install（前端 + 后端）</li>
-<li>npm run build（构建前端）</li>
-<li>pm2 启动后端</li>
-<li>配置 Nginx（静态文件 + /api/ 反代）</li>
-<li>浏览器验证 <a href="http://43.161.215.41">http://43.161.215.41</a></li>
-</ol>
+<h3>电商AI运营助手（Listing）</h3>
+<ul>
+<li><strong>步骤 4</strong>：点击「生成 A+ 文案」后不再整块折叠，显示「正在生成 A+ 文案…」并滚动到视区；生成中与生图时均保持展开。</li>
+<li><strong>重新生成</strong>：每步独立——Step 1 卡片「重新分析」「清空全部」，Step 2「重新生成」，Step 3「重新生成产品图」，Step 4「重新生成文案/图片」；文档与界面已区分「分析」与「生成」。</li>
+<li><strong>保存 Listing</strong>：按钮旁增加说明（保存内容：标题/五点/描述/分析/A+ 文案，若已生成主图或 A+ 图会一并关联）；保存时传入 <code>mainImageId</code>、<code>aplusImageIds</code>，Listing 历史详情页展示关联主图与 A+ 图。</li>
+<li><strong>保存/导出</strong>：按钮移至 Step 2 文案内容下方，作为「看完再操作」区域。</li>
+</ul>
+<h3>部署与数据</h3>
+<ul>
+<li><strong>部署</strong>：香港已暂停（Gemini 不可用），下次可能改美国 VPS；<code>docs/DEPLOY.md</code> 改为通用 VPS 步骤，含「曾用 picaitool」的迁移说明。</li>
+<li><strong>数据库</strong>：仅使用 <strong>pictoolai.db</strong>；旧 <strong>picaitool.db</strong> 及 <strong>server/gallery/</strong> 下旧图已清理，不影响程序运行（新图仍写入 <code>server/gallery/</code>）。</li>
+</ul>
+<h3>其他</h3>
+<ul>
+<li><strong>打印版</strong>：<code>npm run docs:print</code> 为本地脚本，不消耗 Cursor/API token；文档更新后需执行以刷新 <code>docs/print/*.html</code>。</li>
+</ul>
+<hr>
+<h2>今日完成（2026-03-07，续2）</h2>
+<h3>部署准备（香港已暂停，下次或改美国）</h3>
+<ul>
+<li>曾选定腾讯云香港轻量 VPS（43.161.215.41）；因 <strong>Gemini API 香港不可用</strong>，倾向放弃香港，下次改在美国 VPS 部署（美国直连 Gemini 无地区限制）。</li>
+<li>部署文档 <code>docs/DEPLOY.md</code> 为通用 VPS 步骤（环境、Git、PM2、Nginx 等），美国部署时只需换为自己的服务器 IP 与用户。</li>
+<li>美国部署时：无需配置 HTTPS_PROXY，步骤与文档一致。</li>
+</ul>
 <hr>
 <h2>今日完成（2026-03-07，续）</h2>
 <h3>客户积分管理系统（手动运营版）</h3>
@@ -339,7 +352,7 @@
 <li><strong>步骤 5</strong>：「返回上一步」→ 步骤 3；「新建项目」→ 步骤 1；确认弹窗改为自定义（不显示 localhost、字体更大）。</li>
 <li><strong>图片展示</strong>：一行两图、更大；图片规划分析只填主标题，副标题/说明留空供用户自填。</li>
 <li><strong>进度条</strong>：分析中/生成中全页遮罩内增加不确定进度条。</li>
-<li><strong>仓库</strong>：SQLite 数据库（<code>server/db.js</code> + <code>picaitool.db</code>）+ <code>server/gallery/</code> 存图；登录用户生成图<strong>自动</strong>写入仓库；每张图可「保存到本地」下载；工作台 → 仓库从接口拉取并展示。</li>
+<li><strong>仓库</strong>：SQLite 数据库（<code>server/db.js</code> + <code>pictoolai.db</code>）+ <code>server/gallery/</code> 存图；登录用户生成图<strong>自动</strong>写入仓库；每张图可「保存到本地」下载；工作台 → 仓库从接口拉取并展示。</li>
 <li><strong>README</strong>：补充数据库概念（SQLite vs MySQL/PostgreSQL）、已知问题/后续可做与文档同步。</li>
 <li><strong>侧栏与路由</strong>：「工作台」改为仅保留「仓库」入口（<code>/dashboard/gallery</code>）；访问 <code>/dashboard</code> 重定向到 <code>/dashboard/gallery</code>。</li>
 <li><strong>仓库批量删除</strong>：仓库页增加「删除选中」按钮，对选中图片逐个调用 DELETE 并更新列表与选中状态。</li>

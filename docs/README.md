@@ -20,7 +20,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [DEPLOY.md](./DEPLOY.md) | 部署到腾讯云香港轻量的完整步骤（环境、上传代码、PM2、Nginx、验证）。 |
+| [DEPLOY.md](./DEPLOY.md) | VPS 部署步骤（通用；香港已暂停，下次可能改美国）。 |
 | [GEMINI-REGION-ISSUE.md](./GEMINI-REGION-ISSUE.md) | Gemini API 地区限制说明（香港等不支持时的处理思路）。 |
 
 ---

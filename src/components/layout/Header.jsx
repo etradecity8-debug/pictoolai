@@ -20,7 +20,7 @@ const iconClass = 'w-4 h-4 shrink-0'
 const toolLinks = [
   {
     to: '/detail-set',
-    label: '产品组图',
+    label: '电商生图',
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
@@ -77,9 +77,9 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-14 gap-4">
 
-          {/* Logo */}
-          <Link to="/" className="flex items-center text-base font-bold text-gray-900 shrink-0 tracking-tight mr-2">
-            PicAITool
+          {/* Logo：与导航栏同底、不溢出；限制高度在栏内 */}
+          <Link to="/" className="flex items-center shrink-0 mr-2 rounded-lg bg-[#f5f5f5] py-1 pl-2 pr-2 -ml-1 h-full max-h-14" aria-label="首页">
+            <img src="/logo.png" alt="PicToolAI" className="max-h-12 w-auto object-contain mix-blend-multiply" />
           </Link>
 
           {/* 工具导航（居中，flex-1） */}
@@ -113,7 +113,7 @@ export default function Header() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                <span>AI运营助手</span>
+                <span>电商AI运营助手</span>
                 <svg
                   className={`w-3 h-3 transition-transform ${assistantOpen ? 'rotate-180' : ''}`}
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -247,7 +247,7 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
-            {/* AI运营助手（移动端） */}
+            {/* 电商AI运营助手（移动端） */}
             <Link
               to="/ai-assistant?platform=amazon"
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
@@ -259,7 +259,7 @@ export default function Header() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
-              <span>AI运营助手</span>
+              <span>电商AI运营助手</span>
             </Link>
             <Link
               to="/pricing"

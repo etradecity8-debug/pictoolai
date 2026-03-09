@@ -190,12 +190,12 @@ function GenerateForm() {
   const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选 A+ 模块，最多 5 个
   const step4Ref = useRef(null)
 
-  // 步骤 4 生图时滚动到该区域，保持展开可见、不折叠
+  // 步骤 4 生成文案或生图时滚动到该区域，保持展开可见、不折叠
   useEffect(() => {
-    if (aplusImagesLoading && step4Ref.current) {
+    if ((aplusCopyLoading || aplusImagesLoading) && step4Ref.current) {
       step4Ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
-  }, [aplusImagesLoading])
+  }, [aplusCopyLoading, aplusImagesLoading])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const category1 = CATEGORY_TREE.find(c => c.id === form.category1)
@@ -367,6 +367,7 @@ function GenerateForm() {
         mainImage: data.mainImage,
         additionalImages: data.additionalImages || [],
         pointsUsed: data.pointsUsed,
+        mainImageId: data.mainImageId || null,
       })
     } catch (e) {
       setError(e.message || '产品图生成失败')
@@ -442,6 +443,7 @@ function GenerateForm() {
         featureImages: data.featureImages || [],
         moduleImages: data.moduleImages || {},
         modules: data.modules || aplusModules,
+        aplusImageIds: data.aplusImageIds || null,
       })
     } catch (e) {
       setError(e.message || 'A+ 图片生成失败')
@@ -482,37 +484,78 @@ function GenerateForm() {
       )}
 
       {listingResult ? (
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">生成结果（可复制）</h3>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={handleRegenerateAnalyze} disabled={step === 'analyzing' || !productImageDataUrl} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">
-                重新分析
-              </button>
-              <span className="text-gray-300">|</span>
-              <button type="button" onClick={handleRegenerateListing} disabled={step === 'generating' || !analyzeResult?.productSummary} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">
-                重新生成标题·五点
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setListingResult(null)
-                  setStep('idle')
-                  setAnalyzeResult(null)
-                  setProductImageDataUrl('')
-                  setProductImagesResult(null)
-                  setAplusCopy(null)
-                  setAplusImages(null)
-                  setSavedListingId(null)
-                }}
-                className="text-xs text-gray-500 hover:text-gray-900"
-              >
-                全部重新生成
-              </button>
+        <div className="space-y-4">
+          {/* 1. 分析：仅在此步提供「重新分析」「清空全部」 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">1. 分析</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleRegenerateAnalyze}
+                  disabled={step === 'analyzing' || !productImageDataUrl}
+                  title="重新识别产品并生成摘要，会清空步骤 2～4 的结果"
+                  className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+                >
+                  重新分析
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setListingResult(null)
+                    setStep('idle')
+                    setAnalyzeResult(null)
+                    setProductImageDataUrl('')
+                    setProductImagesResult(null)
+                    setAplusCopy(null)
+                    setAplusImages(null)
+                    setSavedListingId(null)
+                  }}
+                  title="清空所有结果，回到初始状态，需重新上传并分析"
+                  className="text-xs text-gray-500 hover:text-gray-900"
+                >
+                  清空全部
+                </button>
+              </div>
             </div>
+            <p className="text-xs text-gray-500 mt-1">已分析：{analyzeResult?.productName || '产品'}。分析 = AI 理解产品；下方各步的「重新生成」= 在现有分析上只重做该步。</p>
           </div>
-          <div className="flex items-center gap-2 mb-2">
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold text-gray-900">2. 标题·关键词·五点·描述</h3>
+            <button
+              type="button"
+              onClick={handleRegenerateListing}
+              disabled={step === 'generating' || !analyzeResult?.productSummary}
+              title="在现有分析基础上，只重新生成本步的标题、五点、描述"
+              className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+            >
+              重新生成
+            </button>
+          </div>
+          <CopyBlock label="标题" text={listingResult.title} onCopy={copyToClipboard} markdown />
+          <CopyBlock label="后台关键词" text={listingResult.searchTerms} onCopy={copyToClipboard} />
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
+            {(listingResult.bullets || []).map((b, i) => (
+              <div key={i} className="flex gap-2 mb-2">
+                <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
+                <div className="flex-1 flex items-start gap-2">
+                  <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
+                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                      {(b || '—').replace(/\n/g, '\n\n')}
+                    </ReactMarkdown>
+                  </div>
+                  <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <CopyBlock label="产品描述" text={listingResult.description} onCopy={copyToClipboard} markdown />
+          <p className="text-xs text-gray-500 mt-2 mb-1">保存内容：本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 mt-3">
             <button
               type="button"
               disabled={saveListingLoading}
@@ -531,6 +574,8 @@ function GenerateForm() {
                       description: listingResult.description,
                       analyzeResult: analyzeResult || undefined,
                       aplusCopy: aplusCopy || undefined,
+                      mainImageId: productImagesResult?.mainImageId || undefined,
+                      aplusImageIds: aplusImages?.aplusImageIds || undefined,
                     }),
                   })
                   const data = await res.json()
@@ -566,25 +611,6 @@ function GenerateForm() {
               导出 CSV
             </button>
           </div>
-          <CopyBlock label="标题" text={listingResult.title} onCopy={copyToClipboard} markdown />
-          <CopyBlock label="后台关键词" text={listingResult.searchTerms} onCopy={copyToClipboard} />
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
-            {(listingResult.bullets || []).map((b, i) => (
-              <div key={i} className="flex gap-2 mb-2">
-                <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
-                <div className="flex-1 flex items-start gap-2">
-                  <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
-                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
-                      {(b || '—').replace(/\n/g, '\n\n')}
-                    </ReactMarkdown>
-                  </div>
-                  <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <CopyBlock label="产品描述" text={listingResult.description} onCopy={copyToClipboard} markdown />
 
           {/* Step 3 产品图 */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -694,24 +720,36 @@ function GenerateForm() {
             {!aplusCopy && !aplusCopyLoading && (
               <div className="mb-3 space-y-3">
                 <div>
-                  <p className="text-xs font-medium text-gray-700 mb-1">推荐套餐（一键选用）</p>
+                  <p className="text-xs font-medium text-gray-700 mb-1">选择 A+ 模块</p>
                   <div className="flex flex-wrap gap-2 mb-3">
-                    {['basic', 'standard', 'full'].map((key) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setAplusModules([...APLUS_PRESETS[key]])}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
-                          JSON.stringify(aplusModules) === JSON.stringify(APLUS_PRESETS[key])
-                            ? 'bg-gray-800 text-white border-gray-800'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        {key === 'basic' ? '基础（3 模块）' : key === 'standard' ? '标准（5 模块）' : '精品（5 模块）'}
-                      </button>
-                    ))}
+                    {['basic', 'standard', 'full'].map((key) => {
+                      const isActive = JSON.stringify(aplusModules) === JSON.stringify(APLUS_PRESETS[key])
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setAplusModules([...APLUS_PRESETS[key]])}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                            isActive ? 'bg-gray-800 text-white border-gray-800' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {key === 'basic' ? '基础（3 模块）' : key === 'standard' ? '标准（5 模块）' : '精品（5 模块）'}
+                        </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setAplusModules([])}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border ${
+                        !['basic', 'standard', 'full'].some((key) => JSON.stringify(aplusModules) === JSON.stringify(APLUS_PRESETS[key]))
+                          ? 'bg-gray-800 text-white border-gray-800'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      自定义
+                    </button>
                   </div>
-                  <p className="text-xs font-medium text-gray-700 mb-1">自定义选择（从下方 17 种亚马逊标准模块中勾选，最多 5 个）</p>
+                  <p className="text-xs font-medium text-gray-700 mb-1">从下方 17 种亚马逊标准模块中勾选，最多 5 个</p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
                     {APLUS_MODULES.map((m) => {
                       const on = aplusModules.includes(m.id)
@@ -738,6 +776,11 @@ function GenerateForm() {
                 >
                   {aplusCopyLoading ? '生成中…' : '生成 A+ 文案'}
                 </button>
+              </div>
+            )}
+            {!aplusCopy && aplusCopyLoading && (
+              <div className="py-6 text-center text-sm text-gray-500">
+                正在生成 A+ 文案…
               </div>
             )}
             {aplusCopy && (
@@ -846,6 +889,7 @@ function GenerateForm() {
                 )}
               </>
             )}
+          </div>
           </div>
         </div>
       ) : (

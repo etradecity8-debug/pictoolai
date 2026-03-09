@@ -1,8 +1,36 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { buildAmazonListingCsv, downloadAmazonListingCsv } from '../../lib/exportAmazonListingCsv'
+
+/** 带认证加载的仓库图片，用于 Listing 详情中显示关联的主图 / A+ 图 */
+function AuthGalleryImage({ id, token, alt, className }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  const urlRef = useRef(null)
+  useEffect(() => {
+    if (!id || !token) return
+    let cancelled = false
+    fetch(`/api/gallery/image/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((blob) => {
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        urlRef.current = url
+        setBlobUrl(url)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current)
+        urlRef.current = null
+      }
+    }
+  }, [id, token])
+  if (!blobUrl) return <div className={className || 'w-24 h-24 rounded-lg bg-gray-100 animate-pulse'} />
+  return <img src={blobUrl} alt={alt || ''} className={className || 'w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white'} />
+}
 
 function CopyBlock({ label, text, onCopy, markdown }) {
   if (text == null || text === '') return null
@@ -161,6 +189,30 @@ export default function ListingHistory() {
                       <p key={i} className="text-sm">{f.title}: {f.desc}</p>
                     ))}
                     <p className="text-sm"><strong>{detail.aplusCopy.brandStoryTitle}</strong> {detail.aplusCopy.brandStoryBody}</p>
+                  </div>
+                )}
+                {(detail.mainImageId || (detail.aplusImageIds && detail.aplusImageIds.length > 0)) && (
+                  <div className="pt-2 border-t border-gray-200">
+                    <label className="block text-xs font-medium text-gray-500 mb-2">关联图片</label>
+                    <p className="text-xs text-gray-500 mb-2">保存时已关联的产品主图与 A+ 图片（原图在「仓库」中可查看）。</p>
+                    <div className="flex flex-wrap gap-4">
+                      {detail.mainImageId && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">产品主图</p>
+                          <AuthGalleryImage id={detail.mainImageId} token={getToken()} alt="主图" className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                        </div>
+                      )}
+                      {detail.aplusImageIds && detail.aplusImageIds.length > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-1">A+ 图片</p>
+                          <div className="flex flex-wrap gap-2">
+                            {detail.aplusImageIds.map((gid, i) => (
+                              <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`A+ ${i + 1}`} className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white" />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

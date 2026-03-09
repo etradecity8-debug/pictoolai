@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/9</div>
+  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/10</div>
   <h1>项目概览（结构 + 功能）</h1>
 <p>根目录 README 只做入口；这里是项目结构与主要功能的简要说明。</p>
 <hr>
@@ -58,7 +58,7 @@
 </tr>
 <tr>
 <td>后端</td>
-<td>Node.js、Express、JWT、bcrypt、SQLite（<code>server/db.js</code> + <code>picaitool.db</code>）</td>
+<td>Node.js、Express、JWT、bcrypt、SQLite（<code>server/db.js</code> + <code>pictoolai.db</code>）</td>
 </tr>
 <tr>
 <td>AI</td>
@@ -91,7 +91,7 @@
 </thead>
 <tbody><tr>
 <td>全品类组图</td>
-<td>产品组图</td>
+<td>电商生图</td>
 <td>上传图 + 组图要求 → 分析 → 确认规划 → 生图，详见 <code>DATA-FLOW.md</code></td>
 </tr>
 <tr>
@@ -106,7 +106,7 @@
 </tr>
 <tr>
 <td>亚马逊 Listing</td>
-<td>AI 运营助手 → 亚马逊</td>
+<td>电商AI运营助手 → 亚马逊</td>
 <td>Step1 分析 → Step2 标题/五点/描述/关键词 → Step3 主图 → Step4 A+ 文案与图，合规见 <code>AMAZON-LISTING-SPEC.md</code></td>
 </tr>
 <tr>
@@ -120,7 +120,7 @@
 <ul>
 <li>前端在<strong>项目根</strong>：<code>npm run dev</code>；后端在 <strong><code>server</code></strong>：<code>cd server &amp;&amp; npm start</code>。</li>
 <li>后端需 <code>.env</code> 中 <code>GEMINI_API_KEY</code>；需代理时设 <code>HTTPS_PROXY</code>。</li>
-<li>数据库：首次使用自动创建 <code>server/picaitool.db</code>；备份复制 <code>picaitool.db</code> 与 <code>server/gallery/</code> 即可。</li>
+<li>数据库：首次使用自动创建 <code>server/pictoolai.db</code>；备份复制 <code>pictoolai.db</code> 与 <code>server/gallery/</code> 即可。</li>
 </ul>
 <p>更多：部署见 <code>DEPLOY.md</code>，已知问题见 <code>KNOWN_ISSUES.md</code>。</p>
 

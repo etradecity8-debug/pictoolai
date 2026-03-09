@@ -40,9 +40,12 @@
 </style>
 </head>
 <body>
-  <div class="meta">DEPLOY.md → 打印版 · 2026/3/9</div>
-  <h1>PicAITool 部署指南（香港 VPS）</h1>
-<h2>服务器信息</h2>
+  <div class="meta">DEPLOY.md → 打印版 · 2026/3/10</div>
+  <h1>PicToolAI 部署指南（VPS）</h1>
+<blockquote>
+<p><strong>当前规划</strong>：香港部署已暂停（Gemini API 香港不可用，见 <code>GEMINI-REGION-ISSUE.md</code>）。下次可能改在美国 VPS 部署；美国直连 Gemini 无地区限制。下文步骤适用于任意 Ubuntu/Debian VPS，部署时把「服务器 IP、用户」换成你的即可。</p>
+</blockquote>
+<h2>服务器信息（示例：此前香港 VPS，仅供参考）</h2>
 <table>
 <thead>
 <tr>
@@ -56,7 +59,7 @@
 </tr>
 <tr>
 <td>地域</td>
-<td>中国香港（锐驰型，跨境优化）</td>
+<td>中国香港（锐驰型，跨境优化）— <strong>已暂停，后续或改美国</strong></td>
 </tr>
 <tr>
 <td>套餐</td>
@@ -64,7 +67,7 @@
 </tr>
 <tr>
 <td>公网 IP</td>
-<td>43.161.215.41</td>
+<td>43.161.215.41（示例，美国部署时换为你自己的 IP）</td>
 </tr>
 <tr>
 <td>系统</td>
@@ -76,7 +79,7 @@
 </tr>
 </tbody></table>
 <h2>连接服务器</h2>
-<pre><code class="language-bash">ssh ubuntu@43.161.215.41
+<pre><code class="language-bash">ssh ubuntu@你的服务器IP
 </code></pre>
 <hr>
 <h2>阶段一：环境安装（已完成 ✅）</h2>
@@ -126,7 +129,7 @@ cd app
 <p><strong>下面整段复制到 nano 里</strong>，把 <code>你的Gemini的API_Key</code>、<code>你的管理员邮箱</code>、<code>你的管理员密码</code> 换成真实值后保存：</p>
 <pre><code>GEMINI_API_KEY=你的Gemini的API_Key
 
-# 香港服务器不需要代理，不要填 HTTPS_PROXY
+# 美国等支持地区直连 Gemini，可不填；若在香港等不支持地区需代理再填
 # HTTPS_PROXY=
 
 ADMIN_EMAIL=你的管理员邮箱
@@ -163,7 +166,7 @@ pm2 logs pictoolai-server
 <hr>
 <h2>阶段七：配置 Nginx</h2>
 <blockquote>
-<p>说明：Nginx 配置文件名、PM2 进程名只是「标识符」，和仓库名 pictoolai 一致即可，避免与品牌名 PicAITool 混淆。</p>
+<p>说明：Nginx 配置文件名、PM2 进程名只是「标识符」，和仓库名 pictoolai 一致即可，避免与品牌名 PicToolAI 混淆。</p>
 </blockquote>
 <pre><code class="language-bash">sudo nano /etc/nginx/sites-available/pictoolai
 </code></pre>
@@ -224,9 +227,9 @@ sudo chmod -R 755 /home/ubuntu/app/dist
 <ul>
 <li><strong>用哪个账号？</strong> 服务器上的管理员账号 = 你在<strong>服务器</strong> <code>server/.env</code> 里填的 <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code>（后端启动时会自动创建或提升该邮箱为管理员）。请用这两个值登录，注意大小写、空格。</li>
 <li><strong>先试注册</strong>：在登录页点「注册」，用任意邮箱和至少 6 位密码注册，再登录，可确认接口是否正常。</li>
-<li><strong>确认后端在跑</strong>：SSH 上服务器执行 <code>pm2 status</code>，看 <code>pictoolai-server</code>（或 <code>picaitool-server</code>）是否为 <code>online</code>。</li>
-<li><strong>重启后端再试</strong>：若你是在配好 <code>server/.env</code> 之前就启动了后端，管理员可能没被创建。SSH 上执行 <code>pm2 restart pictoolai-server</code>（或你的进程名），再用 ADMIN_EMAIL / ADMIN_PASSWORD 登录。</li>
-<li><strong>看接口是否被调用</strong>：浏览器 F12 → Network，点登录，看是否有对 <code>http://43.161.215.41/api/login</code> 的请求；若 401 为「邮箱或密码错误」，若 500 可看服务器 <code>pm2 logs pictoolai-server</code> 最后几行报错。</li>
+<li><strong>确认后端在跑</strong>：SSH 上服务器执行 <code>pm2 status</code>，看 <code>pictoolai-server</code> 是否为 <code>online</code>。</li>
+<li><strong>重启后端再试</strong>：若你是在配好 <code>server/.env</code> 之前就启动了后端，管理员可能没被创建。SSH 上执行 <code>pm2 restart pictoolai-server</code>（若你当时写成了 <code>picaitool-server</code> 则用该名），再用 ADMIN_EMAIL / ADMIN_PASSWORD 登录。</li>
+<li><strong>看接口是否被调用</strong>：浏览器 F12 → Network，点登录，看是否有对 <code>http://你的服务器IP/api/login</code> 的请求；若 401 为「邮箱或密码错误」，若 500 可看服务器 <code>pm2 logs pictoolai-server</code> 最后几行报错。</li>
 </ul>
 <hr>
 <h2>部署完成总结（第一次部署后看）</h2>
@@ -239,7 +242,7 @@ sudo chmod -R 755 /home/ubuntu/app/dist
 </thead>
 <tbody><tr>
 <td>访问地址</td>
-<td><a href="http://43.161.215.41">http://43.161.215.41</a></td>
+<td>http://你的服务器IP（美国部署时填美国 VPS 的 IP）</td>
 </tr>
 <tr>
 <td>代码位置</td>
@@ -247,7 +250,7 @@ sudo chmod -R 755 /home/ubuntu/app/dist
 </tr>
 <tr>
 <td>后端</td>
-<td>PM2 进程名 <code>pictoolai-server</code>（若当时用了 <code>picaitool-server</code> 则以实际为准）</td>
+<td>PM2 进程名 <code>pictoolai-server</code></td>
 </tr>
 <tr>
 <td>下次更新</td>
@@ -256,6 +259,19 @@ sudo chmod -R 755 /home/ubuntu/app/dist
 </tbody></table>
 <hr>
 <h2>日常运维</h2>
+<h3>已有香港服务器（曾用 picaitool）的迁移说明</h3>
+<p>若你之前按「错误拼写」部署过，本次统一为 <strong>PicToolAI</strong>（技术标识为 pictoolai）后，只需做一次迁移：</p>
+<ol>
+<li><strong>数据库</strong>：若服务器上已有 <code>server/picaitool.db</code>，拉取新代码前先重命名，否则会新建空库：<pre><code class="language-bash">cd ~/app/server &amp;&amp; mv picaitool.db pictoolai.db 2&gt;/dev/null; mv picaitool.db-wal pictoolai.db-wal 2&gt;/dev/null; mv picaitool.db-shm pictoolai.db-shm 2&gt;/dev/null; true
+</code></pre>
+</li>
+<li><strong>PM2 进程名</strong>：若当时起的是 <code>picaitool-server</code>，可保留（重启时仍用该名）或改为统一名称：<pre><code class="language-bash">pm2 delete picaitool-server
+cd ~/app/server &amp;&amp; pm2 start index.js --name pictoolai-server
+pm2 save
+</code></pre>
+</li>
+</ol>
+<p>之后日常更新代码按下面「更新代码」步骤即可。</p>
 <h3>更新代码（分两步：本机 → 服务器）</h3>
 <blockquote>
 <p><strong>若不熟悉 Git/部署</strong>：请严格按顺序、一步一步执行；先做完「本机」再去做「服务器」。</p>
@@ -270,9 +286,9 @@ git push
 git pull
 npm run build                # 仅当前端有改动时执行
 cd server &amp;&amp; npm install     # 仅当后端依赖有变化时执行
-pm2 restart picaitool-server # 进程名以你实际为准（picaitool-server 或 pictoolai-server）
+pm2 restart pictoolai-server   # 若你当时用的是 picaitool-server，用那个名字即可
 </code></pre>
-<p>只有后端改动的更新（如只改了 <code>server/index.js</code>）：本机 push 后，服务器执行 <code>cd ~/app &amp;&amp; git pull &amp;&amp; pm2 restart picaitool-server</code> 即可，无需 build。</p>
+<p>只有后端改动的更新（如只改了 <code>server/index.js</code>）：本机 push 后，服务器执行 <code>cd ~/app &amp;&amp; git pull &amp;&amp; pm2 restart pictoolai-server</code> 即可，无需 build。</p>
 <h3>管理后台：删除用户</h3>
 <p>管理员在「管理后台」删除客户时，会同时清除该客户的<strong>积分余额</strong>与<strong>流水记录</strong>，该邮箱重新注册后积分为 0。</p>
 <h3>查看后端日志</h3>

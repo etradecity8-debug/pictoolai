@@ -2,9 +2,9 @@ import { useState } from 'react'
 
 const faqs = [
   {
-    question: '通过 PicAITool 生成的图片，版权归谁所有？',
+    question: '通过 PicToolAI 生成的图片，版权归谁所有？',
     answer:
-      '归你所有。你拥有 PicAITool 生成的所有图片的 100% 商用权利，可以自由地将这些图片用于任何平台的电商用途，无需额外署名或授权。',
+      '归你所有。你拥有 PicToolAI 生成的所有图片的 100% 商用权利，可以自由地将这些图片用于任何平台的电商用途，无需额外署名或授权。',
   },
   {
     question: 'AI 生成图片时，会改变我产品的真实外观吗？',
@@ -14,7 +14,7 @@ const faqs = [
   {
     question: '使用这款工具，我需要专业的摄影或设计技能吗？',
     answer:
-      '不需要。PicAITool 专为非设计背景的商家打造，只要有一张清晰的产品图和简单的文字描述，就可以快速生成多场景商品图。',
+      '不需要。PicToolAI 专为非设计背景的商家打造，只要有一张清晰的产品图和简单的文字描述，就可以快速生成多场景商品图。',
   },
   {
     question: '生成的图片是否符合 Amazon 或 Shopify 等平台的标准？',
@@ -22,14 +22,14 @@ const faqs = [
       '是的。我们在训练和预设中参考了主流跨境电商平台的展示规范，生成图片更易通过审核，并提升详情页和广告素材的转化表现。',
   },
   {
-    question: '相比请美工或外包设计，PicAITool 有什么优势？',
+    question: '相比请美工或外包设计，PicToolAI 有什么优势？',
     answer:
-      'PicAITool 可以大幅降低设计成本和沟通成本，同时保持稳定的视觉质量输出，让你把更多时间花在选品和运营上。',
+      'PicToolAI 可以大幅降低设计成本和沟通成本，同时保持稳定的视觉质量输出，让你把更多时间花在选品和运营上。',
   },
   {
-    question: 'PicAITool 的目标用户群体是谁？',
+    question: 'PicToolAI 的目标用户群体是谁？',
     answer:
-      'PicAITool 面向小型电商团队和独立卖家，即使没有专职设计岗位，也能在短时间内搭建出专业水准的店铺视觉体系。',
+      'PicToolAI 面向小型电商团队和独立卖家，即使没有专职设计岗位，也能在短时间内搭建出专业水准的店铺视觉体系。',
   },
 ]
 
@@ -45,7 +45,7 @@ export default function FaqSection() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl font-bold text-gray-900 text-center">常见问题</h2>
         <p className="mt-3 text-sm text-gray-500 text-center">
-          了解 PicAITool 如何助力您的电商业务
+          了解 PicToolAI 如何助力您的电商业务
         </p>
 
         <div className="mt-10 space-y-4">

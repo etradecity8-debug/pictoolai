@@ -40,13 +40,13 @@
 </style>
 </head>
 <body>
-  <div class="meta">AMAZON-LISTING-SPEC.md → 打印版 · 2026/3/9</div>
+  <div class="meta">AMAZON-LISTING-SPEC.md → 打印版 · 2026/3/10</div>
   <h1>亚马逊 Listing 生成功能 — 产品设计方案</h1>
 <p><strong>版本</strong>：v0.2 已确认<br><strong>日期</strong>：2026-03-08<br><strong>状态</strong>：已确认，开发中</p>
 <p><strong>合规承诺</strong>：本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9（传统搜索）、Cosmo（语义搜索）、Rufus（AI 购物助手）、GEO（AI 搜索引擎优化）等原则。</p>
 <hr>
 <h2>一、功能概述</h2>
-<p>在「AI 运营助手 → 亚马逊」模块中新增「生成 Listing」功能。<br>用户填写产品信息后，AI 分多步自动生成符合亚马逊规则的完整 Listing，包括标题、后台关键词、五点描述、产品描述，并可进一步生成 A+ 页面文案和产品图。</p>
+<p>在「电商AI运营助手 → 亚马逊」模块中新增「生成 Listing」功能。<br>用户填写产品信息后，AI 分多步自动生成符合亚马逊规则的完整 Listing，包括标题、后台关键词、五点描述、产品描述，并可进一步生成 A+ 页面文案和产品图。</p>
 <hr>
 <h2>二、输入设计</h2>
 <h3>必填项（缺少任一项不允许提交）</h3>
@@ -218,8 +218,8 @@
 <tr>
 <td>6</td>
 <td>产品图</td>
-<td>—</td>
-<td>本模块内生成（符合亚马逊主图/附图规则）</td>
+<td>1～9 张（客户可选）</td>
+<td>第 1 张为主图（白底），第 2～9 张为附加图（多角度/场景）；本模块内生成，符合亚马逊主图/附图规则</td>
 </tr>
 </tbody></table>
 <h3>4.2 四大优化维度</h3>
@@ -292,7 +292,7 @@
 <tr>
 <td>Step 5</td>
 <td><strong>产品图</strong>（可选）</td>
-<td>跳转至「产品组图」模块</td>
+<td>跳转至「电商生图」模块</td>
 <td>走图像生成流程</td>
 </tr>
 </tbody></table>
@@ -319,7 +319,7 @@
 <tr>
 <td>3</td>
 <td>产品图</td>
-<td>本模块内生成，不跳转产品组图</td>
+<td>本模块内生成，不跳转电商生图</td>
 </tr>
 <tr>
 <td>4</td>
@@ -389,11 +389,11 @@
 <td>暂不用；本模块内新建 A+ 子流程</td>
 </tr>
 <tr>
-<td>产品组图（<code>/detail-set</code>）</td>
+<td>电商生图（<code>/detail-set</code>）</td>
 <td>不跳转；本模块内生成产品图</td>
 </tr>
 <tr>
-<td>AI 运营助手框架（<code>/ai-assistant</code>）</td>
+<td>电商AI运营助手框架（<code>/ai-assistant</code>）</td>
 <td>本功能是「亚马逊」平台下的第一个子功能</td>
 </tr>
 </tbody></table>
@@ -410,10 +410,10 @@
 </li>
 <li><strong>产品类别</strong>：常量 <code>CATEGORY_TREE</code>，一级 14 类（家居厨房、运动户外、电子数码、美容个护、宠物用品、婴儿用品、服装鞋包、玩具游戏、汽车用品、工具五金、园艺、健康医疗、办公文具、其他），二级为各类子项数组，与本文档第三节一致。</li>
 <li><strong>流程</strong>：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。步骤条为「1 分析 / 2 标题·关键词·五点·描述 / 3 产品图 / 4 A+」，支持 done/active 状态。</li>
-<li><strong>结果展示</strong>：标题、后台关键词、五点、产品描述（可复制）；Step 3 区块「生成产品图」→ 主图展示并入库；Step 4 区块「生成 A+ 文案」→ 展示 copy，「生成 A+ 图片」→ 展示 Hero + 特点图并入库。支持「重新生成」清空回到表单。</li>
+<li><strong>结果展示</strong>：标题、后台关键词、五点、产品描述（可复制）；Step 3 区块可选「生成数量」1～9 张 → 主图 + 附加图展示并入库；Step 4 区块「生成 A+ 文案」→ 展示 copy，「生成 A+ 图片」→ 展示 Hero + 特点图并入库。支持「重新生成」清空回到表单。</li>
 <li><strong>保存与历史</strong>：结果页提供「保存到我的 Listing」按钮，将当前标题/关键词/五点/描述及可选 analyzeResult、aplusCopy 写入表 <code>amazon_listing_snapshots</code>；保存后显示「查看历史 →」链接。工作台侧栏新增「Listing 历史」入口（<code>/dashboard/listings</code>），列表展示已保存记录，点击可查看详情并再次复制。</li>
 <li><strong>导出 CSV</strong>：结果页与 Listing 历史详情页均提供「导出 CSV」按钮。CSV 使用亚马逊通用列头：<code>item_name</code>, <code>bullet_point_1</code>～<code>bullet_point_5</code>, <code>product_description</code>, <code>generic_keyword</code>，UTF-8 带 BOM，用户可将对应列复制到自己的批量上传文件中。实现见 <code>src/lib/exportAmazonListingCsv.js</code>。</li>
-<li><strong>生图准则与提示词</strong>：Step 3 主图、Step 4 A+ 图片的完整 prompt 与准则见 <code>docs/AMAZON-LISTING-IMAGE-PROMPTS.md</code>。前端生图前展示「预计消耗 X 积分」、生图时展示进度条与「正在生成第 1 张 / 共 4 张… 请稍候」；后端日志按「正在生成第 n/4 张」输出。</li>
+<li><strong>生图准则与提示词</strong>：Step 3 产品图（1～9 张可选）、Step 4 A+ 图片的完整 prompt 与准则见 <code>docs/AMAZON-LISTING-IMAGE-PROMPTS.md</code>。前端生图前展示「生成数量」与「预计消耗 X 积分」、生图时展示「正在生成产品图（共 N 张）…」；后端先校验总积分再按张顺序生成，日志按「正在生成第 n/N 张」输出。</li>
 </ul>
 <h3>9.2 后端接口</h3>
 <ul>
@@ -429,8 +429,8 @@
 </ul>
 </li>
 <li><strong>Step 3 — <code>POST /api/ai-assistant/amazon/generate-product-images</code></strong>（requireAuth，扣积分）<ul>
-<li>请求体：<code>productImage</code>（data URL，步骤 1 首图）、<code>productName</code>、<code>brand</code>；可选 <code>model</code>（默认 Nano Banana 2）。</li>
-<li>响应：<code>{ mainImage, pointsUsed, newBalance }</code>。生成 1 张亚马逊主图（纯白底、产品约 85%、无文字），存图库并扣积分。</li>
+<li>请求体：<code>productImage</code>（data URL，步骤 1 首图）、<code>productName</code>、<code>brand</code>；可选 <code>model</code>（默认 Nano Banana 2）、<code>count</code>（1～9，默认 1）。客户可选生成张数：1 = 仅主图，2～9 = 主图 + 附加图。</li>
+<li>响应：<code>{ mainImage, additionalImages[], pointsUsed, newBalance }</code>。第 1 张为主图（纯白底、产品约 85%、无文字），第 2～N 张为附加图（多角度或简单场景），顺序生成，每张存图库，按张扣积分；先校验总积分再调 API。</li>
 </ul>
 </li>
 <li><strong>Step 4 A+</strong>：复用现有 <code>POST /api/amazon-aplus/analyze</code>（文案，不扣积分）、<code>POST /api/amazon-aplus/generate</code>（4 张 A+ 图，扣积分）。前端从 Listing 结果页传入 brand、product、features（卖点≥3）、copy、productImage、style、language 等。</li>

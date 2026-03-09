@@ -33,7 +33,7 @@ setGetDb(getDb)
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 3001
-const JWT_SECRET = process.env.JWT_SECRET || 'picaitool-dev-secret-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET || 'pictoolai-dev-secret-change-in-production'
 
 // API Key 仅从环境变量读取，不写进源码、不提交。调用方不要 log 此值。
 function getGeminiApiKey() {
@@ -1222,6 +1222,7 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
     const successCount = namedImages.filter((x) => x.data).length
     const actualPoints = pointsPerImg * successCount
     let newBalance = null
+    const aplusImageIds = []
     if (token && successCount > 0) {
       try {
         const payload = jwt.verify(token, JWT_SECRET)
@@ -1231,7 +1232,11 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
         const ts = Date.now()
         namedImages.forEach(({ label, data }, i) => {
           if (!data) return
-          try { saveImageToGallery(email, `aplus-${ts}-${i}`, `${product}·${label}`, data, pointsPerImg, modelName || null, '1K 标准') } catch (e) {}
+          const id = `aplus-${ts}-${i}`
+          try {
+            saveImageToGallery(email, id, `${product}·${label}`, data, pointsPerImg, modelName || null, '1K 标准')
+            aplusImageIds.push(id)
+          } catch (e) {}
         })
       } catch (e) {}
     }
@@ -1247,6 +1252,7 @@ app.post('/api/amazon-aplus/generate', async (req, res) => {
       featureImages,
       pointsUsed: token ? actualPoints : null,
       newBalance,
+      aplusImageIds: aplusImageIds.length ? aplusImageIds : null,
     })
   } catch (e) {
     console.error('[A+ 图片] 生成失败', e.message)
@@ -1425,6 +1431,7 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
     ]
 
     let mainImage = null
+    let mainImageId = null
     const additionalImages = []
 
     for (let i = 0; i < count; i++) {
@@ -1448,8 +1455,10 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
 
       if (isMain) {
         mainImage = dataUrl
+        const mainId = `amazon-main-${Date.now()}`
         try {
-          saveImageToGallery(email, `amazon-main-${Date.now()}`, `${productName || '产品'}·主图`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
+          saveImageToGallery(email, mainId, `${productName || '产品'}·主图`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
+          mainImageId = mainId
         } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
       } else {
         additionalImages.push(dataUrl)
@@ -1462,7 +1471,7 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
     deductPoints(email, totalPoints, `亚马逊产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
     const newBalance = getBalance(email)
     console.log('[Amazon Listing] Step 3 产品图完成 ✓ 共', count, '张')
-    return res.json({ mainImage, additionalImages, pointsUsed: totalPoints, newBalance })
+    return res.json({ mainImage, additionalImages, pointsUsed: totalPoints, newBalance, mainImageId: mainImageId || null })
   } catch (e) {
     console.error('[Amazon Listing] generate-product-images 失败', e.message)
     return res.status(500).json({ error: e.message || '产品图生成失败，请稍后重试' })

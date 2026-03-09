@@ -1,20 +1,22 @@
-# PicAITool 部署指南（香港 VPS）
+# PicToolAI 部署指南（VPS）
 
-## 服务器信息
+> **当前规划**：香港部署已暂停（Gemini API 香港不可用，见 `GEMINI-REGION-ISSUE.md`）。下次可能改在美国 VPS 部署；美国直连 Gemini 无地区限制。下文步骤适用于任意 Ubuntu/Debian VPS，部署时把「服务器 IP、用户」换成你的即可。
+
+## 服务器信息（示例：此前香港 VPS，仅供参考）
 
 | 项目 | 内容 |
 |------|------|
 | 服务商 | 腾讯云轻量应用服务器 |
-| 地域 | 中国香港（锐驰型，跨境优化） |
+| 地域 | 中国香港（锐驰型，跨境优化）— **已暂停，后续或改美国** |
 | 套餐 | 2核2G / 40GB SSD / 200Mbps / ¥55/月 |
-| 公网 IP | 43.161.215.41 |
+| 公网 IP | 43.161.215.41（示例，美国部署时换为你自己的 IP） |
 | 系统 | Ubuntu 22.04 LTS |
 | 登录用户 | ubuntu |
 
 ## 连接服务器
 
 ```bash
-ssh ubuntu@43.161.215.41
+ssh ubuntu@你的服务器IP
 ```
 
 ---
@@ -91,7 +93,7 @@ nano server/.env
 ```
 GEMINI_API_KEY=你的Gemini的API_Key
 
-# 香港服务器不需要代理，不要填 HTTPS_PROXY
+# 美国等支持地区直连 Gemini，可不填；若在香港等不支持地区需代理再填
 # HTTPS_PROXY=
 
 ADMIN_EMAIL=你的管理员邮箱
@@ -147,7 +149,7 @@ pm2 logs pictoolai-server
 
 ## 阶段七：配置 Nginx
 
-> 说明：Nginx 配置文件名、PM2 进程名只是「标识符」，和仓库名 pictoolai 一致即可，避免与品牌名 PicAITool 混淆。
+> 说明：Nginx 配置文件名、PM2 进程名只是「标识符」，和仓库名 pictoolai 一致即可，避免与品牌名 PicToolAI 混淆。
 
 ```bash
 sudo nano /etc/nginx/sites-available/pictoolai
@@ -224,9 +226,9 @@ sudo systemctl reload nginx
 
 - **用哪个账号？** 服务器上的管理员账号 = 你在**服务器** `server/.env` 里填的 `ADMIN_EMAIL` + `ADMIN_PASSWORD`（后端启动时会自动创建或提升该邮箱为管理员）。请用这两个值登录，注意大小写、空格。
 - **先试注册**：在登录页点「注册」，用任意邮箱和至少 6 位密码注册，再登录，可确认接口是否正常。
-- **确认后端在跑**：SSH 上服务器执行 `pm2 status`，看 `pictoolai-server`（或 `picaitool-server`）是否为 `online`。
-- **重启后端再试**：若你是在配好 `server/.env` 之前就启动了后端，管理员可能没被创建。SSH 上执行 `pm2 restart pictoolai-server`（或你的进程名），再用 ADMIN_EMAIL / ADMIN_PASSWORD 登录。
-- **看接口是否被调用**：浏览器 F12 → Network，点登录，看是否有对 `http://43.161.215.41/api/login` 的请求；若 401 为「邮箱或密码错误」，若 500 可看服务器 `pm2 logs pictoolai-server` 最后几行报错。
+- **确认后端在跑**：SSH 上服务器执行 `pm2 status`，看 `pictoolai-server` 是否为 `online`。
+- **重启后端再试**：若你是在配好 `server/.env` 之前就启动了后端，管理员可能没被创建。SSH 上执行 `pm2 restart pictoolai-server`（若你当时写成了 `picaitool-server` 则用该名），再用 ADMIN_EMAIL / ADMIN_PASSWORD 登录。
+- **看接口是否被调用**：浏览器 F12 → Network，点登录，看是否有对 `http://你的服务器IP/api/login` 的请求；若 401 为「邮箱或密码错误」，若 500 可看服务器 `pm2 logs pictoolai-server` 最后几行报错。
 
 ---
 
@@ -234,14 +236,31 @@ sudo systemctl reload nginx
 
 | 项目 | 说明 |
 |------|------|
-| 访问地址 | http://43.161.215.41 |
+| 访问地址 | http://你的服务器IP（美国部署时填美国 VPS 的 IP） |
 | 代码位置 | 服务器 `~/app`（Git 从 GitHub 拉取） |
-| 后端 | PM2 进程名 `pictoolai-server`（若当时用了 `picaitool-server` 则以实际为准） |
+| 后端 | PM2 进程名 `pictoolai-server` |
 | 下次更新 | 见下方「日常运维 → 更新代码」，或部署时再问一步步操作 |
 
 ---
 
 ## 日常运维
+
+### 已有香港服务器（曾用 picaitool）的迁移说明
+
+若你之前按「错误拼写」部署过，本次统一为 **PicToolAI**（技术标识为 pictoolai）后，只需做一次迁移：
+
+1. **数据库**：若服务器上已有 `server/picaitool.db`，拉取新代码前先重命名，否则会新建空库：
+   ```bash
+   cd ~/app/server && mv picaitool.db pictoolai.db 2>/dev/null; mv picaitool.db-wal pictoolai.db-wal 2>/dev/null; mv picaitool.db-shm pictoolai.db-shm 2>/dev/null; true
+   ```
+2. **PM2 进程名**：若当时起的是 `picaitool-server`，可保留（重启时仍用该名）或改为统一名称：
+   ```bash
+   pm2 delete picaitool-server
+   cd ~/app/server && pm2 start index.js --name pictoolai-server
+   pm2 save
+   ```
+
+之后日常更新代码按下面「更新代码」步骤即可。
 
 ### 更新代码（分两步：本机 → 服务器）
 
@@ -260,10 +279,10 @@ cd ~/app
 git pull
 npm run build                # 仅当前端有改动时执行
 cd server && npm install     # 仅当后端依赖有变化时执行
-pm2 restart picaitool-server # 进程名以你实际为准（picaitool-server 或 pictoolai-server）
+pm2 restart pictoolai-server   # 若你当时用的是 picaitool-server，用那个名字即可
 ```
 
-只有后端改动的更新（如只改了 `server/index.js`）：本机 push 后，服务器执行 `cd ~/app && git pull && pm2 restart picaitool-server` 即可，无需 build。
+只有后端改动的更新（如只改了 `server/index.js`）：本机 push 后，服务器执行 `cd ~/app && git pull && pm2 restart pictoolai-server` 即可，无需 build。
 
 ### 管理后台：删除用户
 

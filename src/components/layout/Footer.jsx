@@ -21,7 +21,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="text-lg font-semibold text-gray-900">
-              <span className="tracking-tight">PicAITool</span>
+              <span className="tracking-tight">PicToolAI</span>
             </Link>
             <p className="mt-2 text-sm text-gray-500">
               专业 AI 电商设计与视觉风格克隆
@@ -43,7 +43,7 @@ export default function Footer() {
           ))}
         </div>
         <div className="mt-10 pt-8 border-t border-gray-200 text-center text-sm text-gray-500">
-          © {new Date().getFullYear()} PicAITool. 仅供学习使用。
+          © {new Date().getFullYear()} PicToolAI. 仅供学习使用。
         </div>
       </div>
     </footer>

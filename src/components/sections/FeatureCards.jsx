@@ -17,7 +17,7 @@ export default function FeatureCards() {
   return (
     <section className="py-16 sm:py-24 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-gray-900 text-center">为什么选择 PicAITool</h2>
+        <h2 className="text-3xl font-bold text-gray-900 text-center">为什么选择 PicToolAI</h2>
         <p className="mt-3 text-gray-600 text-center">为电商视觉而生的 AI 工具</p>
         <div className="mt-12 grid md:grid-cols-3 gap-8">
           {features.map(({ title, desc }) => (
