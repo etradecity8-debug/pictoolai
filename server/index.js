@@ -1277,7 +1277,7 @@ app.post('/api/ai-assistant/amazon/analyze', requireAuth, async (req, res) => {
 
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
-    const prompt = `You are an Amazon listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, bullets, description generation).
+    const prompt = `You are an Amazon listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, bullets, description generation). Extract concrete, Rufus-friendly facts: dimensions, weight, material, certifications, and any verifiable specs from the image or notes, and include them in productSummary and keyAttributes so the next step can use them as the factual base for the listing.
 
 User inputs:
 - Category: ${category1 || ''} > ${category2 || ''}
@@ -1338,17 +1338,18 @@ app.post('/api/ai-assistant/amazon/generate-listing', requireAuth, async (req, r
 Amazon rules (MUST follow):
 
 Title (effective 2025):
-- Max 200 characters. Put brand + core product + key attributes in first 80 characters for search.
+- Max 200 characters. Put brand + core product + key attributes in the first 50–80 characters for search.
 - No ALL CAPS, no competitor brands, no keyword stuffing.
 - Do not repeat the same word more than twice (except articles, prepositions, conjunctions like "and", "the", "of").
 - Do not use these characters unless part of brand name: ! $ ? _ { } ^ ¬ ¦
 
 Bullet points (5 items):
 - Each bullet max 500 characters (some categories limit to 255 — prefer concise under 255 when possible).
+- Structure: each bullet = one clear benefit or one answer to a customer question; use concrete specs/data from the analysis where relevant (Rufus-friendly); you may combine pain-point → solution, use case, and hard facts across the 5 points.
 - No price, promotion, or off-site links; no exaggerated or medical/unsupported claims.
 - No special characters (™ ® €) or emojis; no repetition of content across bullets.
 - No ASIN, "N/A", "TBD", or "not applicable"; no company info, contact details, or website links.
-- No refund/guarantee language; no prohibited marketing phrases (e.g. eco-friendly, anti-bacterial, bamboo, soy unless product is certified). Each bullet = one clear benefit or answer to a customer question.
+- No refund/guarantee language; no prohibited marketing phrases. Each bullet = one clear benefit or answer to a customer question.
 
 Product description:
 - Max 2000 characters. Do not duplicate bullets; no off-site links, contact info, or prohibited words.
@@ -1356,6 +1357,14 @@ Product description:
 
 Search terms (backend keywords):
 - Max 250 bytes total. Do NOT repeat words already in title or bullets; comma or space separated; no competitor brands.
+
+Prohibited and replacements (compliance):
+- Promotional: No Best seller, Top rated, Free shipping, On sale, Satisfaction Guarantee, Order now, Amazon's Choice, Certified (unless certified). No emoji in listing.
+- IP/Brand: No other brands; use "compatible with [Brand]" or "for [Brand]", not "[Brand] Case". Prefer generic terms: hook and loop (not Velcro), bodysuit/romper (not Onesie), lip balm (not Chapstick), cotton swab (not Q-tip), ice pop (not Popsicle).
+- Medical: No cure, heal, treat, prevent, relief, FDA approved/cleared unless you have proof; no disease names (e.g. cancer, diabetes).
+- Pesticide/Biocides: No anti-bacterial, anti-microbial, anti-fungal, disinfect, sanitize, sterilize unless EPA registered. Avoid "non-toxic"; prefer "BPA Free" or "Safe material". No absolute safety claims (Safe, Healthy, Harmless).
+- Green: No eco-friendly, environmentally friendly, green, biodegradable, compostable, sustainable unless certified; use concrete material claims (e.g. "Made of 100% natural bamboo", "Recycled paper packaging").
+- Other: No contact info, no "Leave a review"/Feedback, avoid "New"/"Newest" unless truly new; no ALL CAPS except brand.
 
 Optimize for: A9 search relevance, Cosmo discovery, Rufus Q&A style bullets, GEO/localization for ${marketLabel}.
 

@@ -33,6 +33,16 @@
 
 ---
 
+## 参考（Gemini 智能体/指令，已转 txt 可读）
+
+| 文档 | 说明 |
+|------|------|
+| [gemini-listing-agent.txt](./gemini-listing-agent.txt) | 用 Gemini 做 Rufus 级 Listing 智能体：工作流、指令模板、合规与违禁词速查表（由原 docx 转 txt）。 |
+| [gemini-instruction-template.txt](./gemini-instruction-template.txt) | Gemini 指令模板：生成/优化 Listing、五点、产品描述、QA、竞品调研等 8 条（由原 docx 转 txt）。 |
+| [gemini-40-instructions.txt](./gemini-40-instructions.txt) | Gemini 40 条亚马逊运营指令：关键词、竞品、五点、后端关键词、A+ 建议等（由原 docx 转 txt）。 |
+
+---
+
 ## 打印版（HTML）
 
 - **`docs/print/`**：所有上述 .md 已转为可打印的 HTML。用浏览器打开 **`docs/print/index.html`** 可看到目录，点击任一文档后按 **Ctrl+P**（Mac：⌘+P）打印。重新生成打印版请在项目根目录执行：`npm run docs:print`。

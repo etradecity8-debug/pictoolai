@@ -249,12 +249,24 @@ function GenerateForm() {
         throw new Error(analyzeData.error || '分析失败')
       }
       setAnalyzeResult(analyzeData)
-      setStep('generating')
+      setStep('analysis_done')
+    } catch (e) {
+      setError(e.message || '请求失败')
+      setStep('error')
+    }
+  }
+
+  /** 用户确认分析结果后，执行第二步：生成标题·五点·描述 */
+  const handleConfirmAndGenerate = async () => {
+    if (!analyzeResult?.productSummary || !getToken()) return
+    setError('')
+    setStep('generating')
+    try {
       const genRes = await fetch('/api/ai-assistant/amazon/generate-listing', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({
-          analyzeResult: analyzeData,
+          analyzeResult,
           category1: category1?.name,
           category2: form.category2,
           brand: form.brand.trim(),
@@ -270,7 +282,7 @@ function GenerateForm() {
       setListingResult(genData)
       setStep('done')
     } catch (e) {
-      setError(e.message || '请求失败')
+      setError(e.message || '生成失败')
       setStep('error')
     }
   }
@@ -307,7 +319,7 @@ function GenerateForm() {
       setProductImagesResult(null)
       setAplusCopy(null)
       setAplusImages(null)
-      setStep('done')
+      setStep('analysis_done')
     } catch (e) {
       setError(e.message || '分析失败')
       setStep('error')
@@ -452,11 +464,88 @@ function GenerateForm() {
     }
   }
 
+  /** 一步完成：先生成 A+ 文案（若无），再生成 A+ 图片；用户只点一个按钮 */
+  const handleGenerateAplusCopyAndImages = async () => {
+    const extra = (listingResult?.bullets || []).map(b => (b || '').trim()).filter(Boolean)
+    let features = sellingPointsLines.length >= 3 ? sellingPointsLines.slice(0, 3) : [...sellingPointsLines, ...extra, ...sellingPointsLines].filter((s, i, a) => a.indexOf(s) === i).slice(0, 3)
+    while (features.length < 3) features.push(features[0] || '')
+    features = features.slice(0, 3)
+    if (!features[0]) {
+      setError('A+ 需要至少 1 条卖点')
+      return
+    }
+    if (!productImageDataUrl) {
+      setError('生成 A+ 图片需要产品图，请先在步骤 1 上传并分析')
+      return
+    }
+    setError('')
+    let copyForImages = aplusCopy
+    if (!aplusCopy) {
+      setAplusCopyLoading(true)
+      try {
+        const res = await fetch('/api/amazon-aplus/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brand: form.brand.trim(),
+            product: analyzeResult?.productName || '',
+            features,
+            story: form.notes.trim() || listingResult?.description?.slice(0, 200) || '',
+            style: 'minimal',
+            language: form.lang,
+            modules: aplusModules,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'A+ 文案生成失败')
+        setAplusCopy(data.copy)
+        if (data.modules?.length) setAplusModules(data.modules)
+        copyForImages = data.copy
+      } catch (e) {
+        setError(e.message || 'A+ 文案生成失败')
+        setAplusCopyLoading(false)
+        return
+      }
+      setAplusCopyLoading(false)
+    }
+    setAplusImagesLoading(true)
+    try {
+      const copyToUse = copyForImages
+      const res = await fetch('/api/amazon-aplus/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({
+          brand: form.brand.trim(),
+          product: analyzeResult?.productName || '',
+          features,
+          copy: copyToUse,
+          productImage: productImageDataUrl,
+          style: 'minimal',
+          model: imageModel,
+          language: form.lang,
+          modules: aplusModules,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'A+ 图片生成失败')
+      setAplusImages({
+        heroImage: data.heroImage,
+        featureImages: data.featureImages || [],
+        moduleImages: data.moduleImages || {},
+        modules: data.modules || aplusModules,
+        aplusImageIds: data.aplusImageIds || null,
+      })
+    } catch (e) {
+      setError(e.message || 'A+ 图片生成失败')
+    } finally {
+      setAplusImagesLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       {(step !== 'idle' || listingResult) && (
         <div className="mb-4">
-          <p className="text-xs text-gray-500 mb-2">步骤 3（产品图）与步骤 4（A+ 文案与图片）可同时进行，互不依赖。</p>
           <div className="flex items-center gap-2">
           {AMAZON_LISTING_STEPS.map((s, i) => {
             const done = (s.id === 1 && step !== 'idle' && step !== 'analyzing') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!productImagesResult) || (s.id === 4 && !!aplusImages)
@@ -483,9 +572,45 @@ function GenerateForm() {
         </div>
       )}
 
+      {(step === 'analysis_done' || (step === 'generating' && !listingResult)) && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900">1. 分析结果（请确认后再生成标题·五点·描述）</h3>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
+            <p className="text-xs font-medium text-gray-500">产品名称</p>
+            <p className="text-sm text-gray-900">{analyzeResult?.productName || '—'}</p>
+            <p className="text-xs font-medium text-gray-500 mt-3">产品摘要</p>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{analyzeResult?.productSummary || '—'}</p>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleConfirmAndGenerate}
+              disabled={step === 'generating'}
+              className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {step === 'generating' ? '正在生成标题·五点·描述…' : '确认分析结果'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStep('idle')
+                setAnalyzeResult(null)
+                setError('')
+              }}
+              disabled={step === 'generating'}
+              title="不认可分析结果时，返回输入界面修改后重新分析"
+              className="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              重新分析
+            </button>
+          </div>
+        </div>
+      )}
+
       {listingResult ? (
         <div className="space-y-4">
-          {/* 1. 分析：仅在此步提供「重新分析」「清空全部」 */}
+          {/* 1. 分析：已有 listing 时提供「重新分析」「清空全部」（重新分析会清空步骤 2～4） */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="text-sm font-semibold text-gray-900">1. 分析</h3>
@@ -522,19 +647,21 @@ function GenerateForm() {
             <p className="text-xs text-gray-500 mt-1">已分析：{analyzeResult?.productName || '产品'}。分析 = AI 理解产品；下方各步的「重新生成」= 在现有分析上只重做该步。</p>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h3 className="text-sm font-semibold text-gray-900">2. 标题·关键词·五点·描述</h3>
-            <button
-              type="button"
-              onClick={handleRegenerateListing}
-              disabled={step === 'generating' || !analyzeResult?.productSummary}
-              title="在现有分析基础上，只重新生成本步的标题、五点、描述"
-              className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
-            >
-              重新生成
-            </button>
-          </div>
+          {/* Step 2 标题·关键词·五点·描述（与步骤 3、4 同款框） */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">2. 标题·关键词·五点·描述</h3>
+              <button
+                type="button"
+                onClick={handleRegenerateListing}
+                disabled={step === 'generating' || !analyzeResult?.productSummary}
+                title="在现有分析基础上，只重新生成本步的标题、五点、描述"
+                className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+              >
+                重新生成
+              </button>
+            </div>
+            <div className="space-y-4">
           <CopyBlock label="标题" text={listingResult.title} onCopy={copyToClipboard} markdown />
           <CopyBlock label="后台关键词" text={listingResult.searchTerms} onCopy={copyToClipboard} />
           <div>
@@ -554,62 +681,7 @@ function GenerateForm() {
             ))}
           </div>
           <CopyBlock label="产品描述" text={listingResult.description} onCopy={copyToClipboard} markdown />
-          <p className="text-xs text-gray-500 mt-2 mb-1">保存内容：本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 mt-3">
-            <button
-              type="button"
-              disabled={saveListingLoading}
-              onClick={async () => {
-                if (!getToken()) return
-                setSaveListingLoading(true)
-                try {
-                  const res = await fetch('/api/ai-assistant/amazon/save-listing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-                    body: JSON.stringify({
-                      name: analyzeResult?.productName ? `${analyzeResult.productName} Listing` : '',
-                      title: listingResult.title,
-                      searchTerms: listingResult.searchTerms,
-                      bullets: listingResult.bullets || [],
-                      description: listingResult.description,
-                      analyzeResult: analyzeResult || undefined,
-                      aplusCopy: aplusCopy || undefined,
-                      mainImageId: productImagesResult?.mainImageId || undefined,
-                      aplusImageIds: aplusImages?.aplusImageIds || undefined,
-                    }),
-                  })
-                  const data = await res.json()
-                  if (!res.ok) throw new Error(data.error || '保存失败')
-                  setSavedListingId(data.id)
-                } catch (e) {
-                  setError(e.message || '保存失败')
-                } finally {
-                  setSaveListingLoading(false)
-                }
-              }}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50"
-            >
-              {saveListingLoading ? '保存中…' : savedListingId ? '已保存' : '保存到我的 Listing'}
-            </button>
-            {savedListingId && (
-              <Link to="/dashboard/listings" className="text-xs text-gray-500 hover:text-gray-900">查看历史 →</Link>
-            )}
-            <button
-              type="button"
-              title="按亚马逊通用列头(item_name, bullet_point_1~5, product_description, generic_keyword)，可复制到上传表格"
-              onClick={() => {
-                const csv = buildAmazonListingCsv({
-                  title: listingResult.title,
-                  searchTerms: listingResult.searchTerms,
-                  bullets: listingResult.bullets || [],
-                  description: listingResult.description,
-                })
-                downloadAmazonListingCsv(csv)
-              }}
-              className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-            >
-              导出 CSV
-            </button>
+            </div>
           </div>
 
           {/* Step 3 产品图 */}
@@ -717,7 +789,7 @@ function GenerateForm() {
                 )}
               </div>
             </div>
-            {!aplusCopy && !aplusCopyLoading && (
+            {!aplusImages && (
               <div className="mb-3 space-y-3">
                 <div>
                   <p className="text-xs font-medium text-gray-700 mb-1">选择 A+ 模块</p>
@@ -768,22 +840,33 @@ function GenerateForm() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">已选 {aplusModules.length}/5 个模块，共 {getAplusImageCount(aplusModules)} 张图</p>
                 </div>
+                {(aplusCopyLoading || aplusImagesLoading) && (
+                  <div className="mb-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      {aplusCopyLoading ? '正在生成 A+ 文案…' : `正在生成 A+ 图片（共 ${getAplusImageCount(aplusModules)} 张）…`}
+                    </p>
+                    {aplusImagesLoading && (
+                      <p className="text-xs text-gray-600 mb-2">按模块顺序生成，每张约 20 秒～1 分钟，请勿离开页面</p>
+                    )}
+                    {(aplusCopyLoading || aplusImagesLoading) && (
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: aplusCopyLoading ? '30%' : '60%' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * getAplusImageCount(aplusModules)} 积分（{getAplusImageCount(aplusModules)} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
                 <button
                   type="button"
-                  onClick={handleGenerateAplusCopy}
-                  disabled={aplusCopyLoading || aplusModules.length === 0}
+                  onClick={handleGenerateAplusCopyAndImages}
+                  disabled={aplusCopyLoading || aplusImagesLoading || aplusModules.length === 0 || !productImageDataUrl}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-600 disabled:opacity-50"
                 >
-                  {aplusCopyLoading ? '生成中…' : '生成 A+ 文案'}
+                  {aplusCopyLoading || aplusImagesLoading ? '生成中…' : '生成 A+ 文案和图片'}
                 </button>
               </div>
             )}
-            {!aplusCopy && aplusCopyLoading && (
-              <div className="py-6 text-center text-sm text-gray-500">
-                正在生成 A+ 文案…
-              </div>
-            )}
-            {aplusCopy && (
+            {aplusCopy && aplusImages && (
               <>
                 <div className="mb-3 text-sm text-gray-700 space-y-2">
                   {(aplusCopy._modules || aplusModules).includes('header') && (aplusCopy.heroTagline || aplusCopy.heroSubtext) && (
@@ -828,28 +911,7 @@ function GenerateForm() {
                     <div><strong>{aplusCopy.brandStoryTitle}</strong> {aplusCopy.brandStoryBody}</div>
                   )}
                 </div>
-                {!aplusImages ? (
-                  <>
-                    <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * getAplusImageCount(aplusModules)} 积分（{getAplusImageCount(aplusModules)} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
-                    {aplusImagesLoading && (
-                      <div className="mb-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
-                        <p className="text-sm font-semibold text-gray-900 mb-1">正在生成 A+ 图片（共 {getAplusImageCount(aplusModules)} 张）</p>
-                        <p className="text-xs text-gray-600 mb-2">按模块顺序生成，每张约 20 秒～1 分钟，请勿离开页面</p>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: '60%' }} />
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      disabled={aplusImagesLoading}
-                      onClick={handleGenerateAplusImages}
-                      className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50"
-                    >
-                      {aplusImagesLoading ? '生成中…' : `生成 A+ 图片（${getAplusImageCount(aplusModules)} 张，扣积分）`}
-                    </button>
-                  </>
-                ) : (
+                {aplusImages && (
                   <div className="space-y-3">
                     {aplusImages.moduleImages?.header && (
                       <div><p className="text-xs font-medium text-gray-500 mb-1">页头</p><img src={aplusImages.moduleImages.header} alt="Header" className="w-full max-w-md h-32 object-cover rounded-lg border border-gray-200" /></div>
@@ -890,9 +952,69 @@ function GenerateForm() {
               </>
             )}
           </div>
+
+          {/* 所有步骤结束后：保存与导出 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-xs text-gray-500 mb-3">保存内容：本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={saveListingLoading}
+                onClick={async () => {
+                  if (!getToken()) return
+                  setSaveListingLoading(true)
+                  try {
+                    const res = await fetch('/api/ai-assistant/amazon/save-listing', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+                      body: JSON.stringify({
+                        name: analyzeResult?.productName ? `${analyzeResult.productName} Listing` : '',
+                        title: listingResult.title,
+                        searchTerms: listingResult.searchTerms,
+                        bullets: listingResult.bullets || [],
+                        description: listingResult.description,
+                        analyzeResult: analyzeResult || undefined,
+                        aplusCopy: aplusCopy || undefined,
+                        mainImageId: productImagesResult?.mainImageId || undefined,
+                        aplusImageIds: aplusImages?.aplusImageIds || undefined,
+                      }),
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || '保存失败')
+                    setSavedListingId(data.id)
+                  } catch (e) {
+                    setError(e.message || '保存失败')
+                  } finally {
+                    setSaveListingLoading(false)
+                  }
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50"
+              >
+                {saveListingLoading ? '保存中…' : savedListingId ? '已保存' : '保存到我的 Listing'}
+              </button>
+              {savedListingId && (
+                <Link to="/dashboard/listings" className="text-xs text-gray-500 hover:text-gray-900">查看历史 →</Link>
+              )}
+              <button
+                type="button"
+                title="按亚马逊通用列头(item_name, bullet_point_1~5, product_description, generic_keyword)，可复制到上传表格"
+                onClick={() => {
+                  const csv = buildAmazonListingCsv({
+                    title: listingResult.title,
+                    searchTerms: listingResult.searchTerms,
+                    bullets: listingResult.bullets || [],
+                    description: listingResult.description,
+                  })
+                  downloadAmazonListingCsv(csv)
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                导出 CSV
+              </button>
+            </div>
           </div>
         </div>
-      ) : (
+      ) : (step === 'idle' || step === 'error' || step === 'analyzing') ? (
         <>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1033,8 +1155,7 @@ function GenerateForm() {
               onClick={handleSubmit}
             >
               {step === 'analyzing' && '正在分析产品…'}
-              {step === 'generating' && '正在生成 Listing…'}
-              {step !== 'analyzing' && step !== 'generating' && '生成 Listing'}
+              {step !== 'analyzing' && '分析产品'}
             </button>
             {!user && <p className="text-xs text-amber-600 mt-2 text-center">请先登录</p>}
             {user && !canSubmit && step === 'idle' && (
@@ -1042,7 +1163,7 @@ function GenerateForm() {
             )}
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -1235,7 +1356,7 @@ export default function AiAssistant() {
                     <h2 className="text-lg font-bold text-gray-900">{currentPlatform.name}运营工具</h2>
                     <p className="text-sm text-gray-500 mt-1">选择你需要的功能</p>
                     {platformId === 'amazon' && (
-                      <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-2xl text-gray-500 mt-3 pt-3 border-t border-gray-100">
                         本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9、Cosmo、Rufus、GEO 等原则。
                       </p>
                     )}
@@ -1286,7 +1407,7 @@ export default function AiAssistant() {
                     </span>
                   </div>
                   {platformId === 'amazon' && (
-                    <p className="text-xs text-gray-500 mb-4">
+                    <p className="text-2xl text-gray-500 mb-4">
                       本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9、Cosmo、Rufus、GEO 等原则。
                     </p>
                   )}
