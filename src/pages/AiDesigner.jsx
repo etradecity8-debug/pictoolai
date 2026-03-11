@@ -59,6 +59,14 @@ const SIDEBAR_STRUCTURE = [
     ],
   },
   {
+    id: 'text-modification',
+    label: '文字修改',
+    items: [
+      { id: 'text-replace', label: '文字替换', icon: 'text-replace' },
+      { id: 'text-translate', label: '语言转换', icon: 'text-translate' },
+    ],
+  },
+  {
     id: 'official-demos',
     label: '官方示例',
     items: [
@@ -69,8 +77,6 @@ const SIDEBAR_STRUCTURE = [
       { id: 'hi-fidelity', label: '高保真细节保留', icon: 'hifi' },
       { id: 'bring-to-life', label: '让草图变生动', icon: 'sketch' },
       { id: 'character-360', label: '角色一致性：360° 全景', icon: 'character' },
-      { id: 'text-replace', label: '图片文字替换', icon: 'text-replace' },
-      { id: 'text-translate', label: '图片文字语言转换', icon: 'text-translate' },
     ],
   },
 ]

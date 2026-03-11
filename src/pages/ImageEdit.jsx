@@ -168,7 +168,7 @@ const MODES = [
   },
   {
     id: 'text-replace',
-    label: '图片文字替换',
+    label: '文字替换',
     specialUI: 'text-replace',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,7 +182,7 @@ const MODES = [
   },
   {
     id: 'text-translate',
-    label: '图片文字语言转换',
+    label: '语言转换',
     specialUI: 'text-translate',
     icon: (
       <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -879,13 +879,25 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900">{hideModeSelector ? mode?.label || '修改图片' : '修改图片'}</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {hideModeSelector ? '上传图片并描述你的需求，AI 一键生成' : '选择修改模式，上传图片并描述你的需求，AI 一键生成'}
-        </p>
-
-        <div className={`mt-8 ${hideModeSelector ? '' : 'grid lg:grid-cols-[280px_1fr] gap-6'}`}>
+      <div className={hideModeSelector ? 'space-y-4 min-h-[240px]' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}>
+        {hideModeSelector ? (
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900">{mode?.label || '修改图片'}</h1>
+            <p className="mt-1.5 text-base text-gray-600">
+              {selectedMode === 'text-replace'
+                ? '替换图片中的指定文字，保持原有字体样式、大小、颜色与排版不变'
+                : selectedMode === 'text-translate'
+                ? '将图中文字翻译为目标语言，保持字体样式与排版不变'
+                : '上传图片并描述你的需求，AI 一键生成'}
+            </p>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-gray-900">修改图片</h1>
+            <p className="mt-1 text-sm text-gray-500">选择修改模式，上传图片并描述你的需求，AI 一键生成</p>
+          </>
+        )}
+        <div className={hideModeSelector ? 'max-w-3xl mx-auto rounded-2xl border border-gray-200 bg-white p-4' : 'mt-8 grid lg:grid-cols-[280px_1fr] gap-6'}>
           {/* 左侧：模式选择（hideModeSelector 时隐藏） */}
           {!hideModeSelector && (
             <div className="space-y-1.5">
@@ -963,7 +975,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
                                 <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                                 </svg>
-                                <span className="mt-1 text-xs text-gray-400">本地上传</span>
+                                <span className="mt-1 text-xs text-gray-400">{hideModeSelector ? '上传图片' : '本地上传'}</span>
                               </label>
                               {getToken() && (
                                 <button
@@ -974,7 +986,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
                                   <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                   </svg>
-                                  <span className="mt-1 text-xs text-gray-400">从图库选取</span>
+                                  <span className="mt-1 text-xs text-gray-400">{hideModeSelector ? '从作品库选择' : '从图库选取'}</span>
                                 </button>
                               )}
                             </div>
