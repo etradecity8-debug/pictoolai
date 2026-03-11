@@ -175,30 +175,61 @@ export default function SmartExpansion() {
   }
 
   return (
-    <div className="relative space-y-6 min-h-[320px]">
+    <div className="relative space-y-4 min-h-[240px]">
       <GeneratingOverlay open={generating} message="扩图中..." />
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">智能扩图</h1>
-        <p className="mt-2 text-gray-600 font-medium">智能扩图，视界大开。</p>
-        <p className="mt-1 text-sm text-gray-500">
-          不再受限于快门的瞬间。PicToolAI 自动识别你的构图，智能补全缺失的肩膀、延伸的花海、广阔的星空。每一像素的扩展，都与原图浑然一体。
+        <h1 className="text-2xl font-bold text-gray-900">智能扩图，视界大开。</h1>
+        <p className="mt-1.5 text-base text-gray-600">
+          不再受限于快门的瞬间，PicToolAI 自动识别你的构图，智能补全缺失的肩膀、延伸的花海、广阔的星空。
+        </p>
+        <p className="mt-1 text-base text-gray-500">
+          每一像素的扩展，都与原图浑然一体。
         </p>
       </div>
 
+      {/* 示例对比 */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">扩图前</p>
+          <button
+            type="button"
+            onClick={() => setLightbox({ open: true, src: '/demo-smart-expansion-before.png' })}
+            className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72 hover:border-gray-300 transition"
+          >
+            <img src="/demo-smart-expansion-before.png" alt="扩图前" className="w-full h-full object-cover" />
+          </button>
+        </div>
+        <div className="flex items-center text-primary">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </div>
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">扩图后</p>
+          <button
+            type="button"
+            onClick={() => setLightbox({ open: true, src: '/demo-smart-expansion-after.png' })}
+            className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72 hover:border-gray-300 transition"
+          >
+            <img src="/demo-smart-expansion-after.png" alt="扩图后" className="w-full h-full object-cover" />
+          </button>
+        </div>
+      </div>
+
       {/* 上传按钮 */}
-      <div className="flex flex-wrap gap-3 justify-center">
-        <label className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-medium cursor-pointer hover:bg-primary/90 transition">
+      <div className="flex flex-wrap gap-2 justify-center">
+        <label className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:bg-primary/90 transition">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          从本地上传
+          上传图片
           <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </label>
         {getToken() && (
           <button
             type="button"
             onClick={openGallery}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-primary text-primary font-medium hover:bg-primary/5 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary text-sm font-medium hover:bg-primary/5 transition"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -210,24 +241,24 @@ export default function SmartExpansion() {
 
       {/* 图片预览 + 比例选择 + 生成 */}
       {image && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">
-          <div className="flex justify-center mb-4">
-            <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 max-w-full max-h-[360px]">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto">
+          <div className="flex justify-center mb-3">
+            <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-w-full max-h-[220px]">
               <img
                 src={image.dataUrl}
                 alt=""
-                className="max-h-[360px] w-auto object-contain"
+                className="max-h-[220px] w-auto object-contain"
               />
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-2 mb-4">
+          <div className="flex flex-wrap justify-center gap-2 mb-3">
             {EXPANSION_RATIOS.map((r) => (
               <button
                 key={r.value}
                 type="button"
                 onClick={() => setRatio(r.value)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                   ratio === r.value
                     ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -238,7 +269,7 @@ export default function SmartExpansion() {
             ))}
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 mb-4">
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 mb-3">
             <span className="text-xs text-gray-500">本次预计消耗</span>
             <span className="flex items-center gap-1 text-sm font-semibold text-gray-800">
               <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
@@ -252,7 +283,7 @@ export default function SmartExpansion() {
             type="button"
             onClick={handleGenerate}
             disabled={generating}
-            className="w-full py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-60 transition"
+            className="w-full max-w-xs mx-auto block py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition"
           >
             {generating ? '扩图中...' : '开始扩图'}
           </button>
@@ -289,20 +320,20 @@ export default function SmartExpansion() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {result && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">扩图结果</h3>
-          <div className="flex gap-4 flex-wrap">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">扩图结果</h3>
+          <div className="flex items-start gap-2 sm:gap-3 flex-wrap">
             <button
               type="button"
               onClick={() => setLightbox({ open: true, src: result })}
-              className="rounded-xl overflow-hidden border border-gray-200 hover:border-gray-400 transition"
+              className="rounded-lg overflow-hidden border border-gray-200 hover:border-gray-400 transition max-h-[220px]"
             >
-              <img src={result} alt="扩图结果" className="max-h-64 object-cover" />
+              <img src={result} alt="扩图结果" className="max-h-[220px] w-auto object-contain" />
             </button>
             <button
               type="button"
               onClick={handleSaveResult}
-              className="self-start px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 transition"
             >
               保存到本地
             </button>

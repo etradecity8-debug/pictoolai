@@ -306,20 +306,20 @@ export default function LocalRedraw() {
   }
 
   return (
-    <div className="relative space-y-6 min-h-[320px]">
+    <div className="relative space-y-4 min-h-[240px]">
       <GeneratingOverlay open={generating} message="生成中..." />
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">局部重绘</h1>
-        <p className="mt-2 text-gray-600">
+        <p className="mt-1.5 text-base text-gray-600">
           上传图片，涂抹需要改变的区域并输入想要改变的内容，即可重新对该区域进行绘制
         </p>
       </div>
 
       {/* 示例对比 */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-4">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
         <div className="flex flex-col items-center">
           <p className="text-sm font-medium text-gray-500 mb-2">原图</p>
-          <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm w-48 h-48">
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72">
             <img src="/local-redraw-demo-original.png" alt="原图" className="w-full h-full object-cover" />
           </div>
         </div>
@@ -330,26 +330,26 @@ export default function LocalRedraw() {
         </div>
         <div className="flex flex-col items-center">
           <p className="text-sm font-medium text-gray-500 mb-2">重绘图</p>
-          <div className="rounded-xl overflow-hidden border border-gray-200 shadow-sm w-48 h-48">
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72">
             <img src="/local-redraw-demo-edited.png" alt="重绘图" className="w-full h-full object-cover" />
           </div>
         </div>
       </div>
 
       {/* 上传按钮 */}
-      <div className="flex flex-wrap gap-3 justify-center">
-        <label className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-medium cursor-pointer hover:bg-primary/90 transition">
+      <div className="flex flex-wrap gap-2 justify-center">
+        <label className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:bg-primary/90 transition">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
-          从本地上传
+          上传图片
           <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </label>
         {getToken() && (
           <button
             type="button"
             onClick={openGallery}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-primary text-primary font-medium hover:bg-primary/5 transition"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary text-sm font-medium hover:bg-primary/5 transition"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -388,9 +388,9 @@ export default function LocalRedraw() {
 
       {/* 涂抹区域 + 输入 */}
       {image && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 space-y-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">涂抹需要改变的区域</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">涂抹需要改变的区域</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">画笔大小</span>
               <input
@@ -406,12 +406,12 @@ export default function LocalRedraw() {
               </button>
             </div>
           </div>
-          <div ref={containerRef} className="relative inline-block max-w-full max-h-[400px] overflow-hidden rounded-xl bg-gray-100">
+          <div ref={containerRef} className="relative inline-block max-w-full max-h-[280px] overflow-hidden rounded-lg bg-gray-100">
             <img
               ref={imgRef}
               src={image.dataUrl}
               alt=""
-              className="max-h-[400px] block select-none cursor-crosshair"
+              className="max-h-[280px] block select-none cursor-crosshair"
               style={{ maxWidth: '100%', userSelect: 'none', pointerEvents: 'none' }}
               draggable={false}
             />
@@ -423,13 +423,13 @@ export default function LocalRedraw() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">想要改变的内容</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">想要改变的内容</label>
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="例如：将桌上的物品替换为一杯清水"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
           <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
@@ -445,7 +445,7 @@ export default function LocalRedraw() {
             type="button"
             onClick={handleGenerate}
             disabled={generating}
-            className="w-full py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary/90 disabled:opacity-60 transition"
+            className="w-full max-w-xs mx-auto block py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition"
           >
             {generating ? '生成中...' : '开始重绘'}
           </button>
@@ -455,16 +455,16 @@ export default function LocalRedraw() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       {result && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">重绘结果</h3>
-          <div className="flex gap-4 flex-wrap">
-            <button type="button" onClick={() => setLightbox({ open: true, src: result })} className="rounded-xl overflow-hidden border border-gray-200 hover:border-gray-400 transition">
-              <img src={result} alt="结果" className="max-h-64 object-cover" />
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">重绘结果</h3>
+          <div className="flex items-start gap-2 sm:gap-3 flex-wrap">
+            <button type="button" onClick={() => setLightbox({ open: true, src: result })} className="rounded-lg overflow-hidden border border-gray-200 hover:border-gray-400 transition max-h-[220px]">
+              <img src={result} alt="结果" className="max-h-[220px] w-auto object-contain" />
             </button>
             <button
               type="button"
               onClick={handleSaveResult}
-              className="self-start px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 transition"
             >
               保存到本地
             </button>
