@@ -20,7 +20,6 @@ import DetailSet from './pages/DetailSet'
 import StyleClone from './pages/StyleClone'
 import ApparelSet from './pages/ApparelSet'
 import ImageRetouch from './pages/ImageRetouch'
-import ImageEdit from './pages/ImageEdit'
 import AiDesigner from './pages/AiDesigner'
 import AmazonAPlus from './pages/AmazonAPlus'
 import AiAssistant from './pages/AiAssistant'
@@ -54,7 +53,7 @@ export default function App() {
       <Route path="/style-clone" element={<ProtectedRoute><MarketingLayout><StyleClone /></MarketingLayout></ProtectedRoute>} />
       <Route path="/apparel-set" element={<ProtectedRoute><MarketingLayout><ApparelSet /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-retouch" element={<ProtectedRoute><MarketingLayout><ImageRetouch /></MarketingLayout></ProtectedRoute>} />
-      <Route path="/image-edit" element={<ProtectedRoute><MarketingLayout><ImageEdit /></MarketingLayout></ProtectedRoute>} />
+      <Route path="/image-edit" element={<Navigate to="/ai-designer/add-remove" replace />} />
       <Route path="/ai-designer" element={<ProtectedRoute><AiDesigner /></ProtectedRoute>} />
       <Route path="/ai-designer/:toolId" element={<ProtectedRoute><AiDesigner /></ProtectedRoute>} />
       <Route path="/amazon-aplus" element={<ProtectedRoute><MarketingLayout><AmazonAPlus /></MarketingLayout></ProtectedRoute>} />

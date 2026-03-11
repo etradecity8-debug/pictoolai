@@ -460,9 +460,197 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
-export default function ImageEdit() {
+/** 框选提取文字：在图片上拖拽选择区域，调用 OCR 提取文字 */
+function ImageTextSelector({ imageSrc, onExtract, onCancel }) {
+  const stageRef = useRef(null)
+  const imgRef = useRef(null)
+  const [rect, setRect] = useState(null)
+  const [dragging, setDragging] = useState(false)
+  const [start, setStart] = useState(null)
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState('')
+
+  const handleMouseDown = (e) => {
+    if (!stageRef.current) return
+    const stage = stageRef.current
+    const rect = stage.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    setStart({ x, y })
+    setRect({ x, y, w: 0, h: 0 })
+    setDragging(true)
+    setExtractError('')
+  }
+  const handleMouseMove = (e) => {
+    if (!dragging || !start || !stageRef.current) return
+    const stage = stageRef.current
+    const r = stage.getBoundingClientRect()
+    const mx = e.clientX - r.left
+    const my = e.clientY - r.top
+    const x = Math.min(start.x, mx)
+    const y = Math.min(start.y, my)
+    const w = Math.abs(mx - start.x)
+    const h = Math.abs(my - start.y)
+    setRect({ x, y, w, h })
+  }
+  const handleMouseUp = () => setDragging(false)
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [dragging, start])
+
+  const handleExtract = async () => {
+    if (!imgRef.current || !stageRef.current || !rect || rect.w < 8 || rect.h < 8) {
+      setExtractError('请先框选要提取的文字区域')
+      return
+    }
+    const img = imgRef.current
+    const stage = stageRef.current
+    const stageRect = stage.getBoundingClientRect()
+    const scaleX = img.naturalWidth / stageRect.width
+    const scaleY = img.naturalHeight / stageRect.height
+    const cx = Math.round(rect.x * scaleX)
+    const cy = Math.round(rect.y * scaleY)
+    const cw = Math.round(rect.w * scaleX)
+    const ch = Math.round(rect.h * scaleY)
+    const canvas = document.createElement('canvas')
+    canvas.width = cw
+    canvas.height = ch
+    canvas.getContext('2d').drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    setExtracting(true)
+    setExtractError('')
+    try {
+      const res = await fetch('/api/image-edit/extract-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '提取失败')
+      const text = (data.text || '').trim()
+      if (!text) throw new Error('未识别到文字，请调整框选区域后重试')
+      onExtract(text)
+      onCancel()
+    } catch (e) {
+      setExtractError(e.message || '文字提取失败')
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  const handleExtractFull = async () => {
+    if (!imgRef.current) return
+    const img = imgRef.current
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    canvas.getContext('2d').drawImage(img, 0, 0)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    setExtracting(true)
+    setExtractError('')
+    try {
+      const res = await fetch('/api/image-edit/extract-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '提取失败')
+      const text = (data.text || '').trim()
+      if (!text) throw new Error('未识别到文字，请尝试框选具体区域')
+      onExtract(text)
+      onCancel()
+    } catch (e) {
+      setExtractError(e.message || '文字提取失败')
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-base font-semibold text-gray-900">框选文字区域</h3>
+          <button type="button" onClick={onCancel} className="text-gray-500 hover:text-gray-700">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-4">
+          <p className="text-sm text-gray-600 mb-3">在图片上拖拽框选要提取的文字区域</p>
+          <div className="flex justify-center items-center max-h-[60vh] bg-gray-100 rounded-xl overflow-hidden">
+            <div
+              ref={stageRef}
+              className="relative inline-block cursor-crosshair"
+              onMouseDown={handleMouseDown}
+              style={{ touchAction: 'none' }}
+            >
+              <img
+                ref={imgRef}
+                src={imageSrc}
+                alt=""
+                className="max-h-[60vh] max-w-full object-contain block select-none"
+                draggable={false}
+                style={{ userSelect: 'none', display: 'block', verticalAlign: 'bottom' }}
+              />
+              {rect && rect.w > 0 && rect.h > 0 && (
+                <div
+                  className="absolute border-2 border-primary bg-primary/10 pointer-events-none"
+                  style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+                />
+              )}
+            </div>
+          </div>
+          {extractError && <p className="mt-2 text-sm text-red-600">{extractError}</p>}
+        </div>
+        <div className="p-4 border-t border-gray-200 flex justify-between gap-2">
+          <button
+            type="button"
+            onClick={handleExtractFull}
+            disabled={extracting}
+            className="px-4 py-2 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-60"
+          >
+            {extracting ? '提取中…' : '全图识别'}
+          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={handleExtract}
+              disabled={extracting}
+              className="px-4 py-2 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+            >
+              {extracting ? '提取中…' : '确认提取'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const VALID_MODE_IDS = new Set(MODES.map((m) => m.id))
+
+export default function ImageEdit({ initialMode, hideModeSelector = false }) {
   const { getToken, refreshUser = null } = useAuth()
-  const [selectedMode, setSelectedMode] = useState(MODES[0].id)
+  const resolvedInitial = VALID_MODE_IDS.has(initialMode) ? initialMode : MODES[0].id
+  const [selectedMode, setSelectedMode] = useState(resolvedInitial)
   const [images, setImages] = useState([]) // [{ file, dataUrl, slot }]
   const [prompt, setPrompt] = useState('')
   // text-replace 专用字段
@@ -482,6 +670,8 @@ export default function ImageEdit() {
   const [lastPointsUsed, setLastPointsUsed] = useState(null)
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState({ open: false, src: null })
+  // 文字替换：框选提取
+  const [textExtractModal, setTextExtractModal] = useState({ open: false })
   // 从图库选取
   const [galleryPicker, setGalleryPicker] = useState({ open: false, slot: 0 })
   const [galleryItems, setGalleryItems] = useState([])
@@ -489,6 +679,27 @@ export default function ImageEdit() {
   const fileInputRefs = useRef({})
 
   const mode = MODES.find((m) => m.id === selectedMode)
+
+  // 从 AiDesigner 进入时，根据 URL 的 initialMode 同步选中模式；切换模式时重置表单
+  useEffect(() => {
+    if (initialMode && VALID_MODE_IDS.has(initialMode)) {
+      setSelectedMode(initialMode)
+      if (hideModeSelector) {
+        setImages([])
+        setPrompt('')
+        setTextOriginal('')
+        setTextReplacement('')
+        setTargetLang('Simplified Chinese')
+        setFontStyle('original')
+        setFontSizeDir('original')
+        setFontSizePercent(30)
+        setResult(null)
+        setLastPointsUsed(null)
+        setError('')
+        setTextExtractModal({ open: false })
+      }
+    }
+  }, [initialMode, hideModeSelector])
 
   const handleModeChange = (id) => {
     setSelectedMode(id)
@@ -503,6 +714,7 @@ export default function ImageEdit() {
     setResult(null)
     setLastPointsUsed(null)
     setError('')
+    setTextExtractModal({ open: false })
   }
 
   // 根据专属字段或通用 prompt 组装最终指令
@@ -668,29 +880,33 @@ export default function ImageEdit() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900">修改图片</h1>
-        <p className="mt-1 text-sm text-gray-500">选择修改模式，上传图片并描述你的需求，AI 一键生成</p>
+        <h1 className="text-2xl font-bold text-gray-900">{hideModeSelector ? mode?.label || '修改图片' : '修改图片'}</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          {hideModeSelector ? '上传图片并描述你的需求，AI 一键生成' : '选择修改模式，上传图片并描述你的需求，AI 一键生成'}
+        </p>
 
-        <div className="mt-8 grid lg:grid-cols-[280px_1fr] gap-6">
-          {/* 左侧：模式选择 */}
-          <div className="space-y-1.5">
-            <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">选择模式</p>
-            {MODES.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => handleModeChange(m.id)}
-                className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
-                  selectedMode === m.id
-                    ? 'bg-gray-800 text-white shadow-sm'
-                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
-                }`}
-              >
-                <span className={selectedMode === m.id ? 'text-white' : 'text-gray-500'}>{m.icon}</span>
-                <span className="text-sm font-medium leading-tight">{m.label}</span>
-              </button>
-            ))}
-          </div>
+        <div className={`mt-8 ${hideModeSelector ? '' : 'grid lg:grid-cols-[280px_1fr] gap-6'}`}>
+          {/* 左侧：模式选择（hideModeSelector 时隐藏） */}
+          {!hideModeSelector && (
+            <div className="space-y-1.5">
+              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">选择模式</p>
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleModeChange(m.id)}
+                  className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition ${
+                    selectedMode === m.id
+                      ? 'bg-gray-800 text-white shadow-sm'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <span className={selectedMode === m.id ? 'text-white' : 'text-gray-500'}>{m.icon}</span>
+                  <span className="text-sm font-medium leading-tight">{m.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* 右侧：输入 + 结果 */}
           <div className="space-y-6">
@@ -773,13 +989,24 @@ export default function ImageEdit() {
                 {mode.specialUI === 'text-replace' ? (
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-1.5">
-                        原文字 <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <label className="text-sm font-semibold text-gray-900">
+                          原文字 <span className="text-red-500">*</span>
+                        </label>
+                        {getImageForSlot(0) && (
+                          <button
+                            type="button"
+                            onClick={() => setTextExtractModal({ open: true })}
+                            className="text-xs px-2.5 py-1 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+                          >
+                            框选提取
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="text"
                         className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder="输入图片中要替换的原始文字"
+                        placeholder="输入图片中要替换的原始文字，或点击「框选提取」在图上框选识别"
                         value={textOriginal}
                         onChange={(e) => setTextOriginal(e.target.value)}
                       />
@@ -1001,6 +1228,13 @@ export default function ImageEdit() {
         </div>
       </div>
 
+      {textExtractModal.open && selectedMode === 'text-replace' && getImageForSlot(0) && (
+        <ImageTextSelector
+          imageSrc={getImageForSlot(0).dataUrl}
+          onExtract={(text) => setTextOriginal(text)}
+          onCancel={() => setTextExtractModal({ open: false })}
+        />
+      )}
       <ImageLightbox
         open={lightbox.open}
         src={lightbox.src}

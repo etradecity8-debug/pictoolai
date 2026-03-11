@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
+import GeneratingOverlay from '../../components/GeneratingOverlay'
 
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)' // 紫色半透明，与设计稿一致
 
@@ -305,7 +306,8 @@ export default function LocalRedraw() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6 min-h-[320px]">
+      <GeneratingOverlay open={generating} message="生成中..." />
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">局部重绘</h1>
         <p className="mt-2 text-gray-600">

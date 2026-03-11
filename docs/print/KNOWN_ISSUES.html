@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/10</div>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/11</div>
   <h1>已知问题与待办（后续再改）</h1>
 <h2>运营须知：数据隐私与客户信任</h2>
 <h3>技术层面：管理员能看到什么</h3>
@@ -127,11 +127,30 @@
 </tbody></table>
 <hr>
 <h2>待后续改进</h2>
+<h3>生成 Listing Step 4 A+（暂锁）</h3>
+<ul>
+<li><strong>现状</strong>：Step 4「A+ 文案与图片」已暂时锁定（<code>APLUS_STEP_ENABLED = false</code>），界面显示「功能优化中，每位用户对 A+ 的要求不同，我们正在研究如何更好地满足个性化需求，敬请期待」。</li>
+<li><strong>原因</strong>：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案。</li>
+<li><strong>恢复方式</strong>：前端 <code>src/pages/AiAssistant.jsx</code> 中改 <code>APLUS_STEP_ENABLED = true</code> 即可。</li>
+</ul>
 <h3>仓库保存/下载体验</h3>
 <ul>
 <li><strong>现状与不满</strong>：当前单张用「另存为」（showSaveFilePicker）可正常选路径保存；多张用「选择文件夹」（showDirectoryPicker）一次性写入，但部分目录（如含系统/隐藏文件）会被浏览器拒绝并提示「含有系统文件」，导致无法保存。用户对该块体验不满意，后续需再改。</li>
 <li><strong>约束</strong>：多张若改为「每张弹一次另存为」（showSaveFilePicker 循环），选 1 万张就要点 1 万次，不可接受；因此多张仍需「选一次文件夹」的机制，但需在浏览器限制下找到更好方案（例如引导用户选子文件夹、或后续有更合适的 API/产品方案再优化）。</li>
 </ul>
+<h2>今日完成（2025-03-10）</h2>
+<h3>AI 美工 · 一键换色</h3>
+<ul>
+<li><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>，侧边栏含「图片编辑」下局部重绘、局部消除、<strong>一键换色</strong>。</li>
+<li><strong>一键换色</strong>：上传图片 → 文字描述要换色的物体（如鼠标、裙子、头发）→ 选择 1–9 种颜色（色卡 24 种 + 自定义 hex/取色器）→ 批量生成。详见 <code>docs/AI-DESIGNER-RECOLOR.md</code>。</li>
+<li><strong>后端</strong>：<code>/api/image-edit</code> 新增 <code>mode: &#39;recolor&#39;</code>，<code>textDescription</code> + <code>targetColor</code> 构建 prompt，保留原图比例与清晰度。</li>
+<li><strong>示例图</strong>：<code>public/recolor-demo-original.png</code>、<code>recolor-demo-edited.png</code>（连衣裙换色）。</li>
+</ul>
+<h3>局部消除</h3>
+<ul>
+<li>示例区改用真实图片：<code>local-erase-demo-original.png</code>、<code>local-erase-demo-edited.png</code>（粉色鼠标桌面图）；移除未用 <code>PlaceholderBox</code>。</li>
+</ul>
+<hr>
 <h2>今日完成（2026-03-10）</h2>
 <h3>界面与品牌</h3>
 <ul>
@@ -334,10 +353,11 @@
 <td>❌ 待做（当前为比例生成）</td>
 </tr>
 </tbody></table>
-<p><strong>修改图片模块补充（本周完成）：</strong></p>
+<p><strong>修改图片模块补充：</strong></p>
 <ul>
 <li>新增「图片文字替换」「图片文字语言转换」两种模式（共 9 种）</li>
 <li>文字替换/翻译支持字体样式选择（字重/颜色/字号放大缩小+百分比）</li>
+<li><strong>文字替换</strong>支持「框选提取」：在原文字输入框旁可点击「框选提取」，在图片上拖拽框选区域，由 Gemini OCR 识别并自动填入原文字；支持「全图识别」。</li>
 <li>输出设置默认展开</li>
 <li>模型选择旁加入黄色提示（文字操作推荐 Nano Banana 2/Pro）</li>
 <li>修改后图片自动入图库、显示积分消耗</li>

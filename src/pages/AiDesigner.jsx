@@ -5,52 +5,98 @@ import Footer from '../components/layout/Footer'
 import LocalRedraw from './ai-designer/LocalRedraw'
 import LocalErase from './ai-designer/LocalErase'
 import OneClickRecolor from './ai-designer/OneClickRecolor'
+import SmartExpansion from './ai-designer/SmartExpansion'
+import ProductRefinement from './ai-designer/ProductRefinement'
+import ImageEdit from './ImageEdit'
 
 const iconClass = 'w-4 h-4 shrink-0'
 
-// 图片编辑、质量提升、图像修复、抠图工具 为同级一级分类；其下为平级子项
+// 图片编辑、质量提升、图像修复、抠图工具、官方示例 为同级一级分类；其下为平级子项
+// available: false 表示暂未开放，灰掉不可点
+const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'composition', 'hi-fidelity', 'bring-to-life', 'character-360', 'text-replace', 'text-translate']
+
+const AVAILABLE_IDS = new Set([
+  'local-redraw', 'local-erase', 'one-click-recolor', 'smart-expansion', 'product-refinement',
+  ...IMAGE_EDIT_MODE_IDS,
+])
+
 const SIDEBAR_STRUCTURE = [
   {
     id: 'image-editing',
     label: '图片编辑',
     items: [
-      { id: 'smart-editing', label: '智能修图', icon: 'spark' },
+      { id: 'smart-editing', label: '智能修图', icon: 'spark', available: false },
       { id: 'local-redraw', label: '局部重绘', icon: 'brush' },
       { id: 'local-erase', label: '局部消除', icon: 'eraser' },
       { id: 'one-click-recolor', label: '一键换色', icon: 'recolor' },
-      { id: 'image-crop', label: '图片裁剪', badge: 'NEW', icon: 'crop' },
+      { id: 'image-crop', label: '图片裁剪', badge: 'NEW', icon: 'crop', available: false },
     ],
   },
   {
     id: 'quality-enhancement',
     label: '质量提升',
     items: [
-      { id: 'hd-zoom', label: '高清放大', icon: 'zoom' },
+      { id: 'hd-zoom', label: '高清放大', icon: 'zoom', available: false },
       { id: 'smart-expansion', label: '智能扩图', icon: 'expand' },
-      { id: 'product-refinement', label: '商品精修', icon: 'product' },
+      { id: 'product-refinement', label: '提升质感', icon: 'product' },
     ],
   },
   {
     id: 'image-restoration',
     label: '图像修复',
     items: [
-      { id: 'color-repair', label: '色差修复', icon: 'color' },
-      { id: 'print-repair', label: '印花修复', icon: 'print' },
-      { id: 'hand-repair', label: '手部修复', icon: 'hand' },
+      { id: 'color-repair', label: '色差修复', icon: 'color', available: false },
+      { id: 'print-repair', label: '印花修复', icon: 'print', available: false },
+      { id: 'hand-repair', label: '手部修复', icon: 'hand', available: false },
     ],
   },
   {
     id: 'cutout-tools',
     label: '抠图工具',
     items: [
-      { id: 'fine-cutout', label: '精细抠图', icon: 'cutout' },
-      { id: 'batch-cutout', label: '批量抠图', icon: 'batch' },
+      { id: 'fine-cutout', label: '精细抠图', icon: 'cutout', available: false },
+      { id: 'batch-cutout', label: '批量抠图', icon: 'batch', available: false },
+    ],
+  },
+  {
+    id: 'official-demos',
+    label: '官方示例',
+    items: [
+      { id: 'add-remove', label: '添加 / 移除元素', icon: 'add-remove' },
+      { id: 'inpainting', label: '局部重绘（语义遮盖）', icon: 'inpaint' },
+      { id: 'style-transfer', label: '风格迁移', icon: 'style' },
+      { id: 'composition', label: '高级合成：多图组合', icon: 'composition' },
+      { id: 'hi-fidelity', label: '高保真细节保留', icon: 'hifi' },
+      { id: 'bring-to-life', label: '让草图变生动', icon: 'sketch' },
+      { id: 'character-360', label: '角色一致性：360° 全景', icon: 'character' },
+      { id: 'text-replace', label: '图片文字替换', icon: 'text-replace' },
+      { id: 'text-translate', label: '图片文字语言转换', icon: 'text-translate' },
     ],
   },
 ]
 
 function ItemIcon({ name }) {
-  const path = name === 'spark'
+  const path = name === 'add-remove'
+    ? 'M12 4v16m8-8H4'
+    : name === 'inpaint'
+    ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+    : name === 'style'
+    ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+    : name === 'composition'
+    ? 'M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z'
+    : name === 'hifi'
+    ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+    : name === 'sketch'
+    ? 'M13 10V3L4 14h7v7l9-11h-7z'
+    : name === 'character'
+    ? 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+    : name === 'text-replace'
+    ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+    : name === 'text-translate'
+    ? 'M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129'
+    : name === 'edit'
+    ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+    : name === 'spark'
     ? 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
     : name === 'brush'
     ? 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01'
@@ -148,6 +194,24 @@ export default function AiDesigner() {
                         {group.items.map((item) => {
                           const to = `/ai-designer/${item.id}`
                           const isActive = pathTool === item.id
+                          const available = item.available !== false
+                          if (!available) {
+                            return (
+                              <span
+                                key={item.id}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed opacity-60"
+                                title="敬请期待"
+                              >
+                                <ItemIcon name={item.icon} />
+                                <span>{item.label}</span>
+                                {item.badge && (
+                                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-gray-300 text-gray-500 font-medium">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </span>
+                            )
+                          }
                           return (
                             <Link
                               key={item.id}
@@ -178,12 +242,20 @@ export default function AiDesigner() {
         </aside>
 
         <main className="flex-1 min-w-0 p-6">
-          {pathTool === 'local-redraw' ? (
+          {IMAGE_EDIT_MODE_IDS.includes(pathTool) ? (
+            <ImageEdit initialMode={pathTool} hideModeSelector />
+          ) : pathTool === 'local-redraw' ? (
             <LocalRedraw />
           ) : pathTool === 'local-erase' ? (
             <LocalErase />
           ) : pathTool === 'one-click-recolor' ? (
             <OneClickRecolor />
+          ) : pathTool === 'smart-expansion' ? (
+            <SmartExpansion />
+          ) : pathTool === 'product-refinement' ? (
+            <ProductRefinement />
+          ) : pathTool && !AVAILABLE_IDS.has(pathTool) ? (
+            <Navigate to="/ai-designer/local-redraw" replace />
           ) : pathTool ? (
             <div className="rounded-2xl border border-gray-200 bg-white p-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-2">
@@ -192,7 +264,7 @@ export default function AiDesigner() {
               <p className="text-gray-500">功能开发中，敬请期待。</p>
             </div>
           ) : (
-            <Navigate to="/ai-designer/smart-editing" replace />
+            <Navigate to="/ai-designer/local-redraw" replace />
           )}
         </main>
       </div>

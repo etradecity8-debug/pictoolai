@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">AMAZON-LISTING-IMAGE-PROMPTS.md → 打印版 · 2026/3/10</div>
+  <div class="meta">AMAZON-LISTING-IMAGE-PROMPTS.md → 打印版 · 2026/3/11</div>
   <h1>亚马逊 Listing 生图提示词与准则</h1>
 <p>本文档记录「生成 Listing」流程中 <strong>Step 3 产品图</strong> 与 <strong>Step 4 A+ 图片</strong> 发给 AI 的提示词（prompt），便于你了解生图遵循的准则。</p>
 <hr>
@@ -54,17 +54,30 @@
 </code></pre>
 <p>（A+ 接口中使用更长版本，含多语言说明，含义一致。）</p>
 <hr>
-<h2>二、Step 3 产品图（亚马逊主图）</h2>
+<h2>二、Step 3 产品图（白底主图 / 场景图 / 特写图 / 卖点图）</h2>
+<p>用户可分别选择四类图片的数量：</p>
 <ul>
-<li><strong>用途</strong>：生成 1 张符合亚马逊主图规范的图片。</li>
-<li><strong>准则</strong>：纯白底（RGB 255,255,255）、产品约占画面 85%、居中、专业产品摄影、高分辨率、干净影棚光、仅单产品无道具无文字。</li>
+<li><strong>白底主图</strong>：符合亚马逊主图规范的图片，纯白底、产品约 85%、居中（0～4 张）。</li>
+<li><strong>场景图</strong>：产品在使用场景或生活化环境中（0～4 张）。</li>
+<li><strong>特写图</strong>：产品细节、材质、工艺的特写/微距镜头（0～4 张）。</li>
+<li><strong>卖点图</strong>：每张对应用户填写的一条卖点，视觉化展示该卖点（0～卖点数，最多等于用户填写的卖点条数）。</li>
 </ul>
-<p><strong>完整 prompt 结构</strong>：</p>
+<p><strong>三种图的 prompt</strong>：</p>
 <ol>
-<li>先拼接上述「通用规则」；</li>
-<li>再拼接：<code>--- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.</code></li>
+<li><p><strong>白底主图</strong>：<code>noTextRule</code> + <code>--- Amazon main image: Pure white background only (RGB 255,255,255, #FFFFFF). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.</code></p>
+</li>
+<li><p><strong>场景图</strong>：<code>noTextRule</code> + <code>--- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting. Product on a clean surface or in a natural environment (e.g. desk, kitchen, living room). Show product in context. Professional product photography, high resolution. No text, no logos. Product: {productName}. Brand context: {brand}.</code></p>
+</li>
+<li><p><strong>特写图</strong>：<code>noTextRule</code> + <code>--- Amazon detail/close-up image: ...</code> + <strong>参考图仅作产品外形</strong>：不复制参考图的背景、桌子、房间等无关元素；纯白或柔和渐变影棚背景。<strong>产品干净</strong>：产品表面必须干燥，禁止水滴、水珠、水渍。<strong>摆放合理</strong>：凳子、椅子等座具禁止放在桌上，特写时可展示产品局部细节（如连接处、材质）配纯白背景。</p>
+</li>
+<li><p><strong>卖点图</strong>：每张对应一条用户填写的卖点，视觉化展示。可选：<strong>是否在图上显示文字</strong>（<code>sellingPointShowText</code>）。</p>
+<ul>
+<li><strong>不显示文字</strong>：遵守 <code>noTextRule</code>，纯白或柔和渐变背景，无文字。</li>
+<li><strong>显示文字</strong>：必须在图上展示该卖点文案，语言按用户设置的 <code>lang</code>（zh/en/de/fr/ja/es），若卖点原文为其他语言则翻译后展示。文字须留安全边距、可读。</li>
+</ul>
+</li>
 </ol>
-<p><strong>输入</strong>：首张产品图（data URL）+ 上述文本。模型根据参考图 + 文案生成白底主图。</p>
+<p><strong>输入</strong>：首张产品图（data URL）+ 上述文本。卖点图需传入 <code>sellingPoints</code>、<code>sellingPointCount</code>；可选 <code>sellingPointShowText</code>、<code>lang</code>。</p>
 <hr>
 <h2>三、Step 4 A+ 图片（4 张）</h2>
 <ul>

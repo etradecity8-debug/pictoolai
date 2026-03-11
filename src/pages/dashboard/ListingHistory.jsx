@@ -107,6 +107,24 @@ export default function ListingHistory() {
     navigator.clipboard.writeText(text).then(() => {}).catch(() => {})
   }
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('确定要删除这条 Listing 吗？')) return
+    const token = getToken()
+    if (!token) return
+    try {
+      const res = await fetch(`/api/ai-assistant/amazon/listings/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '删除失败')
+      if (detail?.id === id) setDetail(null)
+      fetchList()
+    } catch (e) {
+      setError(e.message || '删除失败')
+    }
+  }
+
   return (
     <div className="max-w-4xl">
       <h1 className="text-lg font-bold text-gray-900">Listing 历史</h1>
@@ -123,19 +141,31 @@ export default function ListingHistory() {
         <div className="mt-6 flex gap-6">
           <div className="w-72 shrink-0 space-y-1 max-h-[70vh] overflow-y-auto">
             {list.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
-                onClick={() => openDetail(item.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition ${
+                className={`group flex items-stretch gap-1 rounded-lg border text-sm transition ${
                   detail?.id === item.id
-                    ? 'border-gray-800 bg-gray-100 text-gray-900 font-medium'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                    ? 'border-gray-800 bg-gray-100'
+                    : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <span className="block truncate">{item.name || item.titlePreview || '未命名'}</span>
-                <span className="text-xs text-gray-400 mt-0.5 block">{dateLabel(item.createdAt)}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => openDetail(item.id)}
+                  className={`flex-1 min-w-0 text-left px-3 py-2.5 ${detail?.id === item.id ? 'text-gray-900 font-medium' : 'text-gray-700'}`}
+                >
+                  <span className="block truncate">{item.name || item.titlePreview || '未命名'}</span>
+                  <span className="text-xs text-gray-400 mt-0.5 block">{dateLabel(item.createdAt)}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
+                  title="删除"
+                  className="shrink-0 px-2 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              </div>
             ))}
           </div>
 
@@ -145,21 +175,30 @@ export default function ListingHistory() {
               <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-xs text-gray-500">{dateLabel(detail.createdAt)}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const csv = buildAmazonListingCsv({
-                        title: detail.title,
-                        searchTerms: detail.searchTerms,
-                        bullets: detail.bullets || [],
-                        description: detail.description,
-                      })
-                      downloadAmazonListingCsv(csv, `listing-${detail.id}-export.csv`)
-                    }}
-                    className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  >
-                    导出 CSV
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const csv = buildAmazonListingCsv({
+                          title: detail.title,
+                          searchTerms: detail.searchTerms,
+                          bullets: detail.bullets || [],
+                          description: detail.description,
+                        })
+                        downloadAmazonListingCsv(csv, `listing-${detail.id}-export.csv`)
+                      }}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                    >
+                      导出 CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(detail.id)}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium border border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
                 <CopyBlock label="标题" text={detail.title} onCopy={copyToClipboard} markdown />
                 <CopyBlock label="后台关键词" text={detail.searchTerms} onCopy={copyToClipboard} />
@@ -191,30 +230,77 @@ export default function ListingHistory() {
                     <p className="text-sm"><strong>{detail.aplusCopy.brandStoryTitle}</strong> {detail.aplusCopy.brandStoryBody}</p>
                   </div>
                 )}
-                {(detail.mainImageId || (detail.aplusImageIds && detail.aplusImageIds.length > 0)) && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <label className="block text-xs font-medium text-gray-500 mb-2">关联图片</label>
-                    <p className="text-xs text-gray-500 mb-2">保存时已关联的产品主图与 A+ 图片（原图在「仓库」中可查看）。</p>
-                    <div className="flex flex-wrap gap-4">
-                      {detail.mainImageId && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">产品主图</p>
-                          <AuthGalleryImage id={detail.mainImageId} token={getToken()} alt="主图" className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
-                        </div>
-                      )}
-                      {detail.aplusImageIds && detail.aplusImageIds.length > 0 && (
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">A+ 图片</p>
-                          <div className="flex flex-wrap gap-2">
-                            {detail.aplusImageIds.map((gid, i) => (
-                              <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`A+ ${i + 1}`} className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white" />
-                            ))}
+                {(() => {
+                  const pids = detail.productImageIds
+                  const hasProduct = pids && ((pids.mainImageIds && pids.mainImageIds.length) || (pids.sceneImageIds && pids.sceneImageIds.length) || (pids.closeUpImageIds && pids.closeUpImageIds.length) || (pids.sellingPointImageIds && pids.sellingPointImageIds.length))
+                  const hasLegacyMain = !hasProduct && detail.mainImageId
+                  const hasAplus = detail.aplusImageIds && detail.aplusImageIds.length > 0
+                  if (!hasProduct && !hasLegacyMain && !hasAplus) return null
+                  return (
+                    <div className="pt-2 border-t border-gray-200">
+                      <label className="block text-xs font-medium text-gray-500 mb-2">关联图片</label>
+                      <p className="text-xs text-gray-500 mb-2">保存时已关联的产品图与 A+ 图片（原图在「仓库」中可查看）。</p>
+                      <div className="flex flex-wrap gap-4">
+                        {pids?.mainImageIds?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">白底主图</p>
+                            <div className="flex flex-wrap gap-2">
+                              {pids.mainImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`主图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                        {pids?.sceneImageIds?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">场景图</p>
+                            <div className="flex flex-wrap gap-2">
+                              {pids.sceneImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`场景图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {pids?.closeUpImageIds?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">特写图</p>
+                            <div className="flex flex-wrap gap-2">
+                              {pids.closeUpImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`特写图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {pids?.sellingPointImageIds?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">卖点图</p>
+                            <div className="flex flex-wrap gap-2">
+                              {pids.sellingPointImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`卖点图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {hasLegacyMain && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">产品主图</p>
+                            <AuthGalleryImage id={detail.mainImageId} token={getToken()} alt="主图" className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                          </div>
+                        )}
+                        {hasAplus && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">A+ 图片</p>
+                            <div className="flex flex-wrap gap-2">
+                              {detail.aplusImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`A+ ${i + 1}`} className="w-24 h-24 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
               </div>
             )}
           </div>

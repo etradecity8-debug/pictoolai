@@ -79,6 +79,11 @@ export function getDb() {
       if (!ptNames.includes('expires_at')) db.exec('ALTER TABLE user_points ADD COLUMN expires_at INTEGER DEFAULT NULL')
       if (!ptNames.includes('last_granted_at')) db.exec('ALTER TABLE user_points ADD COLUMN last_granted_at INTEGER DEFAULT NULL')
     } catch (_) {}
+    try {
+      const listingInfo = db.prepare('PRAGMA table_info(amazon_listing_snapshots)').all()
+      const listingNames = listingInfo.map((c) => c.name)
+      if (!listingNames.includes('product_image_ids')) db.exec('ALTER TABLE amazon_listing_snapshots ADD COLUMN product_image_ids TEXT')
+    } catch (_) {}
   }
   return db
 }

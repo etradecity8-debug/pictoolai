@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
+import GeneratingOverlay from '../../components/GeneratingOverlay'
 
 // 色卡：常用颜色（hex + 名称），用户从中选 1-9 种，或使用自定义取色
 const COLOR_PALETTE = [
@@ -240,7 +241,8 @@ export default function OneClickRecolor() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6 min-h-[320px]">
+      <GeneratingOverlay open={generating} message="换色中..." progress={progress.total ? `${progress.current}/${progress.total}` : null} />
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">一键换色</h1>
         <p className="mt-2 text-gray-600">

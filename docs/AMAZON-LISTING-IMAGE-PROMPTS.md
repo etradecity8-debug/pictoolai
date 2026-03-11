@@ -19,17 +19,27 @@ CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, N
 
 ---
 
-## 二、Step 3 产品图（亚马逊主图）
+## 二、Step 3 产品图（白底主图 / 场景图 / 特写图 / 卖点图）
 
-- **用途**：生成 1 张符合亚马逊主图规范的图片。
-- **准则**：纯白底（RGB 255,255,255）、产品约占画面 85%、居中、专业产品摄影、高分辨率、干净影棚光、仅单产品无道具无文字。
+用户可分别选择四类图片的数量：
+- **白底主图**：符合亚马逊主图规范的图片，纯白底、产品约 85%、居中（0～4 张）。
+- **场景图**：产品在使用场景或生活化环境中（0～4 张）。
+- **特写图**：产品细节、材质、工艺的特写/微距镜头（0～4 张）。
+- **卖点图**：每张对应用户填写的一条卖点，视觉化展示该卖点（0～卖点数，最多等于用户填写的卖点条数）。
 
-**完整 prompt 结构**：
+**三种图的 prompt**：
 
-1. 先拼接上述「通用规则」；
-2. 再拼接：`--- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
+1. **白底主图**：`noTextRule` + `--- Amazon main image: Pure white background only (RGB 255,255,255, #FFFFFF). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
 
-**输入**：首张产品图（data URL）+ 上述文本。模型根据参考图 + 文案生成白底主图。
+2. **场景图**：`noTextRule` + `--- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting. Product on a clean surface or in a natural environment (e.g. desk, kitchen, living room). Show product in context. Professional product photography, high resolution. No text, no logos. Product: {productName}. Brand context: {brand}.`
+
+3. **特写图**：`noTextRule` + `--- Amazon detail/close-up image: ...` + **参考图仅作产品外形**：不复制参考图的背景、桌子、房间等无关元素；纯白或柔和渐变影棚背景。**产品干净**：产品表面必须干燥，禁止水滴、水珠、水渍。**摆放合理**：凳子、椅子等座具禁止放在桌上，特写时可展示产品局部细节（如连接处、材质）配纯白背景。
+
+4. **卖点图**：每张对应一条用户填写的卖点，视觉化展示。可选：**是否在图上显示文字**（`sellingPointShowText`）。
+   - **不显示文字**：遵守 `noTextRule`，纯白或柔和渐变背景，无文字。
+   - **显示文字**：必须在图上展示该卖点文案，语言按用户设置的 `lang`（zh/en/de/fr/ja/es），若卖点原文为其他语言则翻译后展示。文字须留安全边距、可读。
+
+**输入**：首张产品图（data URL）+ 上述文本。卖点图需传入 `sellingPoints`、`sellingPointCount`；可选 `sellingPointShowText`、`lang`。
 
 ---
 

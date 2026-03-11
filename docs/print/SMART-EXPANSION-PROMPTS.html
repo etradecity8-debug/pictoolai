@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SMART EXPANSION PROMPTS</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">SMART-EXPANSION-PROMPTS.md → 打印版 · 2026/3/11</div>
+  <h1>智能扩图：提示词与改进说明</h1>
+<p>本文档记录智能扩图（smart-expansion）的 prompt 设计依据与后续优化方向。</p>
+<hr>
+<h2>一、官方建议摘要</h2>
+<ol>
+<li><p><strong>核心原则</strong>：不要描述已有内容，要描述「缺失」的内容。AI 需要知道边缘之外应该出现什么，并保持与原图的逻辑统一。</p>
+</li>
+<li><p><strong>1+N 模板</strong>：<code>[固定前缀] + [视觉反推内容] + [质量控制词]</code></p>
+<ul>
+<li>固定前缀：Outpaint and extend the boundaries of the image.</li>
+<li>视觉反推：通过 Gemini 识别原图内容（如 woman, flowers, garden）</li>
+<li>质量控制：Seamless transition, consistent lighting, matching textures, high resolution</li>
+</ul>
+</li>
+<li><p><strong>内容延续</strong>：</p>
+<ul>
+<li>主体延伸：若主体被裁切（如肩膀），prompt 需包含 &quot;complete the person&#39;s shoulders and clothing&quot;</li>
+<li>虚化延续：若原图背景虚化，需加 &quot;maintain the shallow depth of field and bokeh&quot;</li>
+</ul>
+</li>
+<li><p><strong>推荐模型</strong>：Nano Banana 2（扩图对全局逻辑、背景补全要求高于微观纹理，NB2 生成快且稳健）</p>
+</li>
+</ol>
+<hr>
+<h2>二、当前实现（已实现两轮调用）</h2>
+<ul>
+<li><strong>生图模型</strong>：Nano Banana 2</li>
+<li><strong>第一步（视觉分析）</strong>：使用 <code>ANALYSIS_MODEL_ID</code>（gemini-2.5-flash）分析原图，提取 5–10 个关键词（主体、背景元素、光照风格）</li>
+<li><strong>第二步（生图）</strong>：将关键词注入 <code>[CONTENT TO ADD] Extend the following elements: {keywords}.</code> 模板，调用 Nano Banana 2 生图</li>
+<li><strong>降级</strong>：若分析失败，自动回退为通用 [CONTENT TO ADD] 描述，不影响生图</li>
+</ul>
+
+</body>
+</html>

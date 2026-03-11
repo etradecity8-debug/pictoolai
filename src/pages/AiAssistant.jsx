@@ -122,6 +122,9 @@ const AMAZON_LISTING_STEPS = [
   { id: 4, label: 'A+' },
 ]
 
+// Step 4 A+ 暂未开放：每位用户对 A+ 要求不同，研究中
+const APLUS_STEP_ENABLED = false
+
 // ── A+ 模块（亚马逊标准 17 种，与 docs/AMAZON-APLUS-MODULES.md 一致）────────────────────
 const APLUS_MODULES = [
   { id: 'header', name: '图片页头', images: 1, desc: '顶部大图横幅 16:9' },
@@ -186,7 +189,11 @@ function GenerateForm() {
   const [saveListingLoading, setSaveListingLoading] = useState(false)
   const [savedListingId, setSavedListingId] = useState(null)
   const [imageModel, setImageModel] = useState('Nano Banana') // Step 3/4 生图模型，默认 Nano Banana(2.5) 兼容性更好
-  const [productImageCount, setProductImageCount] = useState(3) // Step 3 生成张数 1～9（1=仅主图，2～9=主图+附加图）
+  const [mainImageCount, setMainImageCount] = useState(1)   // Step 3 白底主图 0～4
+  const [sceneImageCount, setSceneImageCount] = useState(1) // Step 3 场景图 0～4
+  const [closeUpImageCount, setCloseUpImageCount] = useState(1) // Step 3 特写图 0～4
+  const [sellingPointImageCount, setSellingPointImageCount] = useState(0) // Step 3 卖点图 0～卖点数
+  const [sellingPointShowText, setSellingPointShowText] = useState(false) // 卖点图是否在图上显示文字
   const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选 A+ 模块，最多 5 个
   const step4Ref = useRef(null)
 
@@ -370,13 +377,28 @@ function GenerateForm() {
           productName: analyzeResult.productName,
           brand: form.brand.trim(),
           model: imageModel,
-          count: productImageCount,
+          mainCount: mainImageCount,
+          sceneCount: sceneImageCount,
+          closeUpCount: closeUpImageCount,
+          sellingPoints: sellingPointsLines,
+          sellingPointCount: sellingPointImageCount,
+          sellingPointShowText: sellingPointShowText,
+          lang: form.lang,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '生成失败')
       setProductImagesResult({
         mainImage: data.mainImage,
+        mainImages: data.mainImages || [],
+        sceneImages: data.sceneImages || [],
+        closeUpImages: data.closeUpImages || [],
+        sellingPointImages: data.sellingPointImages || [],
+        sellingPointLabels: data.sellingPointLabels || [],
+        mainImageIds: data.mainImageIds || [],
+        sceneImageIds: data.sceneImageIds || [],
+        closeUpImageIds: data.closeUpImageIds || [],
+        sellingPointImageIds: data.sellingPointImageIds || [],
         additionalImages: data.additionalImages || [],
         pointsUsed: data.pointsUsed,
         mainImageId: data.mainImageId || null,
@@ -548,19 +570,20 @@ function GenerateForm() {
         <div className="mb-4">
           <div className="flex items-center gap-2">
           {AMAZON_LISTING_STEPS.map((s, i) => {
-            const done = (s.id === 1 && step !== 'idle' && step !== 'analyzing') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!productImagesResult) || (s.id === 4 && !!aplusImages)
-            const active = (s.id === 1 && step === 'analyzing') || (s.id === 2 && step === 'generating') || (s.id === 3 && productImagesLoading) || (s.id === 4 && (aplusCopyLoading || aplusImagesLoading))
+            const locked = s.id === 4 && !APLUS_STEP_ENABLED
+            const done = !locked && ((s.id === 1 && step !== 'idle' && step !== 'analyzing') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!productImagesResult) || (s.id === 4 && !!aplusImages))
+            const active = !locked && ((s.id === 1 && step === 'analyzing') || (s.id === 2 && step === 'generating') || (s.id === 3 && productImagesLoading) || (s.id === 4 && (aplusCopyLoading || aplusImagesLoading)))
             return (
               <div key={s.id} className="flex items-center gap-2">
                 <span
                   className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-sm font-medium ${
-                    active ? 'bg-gray-800 text-white' : done ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-500'
+                    locked ? 'bg-gray-100 text-gray-400 border border-dashed border-gray-300' : active ? 'bg-gray-800 text-white' : done ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}
                 >
                   {s.id}
                 </span>
-                <span className={`text-sm ${active ? 'font-medium text-gray-900' : done ? 'text-gray-700' : 'text-gray-500'}`}>
-                  {s.label}
+                <span className={`text-sm ${locked ? 'text-gray-400' : active ? 'font-medium text-gray-900' : done ? 'text-gray-700' : 'text-gray-500'}`}>
+                  {s.label}{locked ? '（暂未开放）' : ''}
                 </span>
                 {i < AMAZON_LISTING_STEPS.length - 1 && (
                   <span className="mx-1 h-px w-4 bg-gray-300" aria-hidden />
@@ -688,13 +711,13 @@ function GenerateForm() {
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-900">3. 产品图</h3>
-              {productImagesResult?.mainImage && (
+              {(productImagesResult?.mainImage || productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length) && (
                 <button type="button" onClick={() => setProductImagesResult(null)} className="text-xs text-gray-500 hover:text-gray-900">
                   重新生成产品图
                 </button>
               )}
             </div>
-            {!productImagesResult?.mainImage && (
+            {!(productImagesResult?.mainImage || productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length) && (
               <div className="mb-3 space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">生图模型</label>
@@ -709,45 +732,143 @@ function GenerateForm() {
                   </select>
                   <p className="text-xs text-gray-500 mt-1">Nano Banana(2.5) 兼容性较好；若遇网络错误可优先选此</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">生成数量</label>
-                  <select
-                    value={productImageCount}
-                    onChange={e => setProductImageCount(Number(e.target.value))}
-                    className="w-full max-w-xs border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                      <option key={n} value={n}>{n} 张{n === 1 ? '（仅主图）' : `（1 主图 + ${n - 1} 附加图）`}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">亚马逊最多 9 张：第 1 张为主图（白底），其余为附加图（多角度/场景）</p>
+                <div className="space-y-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">生成数量（各类型 0～4 张；卖点图 0～你填写的卖点数）</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">白底主图</label>
+                      <select value={mainImageCount} onChange={e => setMainImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                        {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">场景图</label>
+                      <select value={sceneImageCount} onChange={e => setSceneImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                        {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">特写图</label>
+                      <select value={closeUpImageCount} onChange={e => setCloseUpImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                        {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">卖点图</label>
+                      <select value={Math.min(sellingPointImageCount, sellingPointsLines.length)} onChange={e => setSellingPointImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                        {Array.from({ length: sellingPointsLines.length + 1 }, (_, n) => (
+                          <option key={n} value={n}>{n} 张</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-0.5">最多 {sellingPointsLines.length} 张，对应你填写的 {sellingPointsLines.length} 条卖点</p>
+                      {sellingPointImageCount > 0 && (
+                        <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                          <input type="checkbox" checked={sellingPointShowText} onChange={e => setSellingPointShowText(e.target.checked)} className="rounded border-gray-300" />
+                          <span className="text-xs text-gray-600">卖点图上显示文字（按所选语言）</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
-            {productImagesResult?.mainImage ? (
+            {(productImagesResult?.mainImage || (productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length)) ? (
               <div>
-                <div className="flex flex-wrap gap-3 items-start">
-                  <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1">主图</p>
-                    <img src={productImagesResult.mainImage} alt="主图" className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
-                  </div>
-                  {(productImagesResult.additionalImages || []).map((src, i) => (
-                    <div key={i}>
-                      <p className="text-xs font-medium text-gray-500 mb-1">附加图 {i + 2}</p>
-                      <img src={src} alt={`附加图${i + 2}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">共 {1 + (productImagesResult.additionalImages?.length || 0)} 张已保存到仓库，消耗 {productImagesResult.pointsUsed ?? 0} 积分</p>
+                {(() => {
+                  const mainImgs = productImagesResult.mainImages || (productImagesResult.mainImage ? [productImagesResult.mainImage] : [])
+                  const sceneImgs = productImagesResult.sceneImages || []
+                  const closeUpImgs = productImagesResult.closeUpImages || []
+                  const sellingPointImgs = productImagesResult.sellingPointImages || []
+                  const sellingPointLbls = productImagesResult.sellingPointLabels || []
+                  const legacyImgs = !productImagesResult.mainImages && !productImagesResult.sceneImages && !productImagesResult.closeUpImages && !productImagesResult.sellingPointImages?.length ? (productImagesResult.additionalImages || []) : []
+                  const totalCount = mainImgs.length + sceneImgs.length + closeUpImgs.length + sellingPointImgs.length + legacyImgs.length
+                  return (
+                    <>
+                      <div className="space-y-4">
+                        {mainImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">白底主图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {mainImgs.map((src, i) => (
+                                <div key={`m-${i}`}>
+                                  <img src={src} alt={`主图${i + 1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                  <p className="text-xs text-gray-500 mt-1">{i + 1}/{mainImgs.length}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {sceneImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">场景图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {sceneImgs.map((src, i) => (
+                                <div key={`s-${i}`}>
+                                  <img src={src} alt={`场景图${i + 1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                  <p className="text-xs text-gray-500 mt-1">{i + 1}/{sceneImgs.length}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {closeUpImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">特写图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {closeUpImgs.map((src, i) => (
+                                <div key={`c-${i}`}>
+                                  <img src={src} alt={`特写图${i + 1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                  <p className="text-xs text-gray-500 mt-1">{i + 1}/{closeUpImgs.length}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {sellingPointImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">卖点图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {sellingPointImgs.map((src, i) => (
+                                <div key={`sp-${i}`}>
+                                  <img src={src} alt={`卖点图${i + 1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                  <p className="text-xs text-gray-500 mt-1">卖点 {i + 1}{sellingPointLbls[i] ? `: ${(sellingPointLbls[i] || '').slice(0, 20)}${(sellingPointLbls[i] || '').length > 20 ? '…' : ''}` : ''}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {legacyImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">附加图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {legacyImgs.map((src, i) => (
+                                <div key={i}>
+                                  <img src={src} alt={`附加图${i + 2}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">共 {totalCount} 张已保存到仓库，消耗 {productImagesResult.pointsUsed ?? 0} 积分</p>
+                    </>
+                  )
+                })()}
               </div>
             ) : (
               <div>
-                <p className="text-xs text-gray-500 mb-2">第 1 张为主图（纯白底、产品约 85%、无文字）；第 2～N 张为附加图（多角度或简单场景）。亚马逊要求主图为实际拍摄，生成图建议作参考或附加图使用。</p>
+                <p className="text-xs text-gray-500 mb-2 space-y-0.5">
+                  <span className="block">白底主图：纯白底、产品约 85%、无文字</span>
+                  <span className="block">场景图：使用场景或生活化背景</span>
+                  <span className="block">特写图：产品细节、材质特写</span>
+                  <span className="block">卖点图：每张对应一条你填写的卖点，视觉化展示；可勾选「显示文字」在图上展示卖点文案</span>
+                  <span className="block mt-1">亚马逊要求主图为实际拍摄，生成图建议作参考或附加图使用。</span>
+                </p>
                 <p className="text-xs text-gray-400 mb-2">生成后可点击上方「重新生成产品图」换一版再生成（会扣积分）。</p>
-                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * productImageCount} 积分（{productImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
+                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount)} 积分（{mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
                 {productImagesLoading && (
                   <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
-                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {productImageCount} 张）…</p>
+                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张）…</p>
                     <p className="text-xs text-gray-500 mb-2">请稍候，每张约 20 秒～1 分钟</p>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div className="h-full bg-gray-600 rounded-full animate-pulse" style={{ width: '50%' }} />
@@ -756,23 +877,24 @@ function GenerateForm() {
                 )}
                 <button
                   type="button"
-                  disabled={productImagesLoading || !productImageDataUrl}
+                  disabled={productImagesLoading || !productImageDataUrl || (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount === 0)}
                   onClick={handleGenerateProductImages}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {productImagesLoading ? '生成中…' : `生成产品图（${productImageCount} 张）`}
+                  {productImagesLoading ? '生成中…' : `生成产品图（${mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张）`}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Step 4 A+（生图时保持展开并滚动到此，步骤 3 与 4 可并行进行） */}
+          {/* Step 4 A+（暂锁：每位用户对 A+ 要求不同，研究中） */}
           <div
             ref={step4Ref}
-            className={`rounded-xl border p-4 transition-colors ${aplusImagesLoading ? 'border-gray-400 bg-amber-50/50 ring-1 ring-amber-200' : 'border-gray-200 bg-white'}`}
+            className={`rounded-xl border p-4 transition-colors ${APLUS_STEP_ENABLED && aplusImagesLoading ? 'border-gray-400 bg-amber-50/50 ring-1 ring-amber-200' : 'border-gray-200 bg-gray-50'}`}
           >
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-900">4. A+ 文案与图片</h3>
+              {APLUS_STEP_ENABLED && (
               <div className="flex items-center gap-2">
                 {aplusCopy && (
                   <button type="button" onClick={() => { setAplusCopy(null); setAplusImages(null) }} className="text-xs text-gray-500 hover:text-gray-900">
@@ -788,8 +910,11 @@ function GenerateForm() {
                   </>
                 )}
               </div>
+              )}
             </div>
-            {!aplusImages && (
+            {!APLUS_STEP_ENABLED ? (
+              <p className="text-sm text-gray-500 py-4">🔒 功能优化中。每位用户对 A+ 的要求不同，我们正在研究如何更好地满足个性化需求，敬请期待。</p>
+            ) : !aplusImages && (
               <div className="mb-3 space-y-3">
                 <div>
                   <p className="text-xs font-medium text-gray-700 mb-1">选择 A+ 模块</p>
@@ -866,7 +991,7 @@ function GenerateForm() {
                 </button>
               </div>
             )}
-            {aplusCopy && aplusImages && (
+            {APLUS_STEP_ENABLED && aplusCopy && aplusImages && (
               <>
                 <div className="mb-3 text-sm text-gray-700 space-y-2">
                   {(aplusCopy._modules || aplusModules).includes('header') && (aplusCopy.heroTagline || aplusCopy.heroSubtext) && (
@@ -955,7 +1080,8 @@ function GenerateForm() {
 
           {/* 所有步骤结束后：保存与导出 */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs text-gray-500 mb-3">保存内容：本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
+            <p className="text-xs text-gray-500 mb-2"><strong>保存到我的 Listing：</strong>将保存本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
+            <p className="text-xs text-gray-500 mb-3"><strong>导出 CSV：</strong>只导出文案，如果需要图片，请到仓库中查找。</p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -977,6 +1103,12 @@ function GenerateForm() {
                         aplusCopy: aplusCopy || undefined,
                         mainImageId: productImagesResult?.mainImageId || undefined,
                         aplusImageIds: aplusImages?.aplusImageIds || undefined,
+                        productImageIds: (productImagesResult?.mainImageIds?.length || productImagesResult?.sceneImageIds?.length || productImagesResult?.closeUpImageIds?.length || productImagesResult?.sellingPointImageIds?.length) ? {
+                          mainImageIds: productImagesResult.mainImageIds || [],
+                          sceneImageIds: productImagesResult.sceneImageIds || [],
+                          closeUpImageIds: productImagesResult.closeUpImageIds || [],
+                          sellingPointImageIds: productImagesResult.sellingPointImageIds || [],
+                        } : undefined,
                       }),
                     })
                     const data = await res.json()

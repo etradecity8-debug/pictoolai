@@ -14,6 +14,9 @@
 | [AMAZON-APLUS-MODULES.md](./AMAZON-APLUS-MODULES.md) | A+ 模块定义、本系统支持的 17 种模块、推荐套餐与接口约定。 |
 | [DATA-FLOW.md](./DATA-FLOW.md) | 全品类组图页的字段与 AI 传参说明、数据流。 |
 | [AI-DESIGNER-RECOLOR.md](./AI-DESIGNER-RECOLOR.md) | AI 美工 · 一键换色：文字描述、色卡、自定义取色、批量生图。 |
+| [MODEL-SELECTION-GUIDE.md](./MODEL-SELECTION-GUIDE.md) | 提升质感：Pro vs 2 模型选择指南、专家建议与详细对比。 |
+| [AI-DESIGNER-TEXTURE-MATERIALS.md](./AI-DESIGNER-TEXTURE-MATERIALS.md) | 提升质感材质预设（4 Tab、23 项）与塑料专项增强（SSS、Soft-touch、Beveled edges）。 |
+| [SMART-EXPANSION-PROMPTS.md](./SMART-EXPANSION-PROMPTS.md) | 智能扩图：官方 1+N 模板、内容延续、后续两轮调用优化方向。 |
 
 ---
 

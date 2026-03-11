@@ -921,34 +921,50 @@ app.post('/api/image-edit', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription } = req.body
-    // recolor 模式用 targetColor + textDescription 构建 prompt，其他模式需要 prompt
+    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription, expansionRatio, materialPrompt } = req.body
+    // recolor / smart-expansion / product-refinement 用内置 prompt，其他模式需要 prompt
     const isRecolor = mode === 'recolor'
-    if (!isRecolor && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    const isSmartExpansion = mode === 'smart-expansion'
+    const isProductRefinement = mode === 'product-refinement'
+    if (!isRecolor && !isSmartExpansion && !isProductRefinement && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
     if (isRecolor && (!targetColor || typeof targetColor !== 'string')) return res.status(400).json({ error: '请选择目标颜色' })
     if (isRecolor && (!textDescription || typeof textDescription !== 'string' || !textDescription.trim())) return res.status(400).json({ error: '请描述要换色的物体' })
+    if (isSmartExpansion && (!expansionRatio || ![1.1, 1.2, 1.5, 2].includes(Number(expansionRatio)))) return res.status(400).json({ error: '请选择扩图比例' })
     if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张图片' })
 
     // 解析所有参考图
     const parsedImages = images.map((img) => parseDataUrl(img)).filter(Boolean)
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
-    // 局部重绘 / 局部消除 / 一键换色：从输入图推断比例与清晰度，保留原图
-    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor'
+    // 局部重绘 / 局部消除 / 一键换色 / 智能扩图 / 提升质感：从输入图推断比例与清晰度，保留原图
+    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement'
     let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
     if (preserveFromInput) {
       try {
         const buf = Buffer.from(parsedImages[0].data, 'base64')
         const dim = imageSize(buf)
-        const w = dim?.width || 0, h = dim?.height || 0
+        let w = dim?.width || 0, h = dim?.height || 0
         aspectRatioVal = getAspectRatioFromDimensions(w, h)
-        resolvedClarity = getClarityFromDimensions(w, h)
-        // 大图用 3.1 支持 2K/4K，小图用 2.5
-        modelId = Math.max(w, h) > 1024 ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
+        // 智能扩图：按扩图比例放大目标尺寸以选择清晰度；1.5x/2x 至少用 2K 确保输出明显更大
+        if (isSmartExpansion) {
+          const ratio = Number(expansionRatio) || 1.5
+          w = Math.round(w * ratio)
+          h = Math.round(h * ratio)
+          resolvedClarity = getClarityFromDimensions(w, h)
+          if (ratio >= 1.5 && resolvedClarity === '1K 标准') resolvedClarity = '2K 高清'
+        } else {
+          resolvedClarity = getClarityFromDimensions(w, h)
+        }
+        // 大图用 3.1 支持 2K/4K，小图用 2.5；智能扩图用 Nano Banana 2；提升质感由用户选择 Pro 或 2
+        const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
+        modelId = isProductRefinement
+          ? getImageModelId(productRefinementModel)
+          : (isSmartExpansion || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
       } catch (e) {
         aspectRatioVal = '1:1'
         resolvedClarity = '1K 标准'
-        modelId = getImageModelId('Nano Banana')
+        const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
+        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : (isSmartExpansion ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
       }
       imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
     } else {
@@ -963,7 +979,7 @@ app.post('/api/image-edit', async (req, res) => {
       ? { aspectRatio: aspectRatioVal }
       : { aspectRatio: aspectRatioVal, imageSize: String(imageSizeVal) }
     const modelDisplayName = preserveFromInput
-      ? (modelId.includes('3.1') ? 'Nano Banana 2' : 'Nano Banana')
+      ? (modelId.includes('pro') ? 'Nano Banana Pro' : modelId.includes('3.1') ? 'Nano Banana 2' : 'Nano Banana')
       : (modelName || 'Nano Banana 2')
 
     console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, preserveFromInput ? '(保留原图比例/清晰度)' : '', 'imageConfig:', JSON.stringify(imageConfig))
@@ -977,8 +993,78 @@ app.post('/api/image-edit', async (req, res) => {
     // 多轮 chat 方案因 Nano Banana 2 的 thought_signature 机制报 400，已放弃
     const desc = (textDescription || '').trim()
     const colorLabel = (colorName || 'custom').trim()
+    const ratio = Number(expansionRatio) || 1.5
+    const pct = Math.round((ratio - 1) * 100)
+
+    // 扩图两轮调用：第一步用 Gemini 分析原图提取关键词，第二步注入模板生图
+    let expansionPrompt
+    if (isSmartExpansion) {
+      let keywords = ''
+      try {
+        const recognitionQuery = 'Identify the main subject, the specific background elements, and the lighting style of this image. Answer in 5-10 keywords only, comma-separated. No sentences.'
+        const analysisResp = await ai.models.generateContent({
+          model: ANALYSIS_MODEL_ID,
+          contents: [
+            { inlineData: { mimeType: parsedImages[0].mimeType, data: parsedImages[0].data } },
+            { text: recognitionQuery },
+          ],
+        })
+        const text = analysisResp?.text ?? (analysisResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+        keywords = String(text || '').trim().replace(/\n+/g, ', ').slice(0, 300)
+        if (keywords) {
+          console.log('[后端 API] 扩图视觉分析关键词:', keywords)
+        }
+      } catch (e) {
+        console.log('[后端 API] 扩图视觉分析失败，使用通用 prompt:', e.message)
+      }
+      const contentBlock = keywords
+        ? `[CONTENT TO ADD] Extend the following elements: ${keywords}. Continue naturally beyond the edges. If the subject is cropped (e.g. shoulders, limbs), complete the person's body and clothing. If background has bokeh, maintain shallow depth of field in extended areas.`
+        : `[CONTENT TO ADD] Fill the expanded area with coherent content that matches the foreground subject. If the subject is cropped (e.g. shoulders, limbs), complete the person's body and clothing naturally. If the background has shallow depth of field or bokeh, maintain that blur effect in the extended areas.`
+      expansionPrompt = `[TASK] Outpaint and extend the boundaries of the image seamlessly. The image you see is the CENTER of a larger canvas. You MUST output a visibly LARGER image — add approximately ${pct}% more content on EACH side (top, bottom, left, right).
+
+${contentBlock}
+
+[STYLE CONSISTENCY] Strictly maintain the original artistic style, lighting direction, color palette, and lens characteristics.
+
+[QUALITY CONTROL] Seamless transition, consistent lighting, matching textures, high resolution, no visible seams. Photorealistic. No text or logos. Same aspect ratio.`
+    }
+    // 提升质感：官方系统指令，NB2 侧重清晰度 / NB Pro 侧重物理质感
+    const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
+    const refinementPromptNB2 = `You are an efficient image clarity enhancement expert. Your task is to transform this blurry or low-quality image into a clear, bright, modern photographic work.
+
+CORE LOGIC:
+1. Sharpen edges: Eliminate blurriness, enhance object contour definition.
+2. Color optimization: Increase dynamic range — deeper shadows, more transparent highlights.
+3. Noise reduction: Remove noise and speckles while preserving necessary texture.
+4. Style guidance: Lean toward clean commercial photography; make objects look brand new.
+
+OUTPUT: High saturation, high contrast. Keep shape and position identical. No text or logos. Photorealistic.`
+
+    const refinementPromptNBPro = `You are a top industrial photographer and physical material simulation master. Your task is to deeply reshape the physical texture of this image, making objects look tangible.
+
+CORE LOGIC:
+1. Micro-texture (tactile realism): Based on object materials (metal, wood, fabric), generate microscopic details — metal grains, fiber strands, tiny imperfections.
+2. Physical lighting: Simulate complex global illumination, rim light, subsurface scattering; enhance volume and weight.
+3. Authentic imperfections: Add reasonable wear, dust particles, or fingerprints; break the "CG feel"; pursue extreme realism.
+4. Depth control: Apply professional shallow depth of field; perfect separation of subject from background.
+
+OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. Keep shape and position identical. No text or logos. Photorealistic.`
+
+    let refinementPrompt = productRefinementModel === 'Nano Banana Pro' ? refinementPromptNBPro : refinementPromptNB2
+    const userMaterial = typeof materialPrompt === 'string' ? materialPrompt.trim() : ''
+    if (userMaterial) {
+      const isPlastic = /\b(plastic|resin|acrylic|matte\s+satin|translucent\s+frosted|high-gloss\s+polished)\b/i.test(userMaterial)
+      const plasticBoost = isPlastic
+        ? ' CRITICAL for plastic realism: emphasize Subsurface Scattering (SSS), Soft-touch tactile texture, and Beveled edges.'
+        : ''
+      refinementPrompt = `${refinementPrompt} The subject is made of ${userMaterial}.${plasticBoost} Apply macro-photography style and material-appropriate lighting. Ensure the texture enhancement matches this specific material seamlessly.`
+    }
     const finalPrompt = isRecolor
       ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
+      : isSmartExpansion
+      ? expansionPrompt
+      : isProductRefinement
+      ? refinementPrompt
       : prompt.trim()
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
@@ -1036,6 +1122,7 @@ app.post('/api/image-edit', async (req, res) => {
         const imgId = `edit-${Date.now()}`
         const modeLabel = {
           'add-remove': '添加/移除元素', inpainting: '局部重绘', recolor: '一键换色',
+          'smart-expansion': '智能扩图', 'product-refinement': '提升质感',
           'style-transfer': '风格迁移', composition: '高级合成', 'hi-fidelity': '高保真细节',
           'bring-to-life': '让草图变生动', 'character-360': '角色一致性',
           'text-replace': '文字替换', 'text-translate': '文字翻译',
