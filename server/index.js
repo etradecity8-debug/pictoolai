@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from '
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createHash } from 'crypto'
+import imageSize from 'image-size'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { GoogleGenAI } from '@google/genai'
@@ -461,6 +462,30 @@ const ASPECT_RATIO_MAP = {
 // 清晰度文案 → Gemini imageConfig.imageSize（0.5K 仅 Nano Banana 2 支持）
 const CLARITY_TO_SIZE = { '0.5K 快速': '512', '1K 标准': '1K', '2K 高清': '2K', '4K 超清': '4K' }
 
+// 从图片 buffer 获取尺寸并推断 aspectRatio（保留原图比例）、clarity（保留原图清晰度）
+const RATIO_VALUES = [
+  ['1:1', 1], ['2:3', 2/3], ['3:2', 3/2], ['3:4', 3/4], ['4:3', 4/3],
+  ['4:5', 4/5], ['5:4', 5/4], ['9:16', 9/16], ['16:9', 16/9], ['21:9', 21/9],
+  ['1:4', 1/4], ['1:8', 1/8], ['4:1', 4], ['8:1', 8],
+]
+function getAspectRatioFromDimensions(width, height) {
+  if (!width || !height) return '1:1'
+  const r = width / height
+  let best = RATIO_VALUES[0][0]
+  let bestD = Math.abs(r - RATIO_VALUES[0][1])
+  for (const [val, v] of RATIO_VALUES) {
+    const d = Math.abs(r - v)
+    if (d < bestD) { bestD = d; best = val }
+  }
+  return best
+}
+function getClarityFromDimensions(width, height) {
+  const max = Math.max(width || 0, height || 0)
+  if (max > 2048) return '4K 超清'
+  if (max > 1024) return '2K 高清'
+  return '1K 标准'
+}
+
 // 全品类组图：确认规划后生成图片（调用 Gemini 生图模型）
 app.post('/api/detail-set/generate', async (req, res) => {
   try {
@@ -851,30 +876,97 @@ app.delete('/api/gallery/:id', requireAuth, (req, res) => {
   }
 })
 
+// ---------- 图片文字提取（OCR，供文字替换模式框选用） ----------
+app.post('/api/image-edit/extract-text', async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { image } = req.body || {}
+    const parsed = parseDataUrl(image)
+    if (!parsed) return res.status(400).json({ error: '图片格式无效，请重新上传' })
+
+    const ai = new GoogleGenAI({ apiKey })
+    const contents = [
+      { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
+      {
+        text:
+          'Extract all text visible in this image. Return ONLY the raw text, nothing else. ' +
+          'Preserve line breaks. If no text is found, return an empty string.',
+      },
+    ]
+    const response = await ai.models.generateContent({
+      model: ANALYSIS_MODEL_ID,
+      contents,
+    })
+    const text =
+      response?.text ??
+      (response?.candidates?.[0]?.content?.parts
+        ?.map((p) => p.text)
+        .filter(Boolean)
+        .join('') || '')
+    const trimmed = String(text || '').trim()
+    return res.json({ text: trimmed })
+  } catch (e) {
+    console.error('[后端 API] 图片文字提取失败', e.message)
+    const cause = e?.cause || e
+    const msg = /503|UNAVAILABLE/i.test(e?.message || '')
+      ? '服务暂时繁忙，请稍后重试'
+      : e?.message || '文字提取失败'
+    return res.status(500).json({ error: msg })
+  }
+})
+
 // ---------- 修改图片（7种模式） ----------
 app.post('/api/image-edit', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { mode, prompt, images, model: modelName, aspectRatio, clarity } = req.body
-    if (!prompt || !prompt.trim()) return res.status(400).json({ error: '请填写修改指令' })
+    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription } = req.body
+    // recolor 模式用 targetColor + textDescription 构建 prompt，其他模式需要 prompt
+    const isRecolor = mode === 'recolor'
+    if (!isRecolor && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    if (isRecolor && (!targetColor || typeof targetColor !== 'string')) return res.status(400).json({ error: '请选择目标颜色' })
+    if (isRecolor && (!textDescription || typeof textDescription !== 'string' || !textDescription.trim())) return res.status(400).json({ error: '请描述要换色的物体' })
     if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张图片' })
 
     // 解析所有参考图
     const parsedImages = images.map((img) => parseDataUrl(img)).filter(Boolean)
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
-    // 推荐模型：Nano Banana 2；也支持 Pro
-    const modelId = getImageModelId(modelName || 'Nano Banana 2')
+    // 局部重绘 / 局部消除 / 一键换色：从输入图推断比例与清晰度，保留原图
+    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor'
+    let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
+    if (preserveFromInput) {
+      try {
+        const buf = Buffer.from(parsedImages[0].data, 'base64')
+        const dim = imageSize(buf)
+        const w = dim?.width || 0, h = dim?.height || 0
+        aspectRatioVal = getAspectRatioFromDimensions(w, h)
+        resolvedClarity = getClarityFromDimensions(w, h)
+        // 大图用 3.1 支持 2K/4K，小图用 2.5
+        modelId = Math.max(w, h) > 1024 ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
+      } catch (e) {
+        aspectRatioVal = '1:1'
+        resolvedClarity = '1K 标准'
+        modelId = getImageModelId('Nano Banana')
+      }
+      imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
+    } else {
+      modelId = getImageModelId(modelName || 'Nano Banana 2')
+      const { clarity: c } = normalizeClarityForModel(modelName || 'Nano Banana 2', clarity || '1K 标准')
+      resolvedClarity = c
+      imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
+      aspectRatioVal = String(ASPECT_RATIO_MAP[aspectRatio] || '1:1')
+    }
     const is25Image = modelId === 'gemini-2.5-flash-image'
-    const { clarity: resolvedClarity } = normalizeClarityForModel(modelName || 'Nano Banana 2', clarity || '1K 标准')
-    const imageSize = CLARITY_TO_SIZE[resolvedClarity] || '1K'
-    const aspectRatioVal = String(ASPECT_RATIO_MAP[aspectRatio] || '1:1')
     const imageConfig = is25Image
       ? { aspectRatio: aspectRatioVal }
-      : { aspectRatio: aspectRatioVal, imageSize: String(imageSize) }
+      : { aspectRatio: aspectRatioVal, imageSize: String(imageSizeVal) }
+    const modelDisplayName = preserveFromInput
+      ? (modelId.includes('3.1') ? 'Nano Banana 2' : 'Nano Banana')
+      : (modelName || 'Nano Banana 2')
 
-    console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, 'imageConfig:', JSON.stringify(imageConfig))
+    console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, preserveFromInput ? '(保留原图比例/清晰度)' : '', 'imageConfig:', JSON.stringify(imageConfig))
 
     const ai = new GoogleGenAI({ apiKey })
     const isHeavy = modelId.includes('pro') || modelId.includes('3.1')
@@ -883,9 +975,14 @@ app.post('/api/image-edit', async (req, res) => {
 
     // 所有模式统一使用单次 generateContent：图片 + 指令一并发送
     // 多轮 chat 方案因 Nano Banana 2 的 thought_signature 机制报 400，已放弃
+    const desc = (textDescription || '').trim()
+    const colorLabel = (colorName || 'custom').trim()
+    const finalPrompt = isRecolor
+      ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
+      : prompt.trim()
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
-      { text: prompt.trim() },
+      { text: finalPrompt },
     ]
 
     let response, lastErr
@@ -924,7 +1021,7 @@ app.post('/api/image-edit', async (req, res) => {
     // 积分扣减 + 自动存图库（登录用户）
     const auth = req.headers.authorization
     const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null
-    const pointsUsed = getPointsPerImage(modelName || 'Nano Banana 2', resolvedClarity || '1K 标准')
+    const pointsUsed = getPointsPerImage(modelDisplayName, resolvedClarity || '1K 标准')
     let newBalance = null
     if (token) {
       try {
@@ -934,16 +1031,17 @@ app.post('/api/image-edit', async (req, res) => {
         if (balance < pointsUsed) {
           return res.status(402).json({ error: '积分不足', required: pointsUsed, balance })
         }
-        deductPoints(email, pointsUsed, `修改图片 (${modelName || 'Nano Banana 2'}, ${resolvedClarity || '1K 标准'}, ${mode})`)
+        deductPoints(email, pointsUsed, `修改图片 (${modelDisplayName}, ${resolvedClarity || '1K 标准'}, ${mode})`)
         newBalance = getBalance(email)
         const imgId = `edit-${Date.now()}`
         const modeLabel = {
-          'add-remove': '添加/移除元素', inpainting: '局部重绘', 'style-transfer': '风格迁移',
-          composition: '高级合成', 'hi-fidelity': '高保真细节', 'bring-to-life': '让草图变生动',
-          'character-360': '角色一致性', 'text-replace': '文字替换', 'text-translate': '文字翻译',
+          'add-remove': '添加/移除元素', inpainting: '局部重绘', recolor: '一键换色',
+          'style-transfer': '风格迁移', composition: '高级合成', 'hi-fidelity': '高保真细节',
+          'bring-to-life': '让草图变生动', 'character-360': '角色一致性',
+          'text-replace': '文字替换', 'text-translate': '文字翻译',
         }[mode] || mode
         try {
-          saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelName || null, resolvedClarity || null)
+          saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)
         } catch (e) {
           console.error('[后端 API] 修改图片存图库失败', e.message)
         }
@@ -1366,7 +1464,23 @@ Prohibited and replacements (compliance):
 - Green: No eco-friendly, environmentally friendly, green, biodegradable, compostable, sustainable unless certified; use concrete material claims (e.g. "Made of 100% natural bamboo", "Recycled paper packaging").
 - Other: No contact info, no "Leave a review"/Feedback, avoid "New"/"Newest" unless truly new; no ALL CAPS except brand.
 
-Optimize for: A9 search relevance, Cosmo discovery, Rufus Q&A style bullets, GEO/localization for ${marketLabel}.
+A9 (traditional search):
+- Title: First 50–80 characters MUST contain brand + core product term + 1–2 high-intent attribute words; order: brand + product + attributes.
+- Bullets: Distribute long-tail keywords naturally across 5 bullets; each bullet focuses on one theme; avoid keyword stuffing; prefer natural sentences.
+- Search terms: Do NOT repeat words from title or bullets; prefer synonyms, variants, and complementary terms.
+
+Cosmo (semantic search):
+- Bullets: Each bullet MUST use natural language to describe WHO uses it (target user), WHAT scenario (use case), and WHAT problem it solves (pain→solution).
+- Avoid keyword-first phrasing; lead with benefit or scenario, e.g. "Whether you're...", "Perfect for...", "When...".
+
+Rufus (AI shopping assistant):
+- Bullets: Each bullet MUST implicitly answer a common buyer question (e.g. Will it leak? How long does it last? Is it easy to clean? Is it durable?).
+- Answers MUST be concrete: dimensions, weight, material, certifications, test results; use keyAttributes from analysis when available.
+- Structure: [Implicit question] → [Direct answer with specifics].
+
+GEO (structured content + localization for ${marketLabel}):
+- Include precise data: dimensions, weight, material percentages, certifications; avoid vague claims like "lightweight" or "durable" without numbers.
+- Use market-appropriate units: US (inches, lbs); EU/JP (cm, kg). Use local terminology for ${marketLabel}.
 
 Input:
 - Product summary from analysis: ${analyzeResult.productSummary}
@@ -1411,17 +1525,36 @@ Output ONLY valid JSON (no markdown):
   }
 })
 
-// Step 3：生成亚马逊产品图（1 张主图 + 可选附加图，共 1～9 张，扣积分）
+// Step 3：生成亚马逊产品图（白底主图 / 场景图 / 特写图，各 0～4 张，扣积分）
 app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { productImage, productName, brand, model: modelName, count: reqCount } = req.body || {}
+    const { productImage, productName, brand, model: modelName, mainCount, sceneCount, closeUpCount, sellingPoints, sellingPointCount, sellingPointShowText, lang, count: reqCount } = req.body || {}
     if (!productImage) return res.status(400).json({ error: '请提供产品图' })
     const parsed = parseDataUrl(productImage)
     if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
 
-    const count = Math.min(9, Math.max(1, parseInt(reqCount, 10) || 1))
+    const sellingPointsArr = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(x => x.trim()).filter(Boolean) : [])
+    let sp = Math.min(Math.max(0, parseInt(sellingPointCount, 10) || 0), sellingPointsArr.length)
+
+    // 优先使用 mainCount/sceneCount/closeUpCount（新三档选择）
+    const hasNewParams = mainCount != null || sceneCount != null || closeUpCount != null
+    let m = Math.min(4, Math.max(0, parseInt(mainCount, 10) || 0))
+    let s = Math.min(4, Math.max(0, parseInt(sceneCount, 10) || 0))
+    let c = Math.min(4, Math.max(0, parseInt(closeUpCount, 10) || 0))
+    if (m + s + c + sp === 0) {
+      if (hasNewParams || sellingPointCount != null) {
+        return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
+      }
+      if (reqCount != null) {
+        m = Math.min(9, Math.max(1, parseInt(reqCount, 10) || 1))
+      } else {
+        return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
+      }
+    }
+    console.log('[Amazon Listing] Step 3 请求数量', { mainCount, sceneCount, closeUpCount, sellingPointCount, m, s, c, sp, total: m + s + c + sp })
+    const count = m + s + c + sp
     const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
     const totalPoints = count * pointsPerImg
     const email = req.user.email
@@ -1435,52 +1568,97 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
     const genCfg = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
     const noTextRule = `CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks. Product name and brand below are CONTEXT ONLY — do NOT render them in the image.`
 
-    const baseContents = [
-      { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
-    ]
+    const baseContents = [{ inlineData: { mimeType: parsed.mimeType, data: parsed.data } }]
+    const productCtx = `Product: ${productName || 'product'}. Brand context: ${brand || ''}.`
 
-    let mainImage = null
+    const mainImages = []
+    const sceneImages = []
+    const closeUpImages = []
+    const sellingPointImages = []
+    const sellingPointLabels = []
+    const mainImageIds = []
+    const sceneImageIds = []
+    const closeUpImageIds = []
+    const sellingPointImageIds = []
     let mainImageId = null
-    const additionalImages = []
 
-    for (let i = 0; i < count; i++) {
-      const isMain = i === 0
-      const prompt = isMain
-        ? `${noTextRule} --- Amazon main image requirement: Pure white background only (RGB 255,255,255, #FFFFFF). Product: ${productName || 'product'}. Brand context: ${brand || ''}. Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
-        : `${noTextRule} --- Amazon additional image (image ${i + 1} of ${count}): Same product as reference. Show a different angle or minimal lifestyle context (e.g. on a clean surface), professional product photography, high resolution. No text, no logos. Product: ${productName || 'product'}. Brand context: ${brand || ''}.`
-      const contents = [...baseContents, { text: prompt }]
-      console.log(`[Amazon Listing] Step 3 产品图 | 正在生成第 ${i + 1}/${count} 张${isMain ? '（主图）' : '（附加图）'} | 模型:`, imageModelId)
+    const mainPrompt = `${noTextRule} --- Amazon main image: Pure white background only (RGB 255,255,255, #FFFFFF). ${productCtx} Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
+    const scenePrompt = `${noTextRule} --- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting. Product on a clean surface or in a natural environment (e.g. desk, kitchen, living room). Show product in context. Professional product photography, high resolution. No text, no logos. ${productCtx}`
+    const closeUpPrompt = `${noTextRule} --- Amazon detail/close-up image: Same product. Extreme close-up or macro shot showing product details, texture, materials, craftsmanship. Highlight key features. Professional product photography, high resolution. No text, no logos. ${productCtx}
 
-      const resp = await ai.models.generateContent({
-        model: imageModelId,
-        contents,
-        config: genCfg,
-      })
+CRITICAL - Reference image usage: Use the reference ONLY for the product's appearance (shape, color, material). Do NOT copy its background, table, room, or any unrelated elements. Create a completely new, clean composition.
+
+CRITICAL - Clean product only: (1) Pure white or soft gradient studio background (no walls, furniture, or clutter). (2) Product surface must be DRY—no water, no droplets, no moisture, no dew. (3) Physically correct placement: seating products (stool, chair) belong on the floor or in a studio—never on a table. For close-up, show a product detail (e.g. leg joint, surface texture) with the product in proper context or isolated on clean white.`
+
+    let idx = 0
+    for (let i = 0; i < m; i++) {
+      idx++
+      const contents = [...baseContents, { text: mainPrompt }]
+      console.log(`[Amazon Listing] Step 3 | 第 ${idx}/${count} 张（白底主图）| 模型:`, imageModelId)
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
       const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
-      if (!part) {
-        return res.status(500).json({ error: `第 ${i + 1} 张图生成未返回图片，请重试` })
-      }
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张（白底主图）生成未返回图片，请重试` })
       const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
-
-      if (isMain) {
-        mainImage = dataUrl
-        const mainId = `amazon-main-${Date.now()}`
-        try {
-          saveImageToGallery(email, mainId, `${productName || '产品'}·主图`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
-          mainImageId = mainId
-        } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
-      } else {
-        additionalImages.push(dataUrl)
-        try {
-          saveImageToGallery(email, `amazon-extra-${Date.now()}-${i}`, `${productName || '产品'}·附加图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准')
-        } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
-      }
+      mainImages.push(dataUrl)
+      const id = i === 0 ? `amazon-main-${Date.now()}` : `amazon-main-${Date.now()}-${i}`
+      if (i === 0) mainImageId = id
+      mainImageIds.push(id)
+      try { saveImageToGallery(email, id, `${productName || '产品'}·白底主图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+    }
+    for (let i = 0; i < s; i++) {
+      idx++
+      const contents = [...baseContents, { text: scenePrompt }]
+      console.log(`[Amazon Listing] Step 3 | 第 ${idx}/${count} 张（场景图）| 模型:`, imageModelId)
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张（场景图）生成未返回图片，请重试` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sceneImages.push(dataUrl)
+      const sid = `amazon-scene-${Date.now()}-${i}`
+      sceneImageIds.push(sid)
+      try { saveImageToGallery(email, sid, `${productName || '产品'}·场景图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+    }
+    for (let i = 0; i < c; i++) {
+      idx++
+      const contents = [...baseContents, { text: closeUpPrompt }]
+      console.log(`[Amazon Listing] Step 3 | 第 ${idx}/${count} 张（特写图）| 模型:`, imageModelId)
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张（特写图）生成未返回图片，请重试` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      closeUpImages.push(dataUrl)
+      const cid = `amazon-closeup-${Date.now()}-${i}`
+      closeUpImageIds.push(cid)
+      try { saveImageToGallery(email, cid, `${productName || '产品'}·特写图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+    }
+    const langName = { zh: 'Chinese', en: 'English', de: 'German', fr: 'French', ja: 'Japanese', es: 'Spanish' }[lang] || 'English'
+    for (let i = 0; i < sp; i++) {
+      idx++
+      const pointText = sellingPointsArr[i] || ''
+      const textRule = sellingPointShowText
+        ? `CRITICAL - Text on image: This image MUST display the selling point text clearly and elegantly. The text must be in ${langName}. The content is: "${pointText}". If the point is in another language, translate it to ${langName} for display. Place the text with sufficient margins (8–12% from edges), readable typography, no clipping.`
+        : noTextRule
+      const noTextSuffix = sellingPointShowText ? '' : ' No text, no logos.'
+      const sellingPointPrompt = `${textRule} --- Amazon selling-point image: Same product. This image must visually showcase THIS specific selling point: "${pointText}". ${productCtx} Create a professional product photo that illustrates the benefit or feature—e.g. if the point is about stackability, show stacked units; if about durability, show texture or structure; if about portability, show in-hand or compact. Pure white or soft gradient studio background. Professional product photography, high resolution.${noTextSuffix} Reference image for product look only; do not copy background. Product surface dry, no water or droplets. Physically correct placement (e.g. stool on floor, not on table).`
+      const contents = [...baseContents, { text: sellingPointPrompt }]
+      console.log(`[Amazon Listing] Step 3 | 第 ${idx}/${count} 张（卖点图 ${i + 1}）| 模型:`, imageModelId)
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张（卖点图 ${i + 1}）生成未返回图片，请重试` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sellingPointImages.push(dataUrl)
+      sellingPointLabels.push(pointText)
+      const spid = `amazon-sellingpoint-${Date.now()}-${i}`
+      sellingPointImageIds.push(spid)
+      try { saveImageToGallery(email, spid, `${productName || '产品'}·卖点${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
     }
 
     deductPoints(email, totalPoints, `亚马逊产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
     const newBalance = getBalance(email)
+    const mainImage = mainImages[0] || null
+    const additionalImages = [...mainImages.slice(1), ...sceneImages, ...closeUpImages, ...sellingPointImages]
     console.log('[Amazon Listing] Step 3 产品图完成 ✓ 共', count, '张')
-    return res.json({ mainImage, additionalImages, pointsUsed: totalPoints, newBalance, mainImageId: mainImageId || null })
+    return res.json({ mainImage, mainImages, sceneImages, closeUpImages, sellingPointImages, sellingPointLabels, mainImageIds, sceneImageIds, closeUpImageIds, sellingPointImageIds, additionalImages, pointsUsed: totalPoints, newBalance, mainImageId: mainImageId || null })
   } catch (e) {
     console.error('[Amazon Listing] generate-product-images 失败', e.message)
     return res.status(500).json({ error: e.message || '产品图生成失败，请稍后重试' })
@@ -1490,16 +1668,17 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
 // 保存当前 Listing 到历史（方案一：独立表）
 app.post('/api/ai-assistant/amazon/save-listing', requireAuth, (req, res) => {
   try {
-    const { name, title, searchTerms, bullets, description, analyzeResult, aplusCopy, mainImageId, aplusImageIds } = req.body || {}
+    const { name, title, searchTerms, bullets, description, analyzeResult, aplusCopy, mainImageId, aplusImageIds, productImageIds } = req.body || {}
     if (!title || title.trim() === '') return res.status(400).json({ error: '请提供标题' })
     const email = req.user.email
     const created_at = Date.now()
     const bulletsStr = Array.isArray(bullets) ? JSON.stringify(bullets) : (typeof bullets === 'string' ? bullets : '[]')
     const aplusIdsStr = Array.isArray(aplusImageIds) ? JSON.stringify(aplusImageIds) : null
+    const productIdsStr = productImageIds && typeof productImageIds === 'object' ? JSON.stringify(productImageIds) : null
     getDb()
       .prepare(
-        `INSERT INTO amazon_listing_snapshots (user_email, created_at, name, title, search_terms, bullets, description, analyze_result, aplus_copy, main_image_id, aplus_image_ids)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO amazon_listing_snapshots (user_email, created_at, name, title, search_terms, bullets, description, analyze_result, aplus_copy, main_image_id, aplus_image_ids, product_image_ids)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         email,
@@ -1512,7 +1691,8 @@ app.post('/api/ai-assistant/amazon/save-listing', requireAuth, (req, res) => {
         analyzeResult != null ? JSON.stringify(analyzeResult) : null,
         aplusCopy != null ? JSON.stringify(aplusCopy) : null,
         mainImageId || null,
-        aplusIdsStr
+        aplusIdsStr,
+        productIdsStr
       )
     const row = getDb().prepare('SELECT id, created_at, name, title FROM amazon_listing_snapshots WHERE user_email = ? AND created_at = ?').get(email, created_at)
     console.log('[Amazon Listing] 已保存到历史 id:', row?.id)
@@ -1555,6 +1735,13 @@ app.get('/api/ai-assistant/amazon/listings/:id', requireAuth, (req, res) => {
     try {
       bullets = JSON.parse(row.bullets || '[]')
     } catch (_) {}
+    let productImageIds = null
+    try {
+      productImageIds = row.product_image_ids ? JSON.parse(row.product_image_ids) : null
+    } catch (_) {}
+    if (!productImageIds && row.main_image_id) {
+      productImageIds = { mainImageIds: [row.main_image_id], sceneImageIds: [], closeUpImageIds: [], sellingPointImageIds: [] }
+    }
     return res.json({
       id: row.id,
       createdAt: row.created_at,
@@ -1567,10 +1754,26 @@ app.get('/api/ai-assistant/amazon/listings/:id', requireAuth, (req, res) => {
       aplusCopy: row.aplus_copy ? JSON.parse(row.aplus_copy) : null,
       mainImageId: row.main_image_id || null,
       aplusImageIds: row.aplus_image_ids ? JSON.parse(row.aplus_image_ids) : null,
+      productImageIds,
     })
   } catch (e) {
     console.error('[Amazon Listing] listing 详情失败', e.message)
     return res.status(500).json({ error: '获取详情失败' })
+  }
+})
+
+// 删除单条 Listing 历史
+app.delete('/api/ai-assistant/amazon/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    if (Number.isNaN(id)) return res.status(400).json({ error: '无效的 id' })
+    const stmt = getDb().prepare('DELETE FROM amazon_listing_snapshots WHERE id = ? AND user_email = ?')
+    const result = stmt.run(id, req.user.email)
+    if (result.changes === 0) return res.status(404).json({ error: '未找到该记录或无权删除' })
+    return res.json({ ok: true })
+  } catch (e) {
+    console.error('[Amazon Listing] delete listing 失败', e.message)
+    return res.status(500).json({ error: '删除失败' })
   }
 })
 

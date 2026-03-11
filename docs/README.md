@@ -13,6 +13,7 @@
 | [AMAZON-LISTING-IMAGE-PROMPTS.md](./AMAZON-LISTING-IMAGE-PROMPTS.md) | 亚马逊主图与 A+ 图片的提示词与准则；与官方要求对照及当前实现说明。 |
 | [AMAZON-APLUS-MODULES.md](./AMAZON-APLUS-MODULES.md) | A+ 模块定义、本系统支持的 17 种模块、推荐套餐与接口约定。 |
 | [DATA-FLOW.md](./DATA-FLOW.md) | 全品类组图页的字段与 AI 传参说明、数据流。 |
+| [AI-DESIGNER-RECOLOR.md](./AI-DESIGNER-RECOLOR.md) | AI 美工 · 一键换色：文字描述、色卡、自定义取色、批量生图。 |
 
 ---
 
@@ -30,16 +31,6 @@
 | 文档 | 说明 |
 |------|------|
 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、待办、运营须知（数据隐私、仓库下载、A+ 迭代、积分/支付、部署优先级等）。 |
-
----
-
-## 参考（Gemini 智能体/指令，已转 txt 可读）
-
-| 文档 | 说明 |
-|------|------|
-| [gemini-listing-agent.txt](./gemini-listing-agent.txt) | 用 Gemini 做 Rufus 级 Listing 智能体：工作流、指令模板、合规与违禁词速查表（由原 docx 转 txt）。 |
-| [gemini-instruction-template.txt](./gemini-instruction-template.txt) | Gemini 指令模板：生成/优化 Listing、五点、产品描述、QA、竞品调研等 8 条（由原 docx 转 txt）。 |
-| [gemini-40-instructions.txt](./gemini-40-instructions.txt) | Gemini 40 条亚马逊运营指令：关键词、竞品、五点、后端关键词、A+ 建议等（由原 docx 转 txt）。 |
 
 ---
 
