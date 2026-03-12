@@ -54,23 +54,23 @@ const MODE_DEMOS = {
   'character-360': {
     before: '/demo-man-original.png',
     beforeLabel: '参考图',
-    after: ['/demo-man-forward.png', '/demo-man-right.png'],
-    afterLabels: ['正面输出', '侧面输出'],
-    prompt: '基于参考图，分别生成该人物的正面白底棚拍肖像，以及右侧侧面视图，保持面部特征、发型、眼镜与服装完全一致。',
+    after: ['/demo-man-right.png'],
+    afterLabels: ['右侧图'],
+    prompt: '基于参考图，生成该人物的右侧侧面白底棚拍肖像图，保持面部特征、发型、眼镜与服装完全一致。',
   },
   'text-replace': {
-    before: null,
+    before: '/demo-text-replace-before.png',
     beforeLabel: '含文字的图片',
-    after: null,
+    after: '/demo-text-replace-after.png',
     afterLabel: '文字替换后',
-    prompt: '将图片中的文字「SALE 50% OFF」替换为「限时特惠 买一送一」，保持原有字体样式、大小、颜色、位置与排版完全不变。',
+    prompt: '', // 只显示箭头，不显示文字
   },
   'text-translate': {
-    before: null,
+    before: '/demo-text-translate-before.png',
     beforeLabel: '原语言图片',
-    after: null,
+    after: '/demo-text-translate-after.png',
     afterLabel: '翻译后',
-    prompt: '将图片中所有英文文字翻译为简体中文，保持原有字体样式、大小、颜色、位置和整体视觉设计完全不变，翻译内容自然流畅。',
+    prompt: '', // 只显示箭头，不显示文字
   },
 }
 

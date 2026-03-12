@@ -153,7 +153,11 @@ export default function DetailSet() {
   const [savingToGallery, setSavingToGallery] = useState(null)
   const [productImages, setProductImages] = useState([])
   const [productName, setProductName] = useState('')
-  const [sellingPoints, setSellingPoints] = useState('')
+  const [sellingPoint1, setSellingPoint1] = useState('')
+  const [sellingPoint2, setSellingPoint2] = useState('')
+  const [sellingPoint3, setSellingPoint3] = useState('')
+  const [sellingPoint4, setSellingPoint4] = useState('')
+  const [sellingPoint5, setSellingPoint5] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
   const [styleDesc, setStyleDesc] = useState('')
   const [otherRequirements, setOtherRequirements] = useState('')
@@ -233,7 +237,9 @@ export default function DetailSet() {
     try {
       const requirementsParts = []
       if (productName.trim()) requirementsParts.push(`产品名称：${productName.trim()}`)
-      if (sellingPoints.trim()) requirementsParts.push(`卖点：${sellingPoints.trim()}`)
+      const sellingPointsLines = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5]
+        .map(s => s.trim()).filter(Boolean)
+      if (sellingPointsLines.length) requirementsParts.push(`卖点：${sellingPointsLines.join('\n')}`)
       if (targetAudience.trim()) requirementsParts.push(`目标人群：${targetAudience.trim()}`)
       if (styleDesc.trim()) requirementsParts.push(`风格：${styleDesc.trim()}`)
       if (otherRequirements.trim()) requirementsParts.push(`其他要求：${otherRequirements.trim()}`)
@@ -345,13 +351,14 @@ export default function DetailSet() {
         </div>
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900">一键生成详情图组</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          上传产品图，AI 智能分析产品特征，自动生成多角度、多场景的电商详情图组
-        </p>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">一键电商生图</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            上传产品图，AI 智能分析产品特征，自动生成多角度、多场景的电商详情图组
+          </p>
 
-        {/* 进度条 */}
-        <div className="mt-8 flex items-center gap-2">
+          {/* 进度条 */}
+          <div className="mt-8 flex items-center justify-center gap-2">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center gap-2">
               <span
@@ -373,6 +380,7 @@ export default function DetailSet() {
               )}
             </div>
           ))}
+          </div>
         </div>
 
         {/* 左右双栏 */}
@@ -397,7 +405,7 @@ export default function DetailSet() {
             {/* 产品图上传 */}
             <div className={step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-semibold text-gray-900">产品图</h2>
+                <h2 className="text-sm font-semibold text-gray-900">产品图 <span className="text-red-500">*</span></h2>
                 {step >= 3 && (
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                     <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -483,20 +491,26 @@ export default function DetailSet() {
                     }}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700">卖点</label>
-                  <input
-                    type="text"
-                    readOnly={step >= 3}
-                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="例如：天然成分、舒缓放松、无刺激"
-                    value={sellingPoints}
-                    onChange={(e) => {
-                      setSellingPoints(e.target.value)
-                      resetToInputIfEdited()
-                    }}
-                  />
-                </div>
+                {[1, 2, 3, 4, 5].map((i) => {
+                  const val = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5][i - 1]
+                  const setVal = [setSellingPoint1, setSellingPoint2, setSellingPoint3, setSellingPoint4, setSellingPoint5][i - 1]
+                  return (
+                    <div key={i}>
+                      <label className="block text-xs font-medium text-gray-700">卖点 {i}</label>
+                      <input
+                        type="text"
+                        readOnly={step >= 3}
+                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder={i === 1 ? '例如：天然成分（可选）' : `第 ${i} 条卖点（可选）`}
+                        value={val}
+                        onChange={(e) => {
+                          setVal(e.target.value)
+                          resetToInputIfEdited()
+                        }}
+                      />
+                    </div>
+                  )
+                })}
                 <div>
                   <label className="block text-xs font-medium text-gray-700">目标人群</label>
                   <input
@@ -542,12 +556,12 @@ export default function DetailSet() {
               </div>
             </div>
 
-            {/* 下拉设置 */}
-            <div className="grid grid-cols-1 gap-3">
+            {/* 下拉设置：第一行 目标语言+模型（框拉大），第二行 清晰度+尺寸比例+生成数量 */}
+            <div className="grid grid-cols-[minmax(8rem,1.5fr)_minmax(8rem,1.5fr)_1fr] gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700">目标语言</label>
                 <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="mt-1 w-full min-w-[8rem] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   value={targetLanguage}
                   onChange={(e) => setTargetLanguage(e.target.value)}
                 >
@@ -556,7 +570,7 @@ export default function DetailSet() {
                   ))}
                 </select>
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className="block text-xs font-medium text-gray-700">模型</label>
                 <select
                   className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -569,18 +583,6 @@ export default function DetailSet() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">尺寸比例</label>
-                <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                >
-                  {getAspectOptionsForModel(model).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-xs font-medium text-gray-700">清晰度</label>
                 <select
                   className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
@@ -588,6 +590,18 @@ export default function DetailSet() {
                   onChange={(e) => setClarity(e.target.value)}
                 >
                   {getClarityOptionsForModel(model).map((opt) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700">尺寸比例</label>
+                <select
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={aspectRatio}
+                  onChange={(e) => setAspectRatio(e.target.value)}
+                >
+                  {getAspectOptionsForModel(model).map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>

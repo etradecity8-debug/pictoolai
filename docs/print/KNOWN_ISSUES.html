@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/11</div>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/12</div>
   <h1>已知问题与待办（后续再改）</h1>
 <h2>运营须知：数据隐私与客户信任</h2>
 <h3>技术层面：管理员能看到什么</h3>
@@ -133,6 +133,12 @@
 <li><strong>原因</strong>：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案。</li>
 <li><strong>恢复方式</strong>：前端 <code>src/pages/AiAssistant.jsx</code> 中改 <code>APLUS_STEP_ENABLED = true</code> 即可。</li>
 </ul>
+<h3>角色一致性：360° 全景 · 女模特指令执行偏差</h3>
+<ul>
+<li><strong>现象</strong>：用户测试发现，男模特的「左侧侧面」「右侧侧面」指令能正确执行；女模特的同类指令（如「左侧侧面白底棚拍肖像图」）却常生成相反结果（如实际输出右侧侧面）。</li>
+<li><strong>可能原因</strong>：模型对左侧/右侧视图的理解可能存在偏差，也可能是中文翻译成英文指令时存在偏差，待后续调试。</li>
+<li><strong>相关</strong>：修改图片 → 角色一致性：360° 全景（<code>character-360</code> 模式），<code>/api/image-edit</code>。</li>
+</ul>
 <h3>仓库保存/下载体验</h3>
 <ul>
 <li><strong>现状与不满</strong>：当前单张用「另存为」（showSaveFilePicker）可正常选路径保存；多张用「选择文件夹」（showDirectoryPicker）一次性写入，但部分目录（如含系统/隐藏文件）会被浏览器拒绝并提示「含有系统文件」，导致无法保存。用户对该块体验不满意，后续需再改。</li>
@@ -142,13 +148,43 @@
 <h3>AI 美工 · 一键换色</h3>
 <ul>
 <li><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>，侧边栏含「图片编辑」下局部重绘、局部消除、<strong>一键换色</strong>。</li>
-<li><strong>一键换色</strong>：上传图片 → 文字描述要换色的物体（如鼠标、裙子、头发）→ 选择 1–9 种颜色（色卡 24 种 + 自定义 hex/取色器）→ 批量生成。详见 <code>docs/AI-DESIGNER-RECOLOR.md</code>。</li>
+<li><strong>一键换色</strong>：上传图片 → 文字描述要换色的物体（如鼠标、裙子、头发）→ 选择 1–9 种颜色（色卡 24 种 + 自定义 hex/取色器）→ 批量生成。详见 <code>docs/AI-DESIGNER.md</code> 第一部分。</li>
 <li><strong>后端</strong>：<code>/api/image-edit</code> 新增 <code>mode: &#39;recolor&#39;</code>，<code>textDescription</code> + <code>targetColor</code> 构建 prompt，保留原图比例与清晰度。</li>
 <li><strong>示例图</strong>：<code>public/recolor-demo-original.png</code>、<code>recolor-demo-edited.png</code>（连衣裙换色）。</li>
 </ul>
 <h3>局部消除</h3>
 <ul>
 <li>示例区改用真实图片：<code>local-erase-demo-original.png</code>、<code>local-erase-demo-edited.png</code>（粉色鼠标桌面图）；移除未用 <code>PlaceholderBox</code>。</li>
+</ul>
+<hr>
+<h2>今日完成（2026-03-12）</h2>
+<h3>风格复刻功能</h3>
+<ul>
+<li><strong>路由</strong>：<code>/ai-designer/style-clone</code>，入口在 <strong>AI美工</strong> 侧边栏「风格复刻」；<code>/style-clone</code> 自动重定向至上述路径。</li>
+<li><strong>前端</strong>：<code>src/pages/StyleClone.jsx</code>。上传参考设计图（最多 14 张）、产品素材图（最多 6 张）、补充提示词（可选）；模型/尺寸/清晰度/生成数量；从作品库选图；生成结果网格、保存到本地。提示：参考图「最好只上传一种风格」、产品图「只上传一个产品」。</li>
+<li><strong>文案</strong>：标题「引领风格复刻：从参考到爆款，仅需一步」；副文案「依托 AI 视觉生成技术，精准复刻爆款调性，为您的商品注入视觉销售力。」</li>
+<li><strong>后端</strong>：<code>POST /api/style-clone</code>（需登录）。两阶段：① 用分析模型提取参考图风格描述；② 按产品图 + 风格描述 + 可选提示词循环生图。积分按张数扣除，自动存图库。</li>
+<li><strong>参考</strong>：Gemini 风格复刻最佳实践（多图参考、风格锁定 prompt、两阶段生成）。</li>
+</ul>
+<h3>今日其他更新（2026-03-12）</h3>
+<ul>
+<li><strong>Turbo 已移除</strong>：ImageRetouch（一键智能产品精修）、StyleClone 中不再有 Turbo 加速相关逻辑。</li>
+<li><strong>文字替换示例图</strong>：<code>demo-text-replace-before.png</code>、<code>demo-text-replace-after.png</code>（流浪猫救援海报风格）；箭头中间不显示 prompt 文字。</li>
+</ul>
+<h3>AI 美工 · 统一排版与体验</h3>
+<ul>
+<li><strong>材质预设 Tab 顺序</strong>：电子 / 塑料 / 纺织 / 木质 / 玻璃 / 工业 / 自然 / 轻奢；预设与 Tab 分类已核对一致（如蜂窝透明塑料→塑料、磨砂彩色玻→玻璃、液态水银/发光光纤→工业、粗粝亚麻/重磅真丝→纺织）。</li>
+<li><strong>提升质感页面</strong>：精修前/精修后图片改为 flex 紧凑布局、间距缩小；主内容区 <code>max-w-3xl</code>；「保存到本地」按钮移至精修后图片正下方。</li>
+<li><strong>保存按钮位置</strong>：五个模块（提升质感、智能扩图、局部重绘、局部消除、一键换色）的「保存到本地」均紧贴生成结果放置。</li>
+<li><strong>统一排版</strong>：标题 <code>text-2xl</code>、副文案 <code>text-base</code>、示例图 <code>w-72 h-72</code>、主卡片 <code>max-w-3xl p-4</code>、主按钮 <code>max-w-xs py-2.5 rounded-lg text-sm</code>。</li>
+<li><strong>广告词</strong>：提升质感「内置专业材质引擎，一键让你的产品图从「地摊货」变身「奢侈品」」；智能扩图「智能扩图，视界大开。」+ 两段副文案；一键换色「无论是时装还是产品，一键精准换色，效率提升 10 倍」。</li>
+<li><strong>文档</strong>：<code>docs/AI-DESIGNER.md</code> 新增「UI 布局与广告词」章节。</li>
+</ul>
+<h3>AI 美工 · 文字修改</h3>
+<ul>
+<li><strong>新增侧边栏分组</strong>：「文字修改」位于「抠图工具」与「官方示例」之间，含 2 项：文字替换、语言转换。</li>
+<li><strong>从官方示例移出</strong>：原「图片文字替换」「图片文字语言转换」移至「文字修改」，并重命名为「文字替换」「语言转换」。</li>
+<li><strong>页面排版</strong>：从 ai-designer 进入时，ImageEdit 使用 <code>hideModeSelector</code> 布局——标题居中、副文案 text-base、主内容 <code>max-w-3xl</code> 白底卡片；上传区文案「上传图片」「从作品库选择」与其它模块一致。</li>
 </ul>
 <hr>
 <h2>今日完成（2026-03-10）</h2>

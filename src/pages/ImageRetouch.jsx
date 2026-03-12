@@ -13,7 +13,6 @@ const SparkIcon = ({ className = 'h-5 w-5' }) => (
 
 export default function ImageRetouch() {
   const [uploadCount, setUploadCount] = useState(0)
-  const [turbo, setTurbo] = useState(false)
   const [model, setModel] = useState('Nano Banana Pro')
   const [clarity, setClarity] = useState('2K 高清')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
@@ -103,30 +102,6 @@ export default function ImageRetouch() {
                   </select>
                 </div>
               </div>
-            </div>
-
-            {/* Turbo 加速模式 */}
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3">
-              <div className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Turbo 加速模式</p>
-                  <p className="text-xs text-gray-500">更快、更稳定</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={turbo}
-                onClick={() => setTurbo(!turbo)}
-                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                  turbo ? 'bg-primary' : 'bg-gray-200'
-                }`}
-              >
-                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition ${turbo ? 'translate-x-5' : 'translate-x-1'}`} />
-              </button>
             </div>
 
             <button

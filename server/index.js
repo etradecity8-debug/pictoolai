@@ -1038,17 +1038,17 @@ CORE LOGIC:
 3. Noise reduction: Remove noise and speckles while preserving necessary texture.
 4. Style guidance: Lean toward clean commercial photography; make objects look brand new.
 
-OUTPUT: High saturation, high contrast. Keep shape and position identical. No text or logos. Photorealistic.`
+OUTPUT: High saturation, high contrast. CRITICAL: Keep the EXACT same background, framing, composition, and proportion as the input — do NOT change background, crop, or product size/position. Only enhance the subject's texture. No text or logos. Photorealistic.`
 
     const refinementPromptNBPro = `You are a top industrial photographer and physical material simulation master. Your task is to deeply reshape the physical texture of this image, making objects look tangible.
 
 CORE LOGIC:
-1. Micro-texture (tactile realism): Based on object materials (metal, wood, fabric), generate microscopic details — metal grains, fiber strands, tiny imperfections.
+1. Micro-texture (tactile realism): Generate microscopic details — metal grains, fiber strands, subtle texture — that match the specified or inferred material.
 2. Physical lighting: Simulate complex global illumination, rim light, subsurface scattering; enhance volume and weight.
-3. Authentic imperfections: Add reasonable wear, dust particles, or fingerprints; break the "CG feel"; pursue extreme realism.
+3. Surface state: When user specifies a material, the surface must be CLEAN and factory-fresh — NO rust, NO grime, NO dust, NO wear, NO fingerprints. Remove any existing dirt or aging from the input image. If no material is specified, you may add subtle wear only for materials that typically show patina (e.g. leather).
 4. Depth control: Apply professional shallow depth of field; perfect separation of subject from background.
 
-OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. Keep shape and position identical. No text or logos. Photorealistic.`
+OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. CRITICAL: Keep the EXACT same background, framing, composition, and proportion as the input — do NOT change background, crop, zoom, or product size/position. Only reshape the subject's surface texture. No text or logos. Photorealistic.`
 
     let refinementPrompt = productRefinementModel === 'Nano Banana Pro' ? refinementPromptNBPro : refinementPromptNB2
     const userMaterial = typeof materialPrompt === 'string' ? materialPrompt.trim() : ''
@@ -1057,7 +1057,8 @@ OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. Keep sh
       const plasticBoost = isPlastic
         ? ' CRITICAL for plastic realism: emphasize Subsurface Scattering (SSS), Soft-touch tactile texture, and Beveled edges.'
         : ''
-      refinementPrompt = `${refinementPrompt} The subject is made of ${userMaterial}.${plasticBoost} Apply macro-photography style and material-appropriate lighting. Ensure the texture enhancement matches this specific material seamlessly.`
+      const materialTransform = `CRITICAL: The subject MUST appear as clean, premium ${userMaterial}. REPLACE the current surface entirely — remove any rust, dirt, grime, wear, or aging from the input. The result must look like a factory-new product with pristine ${userMaterial} finish.`
+      refinementPrompt = `${refinementPrompt} ${materialTransform}${plasticBoost} Apply macro-photography style and material-appropriate lighting. Ensure the texture matches ${userMaterial} seamlessly. CRITICAL: Do NOT alter the background or framing — preserve the input's exact composition, crop, and proportion.`
     }
     const finalPrompt = isRecolor
       ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
@@ -1146,6 +1147,129 @@ OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. Keep sh
     if (e.status === 403) msg = '无访问权限（403），请检查 API Key'
     else if (e.status === 503 || /high demand/i.test(msg)) msg = '模型当前高负载（503），请稍后重试'
     else if (/fetch failed|UND_ERR/i.test(msg) || cause?.code?.startsWith('UND_ERR')) msg = `网络连接失败（${cause?.code || 'fetch failed'}），请检查代理`
+    return res.status(500).json({ error: msg })
+  }
+})
+
+// ────────────────────────────────────────────────────────────────
+// 风格复刻：参考图 + 产品图 → 两阶段（分析风格 → 生图）
+// ────────────────────────────────────────────────────────────────
+app.post('/api/style-clone', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { referenceImages, productImages, optionalPrompt, model: modelName, aspectRatio, clarity, quantity, mode } = req.body || {}
+    const refArr = Array.isArray(referenceImages) ? referenceImages : []
+    const productArr = Array.isArray(productImages) ? productImages : []
+    if (refArr.length === 0) return res.status(400).json({ error: '请上传至少 1 张参考设计图' })
+    if (productArr.length === 0) return res.status(400).json({ error: '请上传至少 1 张产品素材图' })
+
+    const parsedRefs = refArr.slice(0, 14).map((img) => parseDataUrl(img)).filter(Boolean)
+    const parsedProducts = productArr.map((img) => parseDataUrl(img)).filter(Boolean)
+    if (parsedRefs.length === 0) return res.status(400).json({ error: '参考图格式无效' })
+    if (parsedProducts.length === 0) return res.status(400).json({ error: '产品图格式无效' })
+
+    const count = Math.min(15, Math.max(1, parseInt(quantity, 10) || 1))
+    const modelId = getImageModelId(modelName || 'Nano Banana Pro')
+    const { clarity: resolvedClarity } = normalizeClarityForModel(modelName || 'Nano Banana Pro', clarity || '1K 标准')
+    const imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
+    const aspectRatioVal = String(ASPECT_RATIO_MAP[aspectRatio] || '1:1')
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana Pro', resolvedClarity)
+    const totalPoints = count * pointsPerImg
+    const email = req.user.email
+    const balance = getBalance(email)
+    if (balance < totalPoints) return res.status(402).json({ error: '积分不足', required: totalPoints, balance })
+
+    const ai = new GoogleGenAI({ apiKey })
+    const is25Image = modelId === 'gemini-2.5-flash-image'
+    const imageConfig = is25Image
+      ? { aspectRatio: aspectRatioVal }
+      : { aspectRatio: aspectRatioVal, imageSize: String(imageSizeVal) }
+    const genConfig = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+
+    let styleDescription = ''
+    try {
+      const analysisPrompt = `Analyze the provided reference image(s) to extract their precise artistic style. Describe in detail:
+1. Color palette and dominant tones
+2. Lighting and composition style
+3. Visual texture (e.g. watercolor, photorealistic, digital art)
+4. Overall mood and atmosphere
+
+Output a concise style description in 2-4 sentences. This will be used to replicate the style in new images.`
+      const analysisContents = [
+        ...parsedRefs.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
+        { text: analysisPrompt },
+      ]
+      const analysisResp = await ai.models.generateContent({
+        model: ANALYSIS_MODEL_ID,
+        contents: analysisContents,
+      })
+      const text = analysisResp?.text ?? (analysisResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+      styleDescription = String(text || '').trim().slice(0, 800)
+      if (styleDescription) console.log('[风格复刻] 风格描述:', styleDescription.slice(0, 150) + '...')
+    } catch (e) {
+      console.log('[风格复刻] 风格分析失败，使用通用描述:', e.message)
+      styleDescription = 'Professional e-commerce product photography style: clean composition, high contrast, premium lighting, modern aesthetic.'
+    }
+
+    const baseStylePrompt = `CRITICAL - Style replication: You MUST strictly adhere to and replicate the EXACT visual aesthetic described below. The new image must maintain consistency in tone, texture, and execution.
+
+STYLE TO REPLICATE: ${styleDescription}
+
+Generate a new, high-resolution e-commerce detail image. Use the product/subject from the attached image. The output must strictly adopt the same visual style as described above.`
+
+    const userPrompt = (optionalPrompt || '').trim()
+    const fullPrompt = userPrompt ? `${baseStylePrompt}\n\nADDITIONAL USER INSTRUCTIONS: ${userPrompt}` : baseStylePrompt
+
+    const results = []
+    const maxTries = 3
+    for (let i = 0; i < count; i++) {
+      const productIdx = mode === 'batch' ? i % parsedProducts.length : 0
+      const product = parsedProducts[productIdx]
+      const contents = [
+        { inlineData: { mimeType: product.mimeType, data: product.data } },
+        { text: fullPrompt },
+      ]
+      let lastErr
+      for (let t = 1; t <= maxTries; t++) {
+        try {
+          const resp = await ai.models.generateContent({
+            model: modelId,
+            contents,
+            config: genConfig,
+          })
+          const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+          if (part?.inlineData?.data) {
+            const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+            results.push(dataUrl)
+            const imgId = `style-clone-${Date.now()}-${i}`
+            try {
+              saveImageToGallery(email, imgId, `风格复刻${i + 1}`, dataUrl, pointsPerImg, modelName || null, resolvedClarity)
+            } catch (e) { console.error('[风格复刻] 存图库失败', e.message) }
+            lastErr = null
+            break
+          }
+        } catch (e) {
+          lastErr = e
+          if (t < maxTries) {
+            const delay = 3000 * t
+            console.log(`[风格复刻] 第 ${i + 1} 张失败，${delay / 1000}s 后重试…`)
+            await new Promise((r) => setTimeout(r, delay))
+          }
+        }
+      }
+      if (lastErr) {
+        console.error('[风格复刻] 生成失败:', lastErr.message)
+        throw new Error(`第 ${i + 1} 张生成失败: ${lastErr.message || '请重试'}`)
+      }
+    }
+
+    deductPoints(email, totalPoints, `风格复刻 (${count}张, ${modelName || 'Nano Banana Pro'})`)
+    return res.json({ images: results, pointsUsed: totalPoints, newBalance: getBalance(email) })
+  } catch (e) {
+    console.error('[风格复刻] 失败:', e.message)
+    let msg = e.message || '风格复刻失败，请稍后重试'
+    if (e.status === 402) return res.status(402).json({ error: msg })
     return res.status(500).json({ error: msg })
   }
 })

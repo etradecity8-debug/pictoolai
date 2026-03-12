@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI DESIGNER</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">AI-DESIGNER.md → 打印版 · 2026/3/12</div>
+  <h1>AI 美工完整说明</h1>
+<p>本文档说明 AI 美工（<code>/ai-designer</code>）下<strong>全部功能</strong>：图片编辑（局部重绘、局部消除、一键换色）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换）、<strong>风格复刻</strong>、官方示例（7 种修改图片模式）。</p>
+<p><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>。侧边栏分为：图片编辑、质量提升、图像修复、抠图工具、<strong>文字修改</strong>（文字替换、语言转换）、<strong>风格复刻</strong>、官方示例。</p>
+<hr>
+<h2>UI 布局与广告词（2026-03 统一）</h2>
+<p>五个功能模块（局部重绘、局部消除、一键换色、智能扩图、提升质感）采用统一排版规范：</p>
+<table>
+<thead>
+<tr>
+<th>元素</th>
+<th>规范</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>标题</td>
+<td><code>text-2xl font-bold</code></td>
+</tr>
+<tr>
+<td>副文案</td>
+<td><code>text-base text-gray-600</code></td>
+</tr>
+<tr>
+<td>示例图</td>
+<td><code>w-72 h-72</code>（288px）、<code>rounded-lg</code></td>
+</tr>
+<tr>
+<td>主内容卡片</td>
+<td><code>max-w-3xl mx-auto p-4</code></td>
+</tr>
+<tr>
+<td>主操作按钮</td>
+<td><code>max-w-xs mx-auto py-2.5 rounded-lg text-sm</code></td>
+</tr>
+<tr>
+<td>保存按钮</td>
+<td>紧贴生成结果放置</td>
+</tr>
+</tbody></table>
+<p><strong>各模块广告词</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>第一行</th>
+<th>第二行</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>提升质感</td>
+<td>提升质感</td>
+<td>内置专业材质引擎，一键让你的产品图从「地摊货」变身「奢侈品」。</td>
+</tr>
+<tr>
+<td>智能扩图</td>
+<td>智能扩图，视界大开。</td>
+<td>不再受限于快门的瞬间，PicToolAI 自动识别你的构图，智能补全缺失的肩膀、延伸的花海、广阔的星空。 / 每一像素的扩展，都与原图浑然一体。</td>
+</tr>
+<tr>
+<td>一键换色</td>
+<td>一键换色</td>
+<td>无论是时装还是产品，一键精准换色，效率提升 10 倍</td>
+</tr>
+<tr>
+<td>局部重绘</td>
+<td>局部重绘</td>
+<td>上传图片，涂抹需要改变的区域并输入想要改变的内容，即可重新对该区域进行绘制</td>
+</tr>
+<tr>
+<td>局部消除</td>
+<td>局部消除</td>
+<td>上传需要消除的图片，使用画笔涂抹即可实现一键消除</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>第一部分：局部重绘</h1>
+<p>上传图片 → 用画笔在画布上涂出要修改的区域（紫色半透明遮罩）→ 填写文字 prompt 描述希望该区域变成什么 → 生成。AI 根据遮罩与 prompt 重绘该区域，保留原图其余部分。</p>
+<ul>
+<li><strong>文件</strong>：<code>src/pages/ai-designer/LocalRedraw.jsx</code></li>
+<li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;inpainting&#39;</code>（遮罩 + prompt）</li>
+<li><strong>支持从仓库选图</strong>：<code>GalleryThumb</code> 认证加载；生成后自动入图库。</li>
+<li><strong>示例图</strong>：<code>public/local-redraw-demo-original.png</code>、<code>local-redraw-demo-edited.png</code>、<code>local-redraw-demo-comparison.png</code></li>
+</ul>
+<hr>
+<h1>第二部分：局部消除</h1>
+<p>上传图片 → 用画笔涂出要消除的区域 → 生成。AI 自动修补/消除该区域（如去掉桌面上的杂物、水印等）。</p>
+<ul>
+<li><strong>文件</strong>：<code>src/pages/ai-designer/LocalErase.jsx</code></li>
+<li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;add-remove&#39;</code>（遮罩区域 + 消除类 prompt，移除选中内容）</li>
+<li><strong>示例图</strong>：<code>public/local-erase-demo-original.png</code>、<code>local-erase-demo-edited.png</code></li>
+</ul>
+<hr>
+<h1>第三部分：一键换色</h1>
+<p>用户上传图片，用<strong>文字描述</strong>要换色的物体（如「鼠标」「裙子」「头发」），从色卡或自定义取色中选择 1–9 种颜色，即可批量生成多种配色图。</p>
+<ul>
+<li><strong>文字描述</strong>：不采用圈图/遮罩，AI 根据语义识别目标并换色。</li>
+<li><strong>颜色选择</strong>：色卡 24 种预设 + 自定义 hex/取色器；最多 9 种颜色，每种生成一张图。</li>
+<li><strong>文件</strong>：<code>src/pages/ai-designer/OneClickRecolor.jsx</code></li>
+<li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;recolor&#39;</code>，<code>textDescription</code>，<code>targetColor</code>（hex），<code>images: [dataUrl]</code></li>
+<li><strong>逻辑</strong>：从输入图推断比例与清晰度；prompt 由 <code>textDescription</code> + <code>targetColor</code> 构建。</li>
+<li><strong>示例图</strong>：<code>public/recolor-demo-original.png</code>、<code>recolor-demo-edited.png</code></li>
+</ul>
+<hr>
+<h1>第四部分：智能扩图</h1>
+<h2>官方建议摘要</h2>
+<ol>
+<li><strong>核心原则</strong>：不要描述已有内容，要描述「缺失」的内容。AI 需要知道边缘之外应该出现什么，并保持与原图的逻辑统一。</li>
+<li><strong>1+N 模板</strong>：<code>[固定前缀] + [视觉反推内容] + [质量控制词]</code></li>
+<li><strong>内容延续</strong>：主体延伸（如 complete the person&#39;s shoulders）、虚化延续（maintain shallow depth of field and bokeh）。</li>
+<li><strong>推荐模型</strong>：Nano Banana 2（扩图对全局逻辑、背景补全要求高于微观纹理）。</li>
+</ol>
+<h2>当前实现</h2>
+<ul>
+<li><strong>生图模型</strong>：Nano Banana 2</li>
+<li><strong>第一步（视觉分析）</strong>：使用 <code>ANALYSIS_MODEL_ID</code>（gemini-2.5-flash）分析原图，提取 5–10 个关键词（主体、背景元素、光照风格）</li>
+<li><strong>第二步（生图）</strong>：将关键词注入 <code>[CONTENT TO ADD] Extend the following elements: {keywords}.</code> 模板，调用 Nano Banana 2 生图</li>
+<li><strong>降级</strong>：若分析失败，自动回退为通用描述，不影响生图</li>
+</ul>
+<hr>
+<h1>第五部分：提升质感</h1>
+<h2>一、模型选择（Pro vs 2）</h2>
+<table>
+<thead>
+<tr>
+<th>处理对象</th>
+<th>建议模型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>精密零件、珠宝、高级家具</strong></td>
+<td>Nano Banana Pro</td>
+<td>能捕捉微小的加工痕迹和复杂的环境反射</td>
+</tr>
+<tr>
+<td><strong>美食、风景、时尚人像</strong></td>
+<td>Nano Banana 2</td>
+<td>色彩处理更讨喜，光影通透</td>
+</tr>
+<tr>
+<td><strong>只想让模糊的图变清晰</strong></td>
+<td>先试 Nano Banana 2</td>
+<td>边缘锐化处理非常干练</td>
+</tr>
+</tbody></table>
+<h3>详细对比</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>Nano Banana 2（速度优先）</th>
+<th>Nano Banana Pro（极致细节）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>核心优势</strong></td>
+<td>快如闪电，生图速度约快 3～5 倍</td>
+<td>深层推理、材质大师，理解金属折射、织物纤维</td>
+</tr>
+<tr>
+<td><strong>质感表现</strong></td>
+<td>现代感强，光影明亮生动</td>
+<td>极度真实，纹理细节深邃且富有层次</td>
+</tr>
+<tr>
+<td><strong>推荐场景</strong></td>
+<td>批量处理、社交媒体、初步预览</td>
+<td>商业摄影、工业设计、4K 画质需求</td>
+</tr>
+<tr>
+<td><strong>生成时间</strong></td>
+<td>约 4～6 秒（1K）</td>
+<td>约 10～20 秒</td>
+</tr>
+</tbody></table>
+<h3>快速决策</h3>
+<ul>
+<li>追求质感与真实感 → 选 Pro</li>
+<li>追求速度与效率 → 选 2</li>
+<li>金属、珠宝、精密件 → 选 Pro</li>
+<li>美食、风景、人像 → 选 2</li>
+</ul>
+<hr>
+<h2>二、材质预设体系</h2>
+<p>前端 <code>ProductRefinement.jsx</code> 中材质预设 Tab 顺序：<strong>电子 / 塑料 / 纺织 / 木质 / 玻璃 / 工业 / 自然 / 轻奢</strong>。<strong>悬停</strong>预设标签可查看效果说明（hint）。</p>
+<h3>电子</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CNC 刀痕</td>
+<td>CNC machining marks</td>
+<td>金属外壳极细螺旋痕迹</td>
+</tr>
+<tr>
+<td>喷砂氧化</td>
+<td>Sandblasted matte oxidation</td>
+<td>类似 MacBook 均匀磨砂</td>
+</tr>
+<tr>
+<td>拉丝金属</td>
+<td>Linear brushed metal</td>
+<td>方向性反光不锈钢感</td>
+</tr>
+<tr>
+<td>LED 漫反射</td>
+<td>Diffused LED glow</td>
+<td>指示灯光在壳内散开</td>
+</tr>
+<tr>
+<td>精密接缝</td>
+<td>Tight tolerance gaps</td>
+<td>零件间近乎无缝装配</td>
+</tr>
+</tbody></table>
+<h3>塑料</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>磨砂哑光类</td>
+<td>Matte Satin-finish Plastic</td>
+<td>耳机、充电宝等消费电子</td>
+</tr>
+<tr>
+<td>半透明树脂类</td>
+<td>Translucent Frosted Resin</td>
+<td>美妆瓶、透明灯具、透明电子产品</td>
+</tr>
+<tr>
+<td>高光钢琴漆类</td>
+<td>High-gloss Polished Acrylic</td>
+<td>汽车内饰、亮面家电</td>
+</tr>
+<tr>
+<td>类皮质涂层</td>
+<td>Soft-touch coating</td>
+<td>高端耳机/鼠标的亲肤、略粗糙触感</td>
+</tr>
+<tr>
+<td>缎面哑光</td>
+<td>Satin matte finish</td>
+<td>介于高光与全磨砂之间</td>
+</tr>
+<tr>
+<td>微观皮纹</td>
+<td>Micro-stipple texture</td>
+<td>工业塑料细微凹凸，防滑防指纹</td>
+</tr>
+<tr>
+<td>透明亚克力</td>
+<td>Clear polished acrylic</td>
+<td>极高透明度与边缘折射</td>
+</tr>
+<tr>
+<td>蜂窝透明塑料</td>
+<td>Translucent Honeycomb Resin</td>
+<td>半透明树脂，内部结构若隐若现</td>
+</tr>
+</tbody></table>
+<h3>纺织</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>细致经纬线</td>
+<td>Detailed warp and weft</td>
+<td>横竖交织线头可见</td>
+</tr>
+<tr>
+<td>表面浮绒</td>
+<td>Surface micro-fibers</td>
+<td>边缘极细小逆光短绒毛</td>
+</tr>
+<tr>
+<td>粗捻线感</td>
+<td>Coarse slub texture</td>
+<td>亚麻/粗布不规则粗细</td>
+</tr>
+<tr>
+<td>粗粝亚麻</td>
+<td>Rough Organic Linen</td>
+<td>明显纤维交织，自然淳朴</td>
+</tr>
+<tr>
+<td>丝绸虹彩</td>
+<td>Silk iridescence</td>
+<td>随角度变化的金属般光泽</td>
+</tr>
+<tr>
+<td>重磅悬垂</td>
+<td>Heavy drape folds</td>
+<td>高克重深邃厚重褶皱</td>
+</tr>
+<tr>
+<td>华夫格纹</td>
+<td>Waffle weave pattern</td>
+<td>立体方格凹凸针织</td>
+</tr>
+<tr>
+<td>吸光天鹅绒</td>
+<td>Light-absorbing velvet</td>
+<td>极黑极深，几乎不反射光</td>
+</tr>
+<tr>
+<td>重磅真丝</td>
+<td>Heavy Mulberry Silk</td>
+<td>极度顺滑高光，优雅垂坠感</td>
+</tr>
+</tbody></table>
+<h3>木质</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开放漆纹理</td>
+<td>Open-pore grain</td>
+<td>木材导管深度的原始质感</td>
+</tr>
+<tr>
+<td>浮雕木纹</td>
+<td>Raised grain texture</td>
+<td>纹理明显凹凸起伏</td>
+</tr>
+<tr>
+<td>丝绒漆面</td>
+<td>Velvet lacquer finish</td>
+<td>薄而温润的半哑光保护层</td>
+</tr>
+<tr>
+<td>碳化处理</td>
+<td>Charred Yakisugi finish</td>
+<td>轻微烧灼后黑亮鳞片质感</td>
+</tr>
+<tr>
+<td>抛光蜡感</td>
+<td>Wax-polished sheen</td>
+<td>深层油脂光泽</td>
+</tr>
+<tr>
+<td>琥珀色光泽</td>
+<td>Amber depth</td>
+<td>光线穿透漆面照到纤维</td>
+</tr>
+</tbody></table>
+<h3>玻璃</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>高折射率</td>
+<td>High IOR reflections</td>
+<td>更厚重、类水晶</td>
+</tr>
+<tr>
+<td>色散彩虹边缘</td>
+<td>Chromatic aberration caustics</td>
+<td>光线穿透形成彩色焦散</td>
+</tr>
+<tr>
+<td>磨砂酸洗</td>
+<td>Acid-etched frosting</td>
+<td>极细均匀雾面</td>
+</tr>
+<tr>
+<td>钢化波纹</td>
+<td>Tempered glass ripples</td>
+<td>侧光下应力纹</td>
+</tr>
+<tr>
+<td>真空镀膜</td>
+<td>Vacuum-deposited coating</td>
+<td>镜片紫红或蓝色反光</td>
+</tr>
+<tr>
+<td>磨砂彩色玻</td>
+<td>Frosted Dichroic Glass</td>
+<td>半透明，随角度变化的幻彩折射</td>
+</tr>
+</tbody></table>
+<h3>工业</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>精密拉丝钢</td>
+<td>Brushed Precision Steel</td>
+<td>细腻金属线条，高端机械感</td>
+</tr>
+<tr>
+<td>阳极氧化铝</td>
+<td>Anodized Matte Aluminum</td>
+<td>哑光高级质感，类似苹果外壳</td>
+</tr>
+<tr>
+<td>生锈铸铁</td>
+<td>Weathered Rusty Cast Iron</td>
+<td>颗粒感强，红褐色锈迹</td>
+</tr>
+<tr>
+<td>锻造碳纤维</td>
+<td>Forged Carbon Fiber</td>
+<td>黑色不规则纹理，现代科技</td>
+</tr>
+<tr>
+<td>液态水银</td>
+<td>Liquid Shimmering Mercury</td>
+<td>流动金属液体，超现实反光</td>
+</tr>
+<tr>
+<td>发光光纤</td>
+<td>Glowing Fiber Optic Bundle</td>
+<td>细碎导光点，科幻氛围</td>
+</tr>
+</tbody></table>
+<h3>自然</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>苔藓岩石</td>
+<td>Moss-covered Ancient Rock</td>
+<td>湿润绿色苔藓与粗糙石材对比</td>
+</tr>
+<tr>
+<td>抛光黑曜石</td>
+<td>Polished Black Obsidian</td>
+<td>纯黑深邃，极高反射率</td>
+</tr>
+<tr>
+<td>蜂窝几何</td>
+<td>Hexagonal Bionic Structure</td>
+<td>蜂巢状自然几何美感</td>
+</tr>
+<tr>
+<td>冰裂纹陶瓷</td>
+<td>Cracked Celadon Glaze</td>
+<td>细腻釉面，交错冰裂缝隙</td>
+</tr>
+<tr>
+<td>极光欧泊</td>
+<td>Iridescent Aurora Opal</td>
+<td>内部斑斓火彩</td>
+</tr>
+</tbody></table>
+<h3>轻奢</h3>
+<table>
+<thead>
+<tr>
+<th>预设</th>
+<th>英文 Prompt</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>抛光大理石</td>
+<td>Polished Italian Marble</td>
+<td>镜面反射，天然温润石纹</td>
+</tr>
+<tr>
+<td>24K 喷砂金</td>
+<td>Sandblasted 24K Gold</td>
+<td>柔和金黄色泽，细腻颗粒感</td>
+</tr>
+<tr>
+<td>乌木雕刻</td>
+<td>Carved Dark Ebony Wood</td>
+<td>深色木纹，油润光泽</td>
+</tr>
+<tr>
+<td>顶级全粒面皮</td>
+<td>Full-grain Nappa Leather</td>
+<td>细小毛孔纹理，柔软皮革折痕</td>
+</tr>
+<tr>
+<td>亮面漆皮</td>
+<td>High-gloss Patent Leather</td>
+<td>强烈镜面反光，时尚先锋感</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、塑料「黑科技」强制增强</h2>
+<p>当用户选择或输入的材质中包含塑料相关词汇时，后端会<strong>自动追加</strong>以下 3 个关键提示词：</p>
+<table>
+<thead>
+<tr>
+<th>提示词</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Subsurface Scattering (SSS)</strong></td>
+<td>模拟光线进入物体内部并散射，让塑料告别「死板」实色感</td>
+</tr>
+<tr>
+<td><strong>Soft-touch / Tactile Texture</strong></td>
+<td>强调触感，生成高级亲肤涂层的细腻表面</td>
+</tr>
+<tr>
+<td><strong>Beveled Edges</strong></td>
+<td>强调边缘倒角，使光线在边缘形成漂亮的高光</td>
+</tr>
+</tbody></table>
+<h3>触发条件</h3>
+<p>后端通过正则检测 <code>materialPrompt</code> 是否包含：<code>plastic</code>、<code>resin</code>、<code>acrylic</code>、<code>matte satin</code>、<code>translucent frosted</code>、<code>high-gloss polished</code>（不区分大小写）。</p>
+<p>命中时追加：<code>CRITICAL for plastic realism: emphasize Subsurface Scattering (SSS), Soft-touch tactile texture, and Beveled edges.</code></p>
+<hr>
+<h2>五、数据流</h2>
+<ol>
+<li><strong>前端</strong>：用户点击预设标签或自定义输入 → 将英文 prompt 写入 <code>materialPrompt</code> → 随请求体发送给后端。</li>
+<li><strong>后端</strong>：收到非空 <code>materialPrompt</code> 时，生成 <code>The subject is made of {materialPrompt}.</code>；若检测到塑料 → 追加塑料增强句；最后追加 <code>Apply macro-photography style and material-appropriate lighting.</code></li>
+</ol>
+<hr>
+<h1>第六部分：文字修改</h1>
+<p>侧边栏「文字修改」位于「抠图工具」与「官方示例」之间，提供 2 种模式，与主导航「修改图片」功能相同，均调用 <code>POST /api/image-edit</code>。</p>
+<table>
+<thead>
+<tr>
+<th>模式 ID</th>
+<th>中文名</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>text-replace</code></td>
+<td>文字替换</td>
+<td>替换图中的文字内容</td>
+</tr>
+<tr>
+<td><code>text-translate</code></td>
+<td>语言转换</td>
+<td>将图中文字翻译为另一语言</td>
+</tr>
+</tbody></table>
+<p><strong>页面排版</strong>：从 ai-designer 进入时，采用与其它模块统一的布局——标题居中、副文案 text-base、主内容 max-w-3xl 白底卡片；上传区文案「上传图片」「从作品库选择」。</p>
+<hr>
+<h1>第七部分：风格复刻</h1>
+<p>侧边栏「风格复刻」位于「文字修改」与「官方示例」之间。上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。</p>
+<ul>
+<li><strong>路由</strong>：<code>/ai-designer/style-clone</code></li>
+<li><strong>文件</strong>：<code>src/pages/StyleClone.jsx</code></li>
+<li><strong>接口</strong>：<code>POST /api/style-clone</code>（需登录）</li>
+<li><strong>提示</strong>：参考图「最好只上传一种风格」；产品图「只上传一个产品」。</li>
+<li>详见 <code>docs/KNOWN_ISSUES.md</code> 风格复刻功能说明。</li>
+</ul>
+<hr>
+<h1>第八部分：官方示例（7 种修改图片模式）</h1>
+<p>AI 美工侧边栏「官方示例」下提供 7 种修改图片模式（与风格复刻同级），与主导航「修改图片」功能相同，均调用 <code>POST /api/image-edit</code>。每种模式有真实 before→after 示例（<code>ModeDemo</code> 组件）。</p>
+<table>
+<thead>
+<tr>
+<th>模式 ID</th>
+<th>中文名</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>add-remove</code></td>
+<td>添加/移除元素</td>
+<td>在图中添加或移除指定物体</td>
+</tr>
+<tr>
+<td><code>inpainting</code></td>
+<td>局部重绘（语义遮盖）</td>
+<td>根据遮罩区域与 prompt 重绘</td>
+</tr>
+<tr>
+<td><code>style-transfer</code></td>
+<td>风格迁移</td>
+<td>将图片迁移到指定视觉风格</td>
+</tr>
+<tr>
+<td><code>composition</code></td>
+<td>高级合成：多图组合</td>
+<td>多张参考图组合成新图</td>
+</tr>
+<tr>
+<td><code>hi-fidelity</code></td>
+<td>高保真细节保留</td>
+<td>保留原图细节的同时优化</td>
+</tr>
+<tr>
+<td><code>bring-to-life</code></td>
+<td>让草图变生动</td>
+<td>将线稿/草图转为写实图</td>
+</tr>
+<tr>
+<td><code>character-360</code></td>
+<td>角色一致性：360° 全景</td>
+<td>保持角色外观一致的多角度</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>后端</strong>：<code>server/index.js</code> 的 <code>/api/image-edit</code> 根据 <code>mode</code> 参数分支处理；含重试逻辑（Pro/Nano2 最多 3 次）。</li>
+<li><strong>支持从仓库选图</strong>：<code>GalleryThumb</code> 组件认证加载；生成后自动入图库，显示积分消耗。</li>
+<li><strong>演示图</strong>：<code>public/demo-*.png</code>（各模式 before/after，共 14 张）</li>
+</ul>
+
+</body>
+</html>

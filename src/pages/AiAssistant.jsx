@@ -57,7 +57,7 @@ const markets = [
   { value: 'au', label: '澳大利亚（Amazon.com.au）' },
 ]
 
-// ── 产品类别（二级联动，与 AMAZON-LISTING-SPEC 一致）────────────────────────────
+// ── 产品类别（二级联动，与 docs/ECOMMERCE-AI-ASSISTANT.md 一致）────────────────
 const CATEGORY_TREE = [
   { id: 'home', name: '家居厨房', children: ['厨具', '收纳整理', '家纺', '灯具', '清洁用品', '浴室用品'] },
   { id: 'sports', name: '运动户外', children: ['户外装备', '健身器材', '自行车', '游泳用品', '球类运动'] },
@@ -125,7 +125,7 @@ const AMAZON_LISTING_STEPS = [
 // Step 4 A+ 暂未开放：每位用户对 A+ 要求不同，研究中
 const APLUS_STEP_ENABLED = false
 
-// ── A+ 模块（亚马逊标准 17 种，与 docs/AMAZON-APLUS-MODULES.md 一致）────────────────────
+// ── A+ 模块（亚马逊标准 17 种，与 docs/ECOMMERCE-AI-ASSISTANT.md 第三部分一致）────────
 const APLUS_MODULES = [
   { id: 'header', name: '图片页头', images: 1, desc: '顶部大图横幅 16:9' },
   { id: 'single_highlights', name: '单图+亮点', images: 1, desc: '1 图 + 4 条亮点' },

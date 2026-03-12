@@ -27,8 +27,8 @@ cd server && npm install && npm start
 |----------|------|
 | **总索引** | [docs/README.md](docs/README.md) — 所有文档的目录，按「项目概览 / 产品设计 / 运维 / 已知问题 / 打印版」分类 |
 | 项目与功能 | [PROJECT-OVERVIEW](docs/PROJECT-OVERVIEW.md)（结构、技术栈、组图/修改图片/A+/Listing/仓库） |
-| 产品设计 | [AMAZON-LISTING-SPEC](docs/AMAZON-LISTING-SPEC.md)、[AMAZON-LISTING-IMAGE-PROMPTS](docs/AMAZON-LISTING-IMAGE-PROMPTS.md)、[DATA-FLOW](docs/DATA-FLOW.md)（组图字段与数据流） |
-| 运维部署 | [DEPLOY](docs/DEPLOY.md)、[GEMINI-REGION-ISSUE](docs/GEMINI-REGION-ISSUE.md) |
+| 产品设计 | [ECOMMERCE-GENERAL-CREATE-PICTURES](docs/ECOMMERCE-GENERAL-CREATE-PICTURES.md)（电商组图）、[ECOMMERCE-AI-ASSISTANT](docs/ECOMMERCE-AI-ASSISTANT.md)（亚马逊）、[AI-DESIGNER](docs/AI-DESIGNER.md)（AI 美工） |
+| 运维部署 | [DEPLOY](docs/DEPLOY.md)（含 Gemini 地区限制） |
 | 已知问题 | [KNOWN_ISSUES](docs/KNOWN_ISSUES.md) |
 | **打印** | 用浏览器打开 **`docs/print/index.html`**，可打印或另存 PDF；重新生成：`npm run docs:print` |
 

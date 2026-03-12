@@ -40,11 +40,49 @@
 </style>
 </head>
 <body>
-  <div class="meta">README.md → 打印版 · 2026/3/11</div>
-  <h1>项目文档索引</h1>
-<p>根目录 <strong>README.md</strong> 只做入口（项目简介 + 快速开始 + 本目录链接）。<strong>所有详细文档都在本目录</strong>，下面按用途分类。</p>
+  <div class="meta">README.md → 打印版 · 2026/3/12</div>
+  <h1>PicToolAI 文档中心</h1>
+<p><strong>入口</strong>：根目录 <code>README.md</code> 只有快速开始；所有详细说明都在本目录。</p>
 <hr>
-<h2>项目与功能</h2>
+<h2>快速找文档</h2>
+<table>
+<thead>
+<tr>
+<th>我想…</th>
+<th>看这个</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>了解项目整体、怎么跑起来</td>
+<td><a href="./PROJECT-OVERVIEW.md">PROJECT-OVERVIEW.md</a></td>
+</tr>
+<tr>
+<td>做电商组图、理解数据流</td>
+<td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
+</tr>
+<tr>
+<td>做亚马逊 Listing、合规与生图</td>
+<td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a></td>
+</tr>
+<tr>
+<td>用 AI 美工（局部重绘/消除/换色/扩图/提升质感）</td>
+<td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
+</tr>
+<tr>
+<td>用风格复刻（参考图+产品图→高转化详情图）</td>
+<td>AI美工 → 风格复刻，路由 <code>/ai-designer/style-clone</code>，见 PROJECT-OVERVIEW</td>
+</tr>
+<tr>
+<td>部署到服务器、查地区限制</td>
+<td><a href="./DEPLOY.md">DEPLOY.md</a></td>
+</tr>
+<tr>
+<td>查已知问题、待办</td>
+<td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>一、项目总览</h2>
 <table>
 <thead>
 <tr>
@@ -54,43 +92,53 @@
 </thead>
 <tbody><tr>
 <td><a href="./PROJECT-OVERVIEW.md">PROJECT-OVERVIEW.md</a></td>
-<td>项目结构、技术栈、主要功能一览（组图/修改图片/A+/亚马逊 Listing/仓库）、本地运行要点。</td>
-</tr>
-<tr>
-<td><a href="./AMAZON-LISTING-SPEC.md">AMAZON-LISTING-SPEC.md</a></td>
-<td>亚马逊 Listing 生成功能产品设计方案：输入/输出、类目、AI 流程、<strong>亚马逊规则与合规</strong>（7.1 标题～7.7 A+）、实现细节。</td>
-</tr>
-<tr>
-<td><a href="./AMAZON-LISTING-IMAGE-PROMPTS.md">AMAZON-LISTING-IMAGE-PROMPTS.md</a></td>
-<td>亚马逊主图与 A+ 图片的提示词与准则；与官方要求对照及当前实现说明。</td>
-</tr>
-<tr>
-<td><a href="./AMAZON-APLUS-MODULES.md">AMAZON-APLUS-MODULES.md</a></td>
-<td>A+ 模块定义、本系统支持的 17 种模块、推荐套餐与接口约定。</td>
-</tr>
-<tr>
-<td><a href="./DATA-FLOW.md">DATA-FLOW.md</a></td>
-<td>全品类组图页的字段与 AI 传参说明、数据流。</td>
-</tr>
-<tr>
-<td><a href="./AI-DESIGNER-RECOLOR.md">AI-DESIGNER-RECOLOR.md</a></td>
-<td>AI 美工 · 一键换色：文字描述、色卡、自定义取色、批量生图。</td>
-</tr>
-<tr>
-<td><a href="./MODEL-SELECTION-GUIDE.md">MODEL-SELECTION-GUIDE.md</a></td>
-<td>提升质感：Pro vs 2 模型选择指南、专家建议与详细对比。</td>
-</tr>
-<tr>
-<td><a href="./AI-DESIGNER-TEXTURE-MATERIALS.md">AI-DESIGNER-TEXTURE-MATERIALS.md</a></td>
-<td>提升质感材质预设（4 Tab、23 项）与塑料专项增强（SSS、Soft-touch、Beveled edges）。</td>
-</tr>
-<tr>
-<td><a href="./SMART-EXPANSION-PROMPTS.md">SMART-EXPANSION-PROMPTS.md</a></td>
-<td>智能扩图：官方 1+N 模板、内容延续、后续两轮调用优化方向。</td>
+<td>技术栈、目录结构、主要功能一览、本地运行要点</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>运维与部署</h2>
+<h2>二、电商生图</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
+<td>电商生图（全品类组图）：字段、AI 传参、数据流</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、电商 AI 运营助手（亚马逊）</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a></td>
+<td>Listing 生成流程、合规规则（7.1～7.7）、生图提示词、A+ 模块定义</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>四、AI 美工</h2>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
+<td>局部重绘、局部消除、一键换色、智能扩图、提升质感、风格复刻、官方示例 9 种</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>五、运维与部署</h2>
 <table>
 <thead>
 <tr>
@@ -100,15 +148,11 @@
 </thead>
 <tbody><tr>
 <td><a href="./DEPLOY.md">DEPLOY.md</a></td>
-<td>VPS 部署步骤（通用；香港已暂停，下次可能改美国）。</td>
-</tr>
-<tr>
-<td><a href="./GEMINI-REGION-ISSUE.md">GEMINI-REGION-ISSUE.md</a></td>
-<td>Gemini API 地区限制说明（香港等不支持时的处理思路）。</td>
+<td>VPS 部署步骤（含附录：Gemini 地区限制）</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>已知问题与待办</h2>
+<h2>六、已知问题与待办</h2>
 <table>
 <thead>
 <tr>
@@ -118,19 +162,14 @@
 </thead>
 <tbody><tr>
 <td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
-<td>已知问题、待办、运营须知（数据隐私、仓库下载、A+ 迭代、积分/支付、部署优先级等）。</td>
+<td>已知问题、待办、运营须知</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>打印版（HTML）</h2>
+<h2>打印版</h2>
 <ul>
-<li><strong><code>docs/print/</code></strong>：所有上述 .md 已转为可打印的 HTML。用浏览器打开 <strong><code>docs/print/index.html</code></strong> 可看到目录，点击任一文档后按 <strong>Ctrl+P</strong>（Mac：⌘+P）打印。重新生成打印版请在项目根目录执行：<code>npm run docs:print</code>。</li>
-</ul>
-<hr>
-<h2>约定</h2>
-<ul>
-<li><strong>外面</strong>：只有根目录一个 <code>README.md</code>（简短入口）。</li>
-<li><strong>里面</strong>：本目录 <code>docs/</code> 放全部详细文档，本文件是总索引。日常会话记忆见 <code>.cursor/rules/project-context.mdc</code>。</li>
+<li><strong><code>docs/print/</code></strong>：上述 .md 已转为 HTML，打开 <code>docs/print/index.html</code> 可浏览并打印。</li>
+<li>重新生成：项目根目录执行 <code>npm run docs:print</code>。</li>
 </ul>
 
 </body>

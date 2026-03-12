@@ -7,6 +7,7 @@ import LocalErase from './ai-designer/LocalErase'
 import OneClickRecolor from './ai-designer/OneClickRecolor'
 import SmartExpansion from './ai-designer/SmartExpansion'
 import ProductRefinement from './ai-designer/ProductRefinement'
+import StyleClone from './StyleClone'
 import ImageEdit from './ImageEdit'
 
 const iconClass = 'w-4 h-4 shrink-0'
@@ -17,6 +18,7 @@ const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'comp
 
 const AVAILABLE_IDS = new Set([
   'local-redraw', 'local-erase', 'one-click-recolor', 'smart-expansion', 'product-refinement',
+  'style-clone',
   ...IMAGE_EDIT_MODE_IDS,
 ])
 
@@ -64,6 +66,13 @@ const SIDEBAR_STRUCTURE = [
     items: [
       { id: 'text-replace', label: '文字替换', icon: 'text-replace' },
       { id: 'text-translate', label: '语言转换', icon: 'text-translate' },
+    ],
+  },
+  {
+    id: 'style-clone',
+    label: '风格复刻',
+    items: [
+      { id: 'style-clone', label: '风格复刻', icon: 'style-clone' },
     ],
   },
   {
@@ -126,6 +135,8 @@ function ItemIcon({ name }) {
     ? 'M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11'
     : name === 'cutout'
     ? 'M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243 0z'
+    : name === 'style-clone'
+    ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
     : 'M4 6h16M4 10h16M4 14h16M4 18h16'
   return (
     <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,6 +271,8 @@ export default function AiDesigner() {
             <SmartExpansion />
           ) : pathTool === 'product-refinement' ? (
             <ProductRefinement />
+          ) : pathTool === 'style-clone' ? (
+            <StyleClone />
           ) : pathTool && !AVAILABLE_IDS.has(pathTool) ? (
             <Navigate to="/ai-designer/local-redraw" replace />
           ) : pathTool ? (

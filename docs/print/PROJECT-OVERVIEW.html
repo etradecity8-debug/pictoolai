@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/11</div>
+  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/12</div>
   <h1>项目概览（结构 + 功能）</h1>
 <p>根目录 README 只做入口；这里是项目结构与主要功能的简要说明。</p>
 <hr>
@@ -92,12 +92,22 @@
 <tbody><tr>
 <td>全品类组图</td>
 <td>电商生图</td>
-<td>上传图 + 组图要求 → 分析 → 确认规划 → 生图，详见 <code>DATA-FLOW.md</code></td>
+<td>上传图 + 组图要求 → 分析 → 确认规划 → 生图，详见 <code>ECOMMERCE-GENERAL-CREATE-PICTURES.md</code></td>
 </tr>
 <tr>
 <td>修改图片</td>
 <td>修改图片</td>
 <td>9 种模式（添加/移除、局部重绘、风格迁移、多图合成、高保真、草图生动、角色一致、文字替换/语言转换），<code>POST /api/image-edit</code></td>
+</tr>
+<tr>
+<td>AI 美工</td>
+<td>导航「AI美工」</td>
+<td>局部重绘、局部消除、一键换色、智能扩图、提升质感、<strong>风格复刻</strong>、官方示例；详见 <code>AI-DESIGNER.md</code></td>
+</tr>
+<tr>
+<td>风格复刻</td>
+<td>AI美工 → 风格复刻</td>
+<td>上传参考设计图（最多 14 张）+ 产品素材图 → 两阶段（分析风格 → 生图），<code>POST /api/style-clone</code>，路由 <code>/ai-designer/style-clone</code></td>
 </tr>
 <tr>
 <td>亚马逊 A+</td>
@@ -107,7 +117,7 @@
 <tr>
 <td>亚马逊 Listing</td>
 <td>电商AI运营助手 → 亚马逊</td>
-<td>Step1 分析 → Step2 标题/五点/描述/关键词 → Step3 主图 → Step4 A+ 文案与图，合规见 <code>AMAZON-LISTING-SPEC.md</code></td>
+<td>Step1 分析 → Step2 标题/五点/描述/关键词 → Step3 主图 → Step4 A+ 文案与图，详见 <code>ECOMMERCE-AI-ASSISTANT.md</code></td>
 </tr>
 <tr>
 <td>仓库</td>

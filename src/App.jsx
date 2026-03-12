@@ -50,7 +50,7 @@ export default function App() {
       {/* 以下需登录后访问，未登录会跳转到 /login */}
       <Route path="/product" element={<ProtectedRoute><MarketingLayout><Product /></MarketingLayout></ProtectedRoute>} />
       <Route path="/detail-set" element={<ProtectedRoute><MarketingLayout><DetailSet /></MarketingLayout></ProtectedRoute>} />
-      <Route path="/style-clone" element={<ProtectedRoute><MarketingLayout><StyleClone /></MarketingLayout></ProtectedRoute>} />
+      <Route path="/style-clone" element={<Navigate to="/ai-designer/style-clone" replace />} />
       <Route path="/apparel-set" element={<ProtectedRoute><MarketingLayout><ApparelSet /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-retouch" element={<ProtectedRoute><MarketingLayout><ImageRetouch /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-edit" element={<Navigate to="/ai-designer/add-remove" replace />} />
