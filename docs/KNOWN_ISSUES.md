@@ -97,6 +97,20 @@
 ### 生图加载蒙版统一
 - **eBay / 速卖通生图**：补齐亚马逊已有的加载蒙版（灰色框 + 张数 + 预估时间 + 进度条动画），三个平台体验一致
 
+### 特写图 prompt 增强
+- **问题**：特写图保留原图未美化
+- **修复**：亚马逊/eBay/速卖通特写图 prompt 统一增强：Create a NEW image、Pure white/soft gradient studio background、CRITICAL 约束（仅参考产品外观、不复制背景、生成新构图且增强细节纹理）
+
+### 美国服务器部署完成（2026-03-15）
+- **服务商**：腾讯云轻量应用服务器
+- **地域**：美国硅谷（Gemini API 无地区限制）
+- **公网 IP**：43.162.87.60
+- **访问**：http://43.162.87.60
+- **PM2**：`pm2 start /home/ubuntu/app/server/index.js --name pictoolai-server --cwd /home/ubuntu/app/server`（确保 dotenv 加载 server/.env）
+- **管理员**：ADMIN_EMAIL/ADMIN_PASSWORD 需在 server/.env 配置，PM2 需 --cwd 到 server 目录才能正确读取
+- **域名**：pictoolai.studio 已购买（实名审核中），审核通过后配置 DNS A 记录指向 43.162.87.60
+- **Nginx**：proxy_read_timeout/connect_timeout/send_timeout 已设为 300s，避免 image-edit 等长请求 504
+
 ---
 
 ## 今日完成（2026-03-14）
