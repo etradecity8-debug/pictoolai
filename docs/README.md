@@ -34,11 +34,13 @@
 
 ---
 
-## 三、电商 AI 运营助手（亚马逊）
+## 三、电商 AI 运营助手（亚马逊 · eBay · 速卖通）
 
 | 文档 | 说明 |
 |------|------|
-| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | Listing 生成流程、合规规则（7.1～7.7）、生图提示词、A+ 模块定义 |
+| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | 亚马逊 Listing 生成流程、合规规则、生图提示词、A+ 模块定义 |
+| [ECOMMERCE-AI-ASSISTANT-EBAY.md](./ECOMMERCE-AI-ASSISTANT-EBAY.md) | eBay 模块：Cassini 搜索优化、标题 80 字符、Item Specifics |
+| [ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md](./ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md) | 速卖通模块：标题 128 字符、产品属性、移动端描述 |
 
 ---
 

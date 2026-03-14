@@ -1744,7 +1744,7 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { productImage, productName, brand, model: modelName, mainCount, sceneCount, closeUpCount, sellingPoints, sellingPointCount, sellingPointShowText, lang, count: reqCount } = req.body || {}
+    const { productImage, productName, brand, model: modelName, mainCount, sceneCount, closeUpCount, sellingPoints, sellingPointCount, sellingPointShowText, interactionCount, lang, count: reqCount } = req.body || {}
     if (!productImage) return res.status(400).json({ error: '请提供产品图' })
     const parsed = parseDataUrl(productImage)
     if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
@@ -1757,7 +1757,8 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
     let m = Math.min(4, Math.max(0, parseInt(mainCount, 10) || 0))
     let s = Math.min(4, Math.max(0, parseInt(sceneCount, 10) || 0))
     let c = Math.min(4, Math.max(0, parseInt(closeUpCount, 10) || 0))
-    if (m + s + c + sp === 0) {
+    let itr = Math.min(4, Math.max(0, parseInt(interactionCount, 10) || 0))
+    if (m + s + c + sp + itr === 0) {
       if (hasNewParams || sellingPointCount != null) {
         return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
       }
@@ -1767,8 +1768,8 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
         return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
       }
     }
-    console.log('[Amazon Listing] Step 3 请求数量', { mainCount, sceneCount, closeUpCount, sellingPointCount, m, s, c, sp, total: m + s + c + sp })
-    const count = m + s + c + sp
+    console.log('[Amazon Listing] Step 3 请求数量', { mainCount, sceneCount, closeUpCount, sellingPointCount, interactionCount, m, s, c, sp, itr, total: m + s + c + sp + itr })
+    const count = m + s + c + sp + itr
     const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
     const totalPoints = count * pointsPerImg
     const email = req.user.email
@@ -1790,10 +1791,12 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
     const closeUpImages = []
     const sellingPointImages = []
     const sellingPointLabels = []
+    const interactionImages = []
     const mainImageIds = []
     const sceneImageIds = []
     const closeUpImageIds = []
     const sellingPointImageIds = []
+    const interactionImageIds = []
     let mainImageId = null
 
     const mainPrompt = `${noTextRule} --- Amazon main image: Pure white background only (RGB 255,255,255, #FFFFFF). ${productCtx} Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
@@ -1866,13 +1869,27 @@ CRITICAL - Clean product only: (1) Pure white or soft gradient studio background
       sellingPointImageIds.push(spid)
       try { saveImageToGallery(email, spid, `${productName || '产品'}·卖点${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
     }
+    const interactionPrompt = `${noTextRule} --- Human-product interaction image: Show a real person naturally using, holding, or interacting with this product in a realistic setting. ${productCtx} The person should be partially visible (hands, arms, or upper body)—focus on the interaction, not the person's face. Show genuine usage: e.g. sitting on a stool, holding a tool, wearing an accessory, using a kitchen gadget. Natural indoor or lifestyle environment with soft lighting. Professional product photography, high resolution. No text, no logos. Reference image is for product appearance ONLY—generate a completely new scene with a person.`
+    for (let i = 0; i < itr; i++) {
+      idx++
+      const contents = [...baseContents, { text: interactionPrompt }]
+      console.log(`[Amazon Listing] Step 3 | 第 ${idx}/${count} 张（交互图 ${i + 1}）| 模型:`, imageModelId)
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张（交互图 ${i + 1}）生成未返回图片，请重试` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      interactionImages.push(dataUrl)
+      const iid = `amazon-interaction-${Date.now()}-${i}`
+      interactionImageIds.push(iid)
+      try { saveImageToGallery(email, iid, `${productName || '产品'}·交互图${i + 1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error('[Amazon Listing] 存图库失败', e.message) }
+    }
 
     deductPoints(email, totalPoints, `亚马逊产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
     const newBalance = getBalance(email)
     const mainImage = mainImages[0] || null
-    const additionalImages = [...mainImages.slice(1), ...sceneImages, ...closeUpImages, ...sellingPointImages]
+    const additionalImages = [...mainImages.slice(1), ...sceneImages, ...closeUpImages, ...sellingPointImages, ...interactionImages]
     console.log('[Amazon Listing] Step 3 产品图完成 ✓ 共', count, '张')
-    return res.json({ mainImage, mainImages, sceneImages, closeUpImages, sellingPointImages, sellingPointLabels, mainImageIds, sceneImageIds, closeUpImageIds, sellingPointImageIds, additionalImages, pointsUsed: totalPoints, newBalance, mainImageId: mainImageId || null })
+    return res.json({ mainImage, mainImages, sceneImages, closeUpImages, sellingPointImages, sellingPointLabels, interactionImages, mainImageIds, sceneImageIds, closeUpImageIds, sellingPointImageIds, interactionImageIds, additionalImages, pointsUsed: totalPoints, newBalance, mainImageId: mainImageId || null })
   } catch (e) {
     console.error('[Amazon Listing] generate-product-images 失败', e.message)
     return res.status(500).json({ error: e.message || '产品图生成失败，请稍后重试' })
@@ -1989,6 +2006,521 @@ app.delete('/api/ai-assistant/amazon/listings/:id', requireAuth, (req, res) => {
     console.error('[Amazon Listing] delete listing 失败', e.message)
     return res.status(500).json({ error: '删除失败' })
   }
+})
+
+// ── AI 运营助手 · eBay Listing 生成 ────────────────────────────────────────────
+app.post('/api/ai-assistant/ebay/analyze', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { images, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张产品图' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请填写至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请填写品牌名' })
+    const firstImage = images[0]
+    const parsed = parseDataUrl(firstImage)
+    if (!parsed) return res.status(400).json({ error: '图片格式无效，请重新上传' })
+
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+    const prompt = `You are an eBay listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, item specifics, description generation). Extract concrete specs: dimensions, weight, material, certifications from the image or notes.
+
+User inputs:
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Core selling points: ${points.join(' | ')}
+- Target market: ${marketLabel}
+- Output language: ${langLabel}
+${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
+
+Output a JSON object only (no markdown):
+{
+  "productName": "short product name in output language",
+  "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
+  "keyAttributes": ["attr1", "attr2", "attr3"],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+}`
+
+    const contents = [
+      { inlineData: { mimeType: parsed.mimeType, data: parsed.data } },
+      { text: prompt },
+    ]
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.productSummary) return res.status(500).json({ error: '产品分析解析失败，请重试' })
+    console.log('[eBay Listing] 分析完成 | 产品:', out.productName)
+    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}` })
+  } catch (e) {
+    console.error('[eBay Listing] analyze 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品分析失败，请稍后重试' })
+  }
+})
+
+app.post('/api/ai-assistant/ebay/generate-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { analyzeResult, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!analyzeResult?.productSummary) return res.status(400).json({ error: '请先完成产品分析' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请提供至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请提供品牌名' })
+
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+    const prompt = `You are an eBay listing copywriter. Generate a listing in ${langLabel} for eBay ${marketLabel} market.
+
+eBay rules (MUST follow):
+- Title: max 80 characters. Put brand + core product + key attributes. If brand is "Unbranded", do NOT put "Unbranded" in the title — use the space for keywords instead. No keyword stuffing, no ALL CAPS (except brand acronyms). No special symbols unless part of brand.
+- Item Specifics: 10-20 key-value pairs relevant to the category. Include Brand (use "Unbranded" if no brand), MPN (use "Does not apply" if unknown), Type, Material, Color, Size/Dimensions, UPC/EAN (use "Does not apply" if unknown). Use standard eBay attribute names. Values should be concise.
+- Description: Professional product description in plain text (NO HTML tags — no &lt;p&gt;, &lt;br&gt;, &lt;b&gt;, etc.), 500-2000 characters. Use line breaks to separate paragraphs. Include features, specifications, and usage scenarios. No competitor mentions, no off-site links, no contact info.
+- eBay has NO bullet points and NO search terms field. Do NOT generate these.
+
+Cassini search optimization:
+- Title: Front-load the most important keywords in the first 3-4 words. eBay has NO backend search terms — all keywords MUST be in the title and Item Specifics.
+- Item Specifics are critical for Cassini ranking — fill as many as possible. They power filtered search; missing specifics = invisible in filtered results.
+- If the user provided reference keywords, prioritize embedding them in the title (highest weight) and reflect them in relevant Item Specifics.
+- Description should naturally include relevant keywords without stuffing.
+
+Certifications and compliance:
+- If certifications are provided (CE, FCC, etc.), include them as Item Specifics (e.g. {"name":"Certification","value":"CE, FCC"}).
+- For EU sales: GPSR compliance (since Dec 2024) requires manufacturer info — add Item Specifics for "Country/Region of Manufacture" if possible.
+- Never claim certifications that are not explicitly provided by the user.
+
+Input:
+- Product summary: ${analyzeResult.productSummary}
+- Product name: ${analyzeResult.productName || ''}
+- Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Selling points: ${points.join(' | ')}
+${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
+
+Output ONLY valid JSON (no markdown):
+{
+  "title": "eBay title, ≤80 chars, in ${langLabel}",
+  "itemSpecifics": [{"name":"Brand","value":"..."},{"name":"Type","value":"..."},{"name":"Material","value":"..."},...],
+  "description": "product description, 500-2000 chars, in ${langLabel}"
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.title) return res.status(500).json({ error: 'Listing 生成解析失败，请重试' })
+    const title = String(out.title || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+    const itemSpecifics = Array.isArray(out.itemSpecifics) ? out.itemSpecifics.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
+    const description = String(out.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    console.log('[eBay Listing] 生成完成 | title length:', title.length, '| itemSpecifics:', itemSpecifics.length)
+    return res.json({ title, itemSpecifics, description })
+  } catch (e) {
+    console.error('[eBay Listing] generate-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || 'Listing 生成失败，请稍后重试' })
+  }
+})
+
+app.post('/api/ai-assistant/ebay/generate-product-images', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { productImage, productName, brand, model: modelName, mainCount, sceneCount, closeUpCount, sellingPoints, sellingPointCount, sellingPointShowText, interactionCount, lang } = req.body || {}
+    if (!productImage) return res.status(400).json({ error: '请提供产品图' })
+    const parsed = parseDataUrl(productImage)
+    if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
+
+    const sellingPointsArr = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(x => x.trim()).filter(Boolean) : [])
+    let sp = Math.min(Math.max(0, parseInt(sellingPointCount, 10) || 0), sellingPointsArr.length)
+    let m = Math.min(4, Math.max(0, parseInt(mainCount, 10) || 0))
+    let s = Math.min(4, Math.max(0, parseInt(sceneCount, 10) || 0))
+    let c = Math.min(4, Math.max(0, parseInt(closeUpCount, 10) || 0))
+    let itr = Math.min(4, Math.max(0, parseInt(interactionCount, 10) || 0))
+    if (m + s + c + sp + itr === 0) return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
+
+    const count = m + s + c + sp + itr
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const totalPoints = count * pointsPerImg
+    const email = req.user.email
+    const balance = getBalance(email)
+    if (balance < totalPoints) return res.status(402).json({ error: '积分不足', required: totalPoints, balance })
+
+    const ai = new GoogleGenAI({ apiKey })
+    const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
+    const is25Image = imageModelId === 'gemini-2.5-flash-image'
+    const imageConfig = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
+    const genCfg = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+    const noTextRule = `CRITICAL: Pure product PHOTO with NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks.`
+    const baseContents = [{ inlineData: { mimeType: parsed.mimeType, data: parsed.data } }]
+    const productCtx = `Product: ${productName || 'product'}. Brand context: ${brand || ''}.`
+
+    const mainImages = [], sceneImages = [], closeUpImages = [], sellingPointImages = [], sellingPointLabels = [], interactionImages = []
+    const mainImageIds = [], sceneImageIds = [], closeUpImageIds = [], sellingPointImageIds = [], interactionImageIds = []
+    let mainImageId = null, idx = 0
+
+    for (let i = 0; i < m; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- eBay product image: Pure white background (RGB 255,255,255). ${productCtx} Product fills ~85% frame, centered. Professional studio lighting.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      mainImages.push(dataUrl); const id = `ebay-main-${Date.now()}-${i}`; if (i === 0) mainImageId = id; mainImageIds.push(id)
+      try { saveImageToGallery(email, id, `${productName || '产品'}·eBay主图${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    for (let i = 0; i < s; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- eBay scene image: Product in realistic lifestyle setting. ${productCtx} Professional photography. No text.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sceneImages.push(dataUrl); const sid = `ebay-scene-${Date.now()}-${i}`; sceneImageIds.push(sid)
+      try { saveImageToGallery(email, sid, `${productName || '产品'}·eBay场景${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    for (let i = 0; i < c; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- eBay detail image: Close-up showing texture, materials, craftsmanship. ${productCtx} Professional photography. No text.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      closeUpImages.push(dataUrl); const cid = `ebay-closeup-${Date.now()}-${i}`; closeUpImageIds.push(cid)
+      try { saveImageToGallery(email, cid, `${productName || '产品'}·eBay特写${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    const langName = { zh: 'Chinese', en: 'English', de: 'German', fr: 'French', ja: 'Japanese', es: 'Spanish' }[lang] || 'English'
+    for (let i = 0; i < sp; i++) {
+      idx++; const pointText = sellingPointsArr[i] || ''
+      const textRule = sellingPointShowText
+        ? `CRITICAL - Text on image: This image MUST display the selling point text clearly and elegantly. The text MUST be in ${langName}. The content is: "${pointText}". If the original text is in another language, translate it to ${langName} first, then render the translated text. Place the text with sufficient margins (8–12% from edges), large readable typography, high contrast, no clipping.`
+        : noTextRule
+      const noTextSuffix = sellingPointShowText ? '' : ' No text, no logos.'
+      const contents = [...baseContents, { text: `${textRule} --- eBay selling-point image: Same product. This image must visually showcase THIS specific selling point: "${pointText}". ${productCtx} Create a NEW professional product photo that illustrates the benefit or feature—e.g. if the point is about stackability, show multiple stacked units; if about durability, show texture or structure close-up; if about portability, show in-hand or compact size comparison. Pure white or soft gradient studio background. Professional product photography, high resolution.${noTextSuffix} Reference image is for product appearance ONLY—do NOT simply copy or overlay text on the reference image. Generate a completely new composition. Product surface dry, no water or droplets. Physically correct placement (e.g. stool on floor, not floating).` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sellingPointImages.push(dataUrl); sellingPointLabels.push(pointText)
+      const spid = `ebay-sp-${Date.now()}-${i}`; sellingPointImageIds.push(spid)
+      try { saveImageToGallery(email, spid, `${productName || '产品'}·eBay卖点${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    const interactionPrompt = `${noTextRule} --- Human-product interaction image: Show a real person naturally using, holding, or interacting with this product in a realistic setting. ${productCtx} The person should be partially visible (hands, arms, or upper body)—focus on the interaction, not the person's face. Show genuine usage: e.g. sitting on a stool, holding a tool, wearing an accessory, using a kitchen gadget. Natural indoor or lifestyle environment with soft lighting. Professional product photography, high resolution. No text, no logos. Reference image is for product appearance ONLY—generate a completely new scene with a person.`
+    for (let i = 0; i < itr; i++) {
+      idx++; const contents = [...baseContents, { text: interactionPrompt }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      interactionImages.push(dataUrl); const iid = `ebay-interaction-${Date.now()}-${i}`; interactionImageIds.push(iid)
+      try { saveImageToGallery(email, iid, `${productName || '产品'}·eBay交互图${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+
+    deductPoints(email, totalPoints, `eBay产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
+    const newBalance = getBalance(email)
+    return res.json({ mainImage: mainImages[0] || null, mainImages, sceneImages, closeUpImages, sellingPointImages, sellingPointLabels, interactionImages, mainImageIds, sceneImageIds, closeUpImageIds, sellingPointImageIds, interactionImageIds, pointsUsed: totalPoints, newBalance, mainImageId })
+  } catch (e) {
+    console.error('[eBay Listing] generate-product-images 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品图生成失败' })
+  }
+})
+
+app.post('/api/ai-assistant/ebay/save-listing', requireAuth, (req, res) => {
+  try {
+    const { name, title, itemSpecifics, description, analyzeResult, mainImageId, productImageIds } = req.body || {}
+    if (!title || title.trim() === '') return res.status(400).json({ error: '请提供标题' })
+    const email = req.user.email; const created_at = Date.now()
+    const specsStr = Array.isArray(itemSpecifics) ? JSON.stringify(itemSpecifics) : '[]'
+    const productIdsStr = productImageIds && typeof productImageIds === 'object' ? JSON.stringify(productImageIds) : null
+    getDb().prepare(`INSERT INTO ebay_listing_snapshots (user_email, created_at, name, title, item_specifics, description, analyze_result, main_image_id, product_image_ids) VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(email, created_at, (name||'').trim().slice(0,200), String(title).trim().slice(0,500), specsStr, String(description||'').slice(0,5000), analyzeResult ? JSON.stringify(analyzeResult) : null, mainImageId||null, productIdsStr)
+    const row = getDb().prepare('SELECT id, created_at FROM ebay_listing_snapshots WHERE user_email = ? AND created_at = ?').get(email, created_at)
+    return res.json({ id: row?.id, created_at })
+  } catch (e) { console.error('[eBay Listing] save 失败', e.message); return res.status(500).json({ error: '保存失败' }) }
+})
+
+app.get('/api/ai-assistant/ebay/listings', requireAuth, (req, res) => {
+  try {
+    const rows = getDb().prepare('SELECT id, created_at, name, title FROM ebay_listing_snapshots WHERE user_email = ? ORDER BY created_at DESC LIMIT 200').all(req.user.email)
+    return res.json({ list: rows.map(r => ({ id: r.id, createdAt: r.created_at, name: r.name||'', title: r.title||'', titlePreview: (r.title||'').slice(0,60)+((r.title||'').length>60?'…':'') })) })
+  } catch (e) { return res.status(500).json({ error: '获取列表失败' }) }
+})
+
+app.get('/api/ai-assistant/ebay/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10); if (Number.isNaN(id)) return res.status(400).json({ error: '无效 id' })
+    const row = getDb().prepare('SELECT * FROM ebay_listing_snapshots WHERE id = ? AND user_email = ?').get(id, req.user.email)
+    if (!row) return res.status(404).json({ error: '未找到' })
+    let itemSpecifics = []; try { itemSpecifics = JSON.parse(row.item_specifics || '[]') } catch (_) {}
+    let productImageIds = null; try { productImageIds = row.product_image_ids ? JSON.parse(row.product_image_ids) : null } catch (_) {}
+    return res.json({ id: row.id, createdAt: row.created_at, name: row.name||'', title: row.title||'', itemSpecifics, description: row.description||'', analyzeResult: row.analyze_result ? JSON.parse(row.analyze_result) : null, mainImageId: row.main_image_id||null, productImageIds })
+  } catch (e) { return res.status(500).json({ error: '获取详情失败' }) }
+})
+
+app.delete('/api/ai-assistant/ebay/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10); if (Number.isNaN(id)) return res.status(400).json({ error: '无效 id' })
+    const result = getDb().prepare('DELETE FROM ebay_listing_snapshots WHERE id = ? AND user_email = ?').run(id, req.user.email)
+    if (result.changes === 0) return res.status(404).json({ error: '未找到' })
+    return res.json({ ok: true })
+  } catch (e) { return res.status(500).json({ error: '删除失败' }) }
+})
+
+// ── AI 运营助手 · 速卖通 Listing 生成 ─────────────────────────────────────────
+app.post('/api/ai-assistant/aliexpress/analyze', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { images, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张产品图' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请填写至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请填写品牌名' })
+    const firstImage = images[0]
+    const parsed = parseDataUrl(firstImage)
+    if (!parsed) return res.status(400).json({ error: '图片格式无效，请重新上传' })
+
+    const langLabel = { zh: '中文', en: 'English', ru: 'Русский', pt: 'Português', es: 'Español', fr: 'Français', de: 'Deutsch', ko: '한국어', ja: '日本語' }[lang] || 'English'
+    const marketLabel = (market || 'global').toUpperCase()
+    const prompt = `You are an AliExpress listing expert. Analyze the product image and user inputs to output a structured product summary for listing generation. Extract concrete specs: dimensions, weight, material, certifications.
+
+User inputs:
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Core selling points: ${points.join(' | ')}
+- Target market: ${marketLabel}
+- Output language: ${langLabel}
+${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
+
+Output a JSON object only (no markdown):
+{
+  "productName": "short product name in output language",
+  "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
+  "keyAttributes": ["attr1", "attr2", "attr3"],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+}`
+
+    const contents = [{ inlineData: { mimeType: parsed.mimeType, data: parsed.data } }, { text: prompt }]
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.productSummary) return res.status(500).json({ error: '产品分析解析失败，请重试' })
+    console.log('[AliExpress Listing] 分析完成 | 产品:', out.productName)
+    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}` })
+  } catch (e) {
+    console.error('[AliExpress Listing] analyze 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品分析失败' })
+  }
+})
+
+app.post('/api/ai-assistant/aliexpress/generate-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { analyzeResult, category1, category2, brand, sellingPoints, market, lang, keywords, notes } = req.body || {}
+    if (!analyzeResult?.productSummary) return res.status(400).json({ error: '请先完成产品分析' })
+    const points = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(s => s.trim()).filter(Boolean) : [])
+    if (points.length < 2) return res.status(400).json({ error: '请提供至少 2 条核心卖点' })
+    if (!brand?.trim()) return res.status(400).json({ error: '请提供品牌名' })
+
+    const langLabel = { zh: '中文', en: 'English', ru: 'Русский', pt: 'Português', es: 'Español', fr: 'Français', de: 'Deutsch', ko: '한국어', ja: '日本語' }[lang] || 'English'
+    const marketLabel = (market || 'global').toUpperCase()
+    const prompt = `You are an AliExpress listing copywriter. Generate a listing in ${langLabel} for AliExpress ${marketLabel} market.
+
+AliExpress rules (MUST follow):
+- Title: max 128 characters. Include core keywords buyers search for. Front-load the most important product terms + key attributes. No ALL CAPS except brand acronyms. Avoid excessive punctuation. If the brand is "NONE", "无品牌", or "Unbranded", do NOT include brand in the title — use the space for product keywords instead. Otherwise format: [Brand] + [Core Product] + [Key Features/Attributes]. AliExpress allows longer titles than eBay — use the space wisely to include more search keywords but keep it natural and readable.
+- Product Attributes: 10-25 key-value pairs. Include: Brand (if unbranded, set value to "无品牌" or "NONE"), Material, Type, Color, Size, Weight, Origin, Features, Applicable scenarios, Season, Target audience, etc. These are crucial for AliExpress search and category filtering. Use standard AliExpress attribute names. IMPORTANT: Never fabricate a brand name — if the product has no brand, always use "无品牌" or "NONE".
+- Description: Rich product description, 500-3000 characters. AliExpress descriptions are primarily viewed on mobile. Structure with short paragraphs. Include: product highlights, specifications, package contents, usage scenarios. No competitor mentions, no external links, no contact info. No HTML tags — plain text with line breaks.
+- AliExpress has NO bullet points and NO search terms field. Do NOT generate these.
+
+AliExpress search optimization:
+- Title is the primary ranking factor (32.7% of search relevance). AliExpress has NO backend search terms — all keywords MUST be in the title and product attributes.
+- First 60 characters of the title carry the highest weight (mobile truncation). Place core product keywords here.
+- If the user provided reference keywords, prioritize embedding them in the title, especially in the first 60 characters.
+- Product attributes directly affect category filtering and search visibility — fill as many relevant attributes as possible.
+- Keyword repetition or stuffing is penalized (15-40% ranking drop). Each keyword should appear only once.
+- Description supports conversion — focus on answering buyer questions and showcasing value.
+
+Certifications and compliance:
+- If certifications are provided (CE, UKCA, CPC, UL, etc.), include them in product attributes (e.g. {"name":"Certification","value":"CE"}).
+- EU market: CE certification is strictly enforced — products without CE may be delisted. Mention in attributes and description.
+- UK market: UKCA certification required since Jan 2023.
+- Never claim certifications that are not explicitly provided by the user.
+- Note: Actual certification documents must be uploaded separately in the seller backend — the listing text is for buyer reference only.
+
+Input:
+- Product summary: ${analyzeResult.productSummary}
+- Product name: ${analyzeResult.productName || ''}
+- Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
+- Category: ${category1 || ''} > ${category2 || ''}
+- Brand: ${brand.trim()}
+- Selling points: ${points.join(' | ')}
+${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
+
+Output ONLY valid JSON (no markdown):
+{
+  "title": "AliExpress title, ≤128 chars, in ${langLabel}",
+  "productAttributes": [{"name":"Brand","value":"..."},{"name":"Material","value":"..."},{"name":"Type","value":"..."},...],
+  "description": "product description, 500-3000 chars, in ${langLabel}"
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.title) return res.status(500).json({ error: 'Listing 生成解析失败，请重试' })
+    const title = String(out.title || '').replace(/\s+/g, ' ').trim().slice(0, 128)
+    const productAttributes = Array.isArray(out.productAttributes) ? out.productAttributes.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
+    const description = String(out.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    console.log('[AliExpress Listing] 生成完成 | title length:', title.length, '| attrs:', productAttributes.length)
+    return res.json({ title, productAttributes, description })
+  } catch (e) {
+    console.error('[AliExpress Listing] generate-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || 'Listing 生成失败' })
+  }
+})
+
+app.post('/api/ai-assistant/aliexpress/generate-product-images', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { productImage, productName, brand, model: modelName, mainCount, sceneCount, closeUpCount, sellingPoints, sellingPointCount, sellingPointShowText, interactionCount, lang } = req.body || {}
+    if (!productImage) return res.status(400).json({ error: '请提供产品图' })
+    const parsed = parseDataUrl(productImage)
+    if (!parsed) return res.status(400).json({ error: '产品图格式无效' })
+
+    const sellingPointsArr = Array.isArray(sellingPoints) ? sellingPoints : (typeof sellingPoints === 'string' ? sellingPoints.split(/\n/).map(x => x.trim()).filter(Boolean) : [])
+    let sp = Math.min(Math.max(0, parseInt(sellingPointCount, 10) || 0), sellingPointsArr.length)
+    let m = Math.min(4, Math.max(0, parseInt(mainCount, 10) || 0))
+    let s = Math.min(4, Math.max(0, parseInt(sceneCount, 10) || 0))
+    let c = Math.min(4, Math.max(0, parseInt(closeUpCount, 10) || 0))
+    let itr = Math.min(4, Math.max(0, parseInt(interactionCount, 10) || 0))
+    if (m + s + c + sp + itr === 0) return res.status(400).json({ error: '请至少选择一类图片并设置数量≥1' })
+
+    const count = m + s + c + sp + itr
+    const pointsPerImg = getPointsPerImage(modelName || 'Nano Banana 2', '1K 标准')
+    const totalPoints = count * pointsPerImg
+    const email = req.user.email
+    const balance = getBalance(email)
+    if (balance < totalPoints) return res.status(402).json({ error: '积分不足', required: totalPoints, balance })
+
+    const ai = new GoogleGenAI({ apiKey })
+    const imageModelId = getImageModelId(modelName || 'Nano Banana 2')
+    const is25Image = imageModelId === 'gemini-2.5-flash-image'
+    const imageConfig = is25Image ? { aspectRatio: '1:1' } : { aspectRatio: '1:1', imageSize: '1K' }
+    const genCfg = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+    const noTextRule = `CRITICAL: Pure product PHOTO with NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks.`
+    const baseContents = [{ inlineData: { mimeType: parsed.mimeType, data: parsed.data } }]
+    const productCtx = `Product: ${productName || 'product'}. Brand context: ${brand || ''}.`
+
+    const mainImages = [], sceneImages = [], closeUpImages = [], sellingPointImages = [], sellingPointLabels = [], interactionImages = []
+    const mainImageIds = [], sceneImageIds = [], closeUpImageIds = [], sellingPointImageIds = [], interactionImageIds = []
+    let mainImageId = null, idx = 0
+
+    for (let i = 0; i < m; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- AliExpress main image: Pure white background. ${productCtx} Product fills ~85% frame, centered. Professional studio photo. Square format preferred.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      mainImages.push(dataUrl); const id = `ali-main-${Date.now()}-${i}`; if (i === 0) mainImageId = id; mainImageIds.push(id)
+      try { saveImageToGallery(email, id, `${productName || '产品'}·速卖通主图${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    for (let i = 0; i < s; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- AliExpress scene image: Product in lifestyle setting. ${productCtx} Professional photography. No text.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sceneImages.push(dataUrl); const sid = `ali-scene-${Date.now()}-${i}`; sceneImageIds.push(sid)
+      try { saveImageToGallery(email, sid, `${productName || '产品'}·速卖通场景${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    for (let i = 0; i < c; i++) {
+      idx++; const contents = [...baseContents, { text: `${noTextRule} --- AliExpress detail image: Close-up showing texture and quality. ${productCtx} Professional photography. No text.` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      closeUpImages.push(dataUrl); const cid = `ali-closeup-${Date.now()}-${i}`; closeUpImageIds.push(cid)
+      try { saveImageToGallery(email, cid, `${productName || '产品'}·速卖通特写${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    const langName = { zh: 'Chinese', en: 'English', ru: 'Russian', pt: 'Portuguese', es: 'Spanish', fr: 'French', de: 'German', ko: 'Korean', ja: 'Japanese' }[lang] || 'English'
+    for (let i = 0; i < sp; i++) {
+      idx++; const pointText = sellingPointsArr[i] || ''
+      const textRule = sellingPointShowText
+        ? `CRITICAL - Text on image: This image MUST display the selling point text clearly and elegantly. The text MUST be in ${langName}. The content is: "${pointText}". If the original text is in another language, translate it to ${langName} first, then render the translated text. Place the text with sufficient margins (8–12% from edges), large readable typography, high contrast, no clipping.`
+        : noTextRule
+      const noTextSuffix = sellingPointShowText ? '' : ' No text, no logos.'
+      const contents = [...baseContents, { text: `${textRule} --- AliExpress selling-point image: Same product. This image must visually showcase THIS specific selling point: "${pointText}". ${productCtx} Create a NEW professional product photo that illustrates the benefit or feature—e.g. if the point is about stackability, show multiple stacked units; if about durability, show texture or structure close-up; if about portability, show in-hand or compact size comparison. Pure white or soft gradient studio background. Professional product photography, high resolution.${noTextSuffix} Reference image is for product appearance ONLY—do NOT simply copy or overlay text on the reference image. Generate a completely new composition. Product surface dry, no water or droplets. Physically correct placement (e.g. stool on floor, not floating).` }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      sellingPointImages.push(dataUrl); sellingPointLabels.push(pointText)
+      const spid = `ali-sp-${Date.now()}-${i}`; sellingPointImageIds.push(spid)
+      try { saveImageToGallery(email, spid, `${productName || '产品'}·速卖通卖点${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+    const interactionPrompt = `${noTextRule} --- Human-product interaction image: Show a real person naturally using, holding, or interacting with this product in a realistic setting. ${productCtx} The person should be partially visible (hands, arms, or upper body)—focus on the interaction, not the person's face. Show genuine usage: e.g. sitting on a stool, holding a tool, wearing an accessory, using a kitchen gadget. Natural indoor or lifestyle environment with soft lighting. Professional product photography, high resolution. No text, no logos. Reference image is for product appearance ONLY—generate a completely new scene with a person.`
+    for (let i = 0; i < itr; i++) {
+      idx++; const contents = [...baseContents, { text: interactionPrompt }]
+      const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
+      const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
+      if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
+      const dataUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
+      interactionImages.push(dataUrl); const iid = `ali-interaction-${Date.now()}-${i}`; interactionImageIds.push(iid)
+      try { saveImageToGallery(email, iid, `${productName || '产品'}·速卖通交互图${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
+    }
+
+    deductPoints(email, totalPoints, `速卖通产品图 ${count} 张 (${modelName || 'Nano Banana 2'})`)
+    const newBalance = getBalance(email)
+    return res.json({ mainImage: mainImages[0] || null, mainImages, sceneImages, closeUpImages, sellingPointImages, sellingPointLabels, interactionImages, mainImageIds, sceneImageIds, closeUpImageIds, sellingPointImageIds, interactionImageIds, pointsUsed: totalPoints, newBalance, mainImageId })
+  } catch (e) {
+    console.error('[AliExpress Listing] generate-product-images 失败', e.message)
+    return res.status(500).json({ error: e.message || '产品图生成失败' })
+  }
+})
+
+app.post('/api/ai-assistant/aliexpress/save-listing', requireAuth, (req, res) => {
+  try {
+    const { name, title, productAttributes, description, analyzeResult, mainImageId, productImageIds } = req.body || {}
+    if (!title || title.trim() === '') return res.status(400).json({ error: '请提供标题' })
+    const email = req.user.email; const created_at = Date.now()
+    const attrsStr = Array.isArray(productAttributes) ? JSON.stringify(productAttributes) : '[]'
+    const productIdsStr = productImageIds && typeof productImageIds === 'object' ? JSON.stringify(productImageIds) : null
+    getDb().prepare(`INSERT INTO aliexpress_listing_snapshots (user_email, created_at, name, title, product_attributes, description, analyze_result, main_image_id, product_image_ids) VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(email, created_at, (name||'').trim().slice(0,200), String(title).trim().slice(0,500), attrsStr, String(description||'').slice(0,5000), analyzeResult ? JSON.stringify(analyzeResult) : null, mainImageId||null, productIdsStr)
+    const row = getDb().prepare('SELECT id, created_at FROM aliexpress_listing_snapshots WHERE user_email = ? AND created_at = ?').get(email, created_at)
+    return res.json({ id: row?.id, created_at })
+  } catch (e) { console.error('[AliExpress Listing] save 失败', e.message); return res.status(500).json({ error: '保存失败' }) }
+})
+
+app.get('/api/ai-assistant/aliexpress/listings', requireAuth, (req, res) => {
+  try {
+    const rows = getDb().prepare('SELECT id, created_at, name, title FROM aliexpress_listing_snapshots WHERE user_email = ? ORDER BY created_at DESC LIMIT 200').all(req.user.email)
+    return res.json({ list: rows.map(r => ({ id: r.id, createdAt: r.created_at, name: r.name||'', title: r.title||'', titlePreview: (r.title||'').slice(0,60)+((r.title||'').length>60?'…':'') })) })
+  } catch (e) { return res.status(500).json({ error: '获取列表失败' }) }
+})
+
+app.get('/api/ai-assistant/aliexpress/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10); if (Number.isNaN(id)) return res.status(400).json({ error: '无效 id' })
+    const row = getDb().prepare('SELECT * FROM aliexpress_listing_snapshots WHERE id = ? AND user_email = ?').get(id, req.user.email)
+    if (!row) return res.status(404).json({ error: '未找到' })
+    let productAttributes = []; try { productAttributes = JSON.parse(row.product_attributes || '[]') } catch (_) {}
+    let productImageIds = null; try { productImageIds = row.product_image_ids ? JSON.parse(row.product_image_ids) : null } catch (_) {}
+    return res.json({ id: row.id, createdAt: row.created_at, name: row.name||'', title: row.title||'', productAttributes, description: row.description||'', analyzeResult: row.analyze_result ? JSON.parse(row.analyze_result) : null, mainImageId: row.main_image_id||null, productImageIds })
+  } catch (e) { return res.status(500).json({ error: '获取详情失败' }) }
+})
+
+app.delete('/api/ai-assistant/aliexpress/listings/:id', requireAuth, (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10); if (Number.isNaN(id)) return res.status(400).json({ error: '无效 id' })
+    const result = getDb().prepare('DELETE FROM aliexpress_listing_snapshots WHERE id = ? AND user_email = ?').run(id, req.user.email)
+    if (result.changes === 0) return res.status(404).json({ error: '未找到' })
+    return res.json({ ok: true })
+  } catch (e) { return res.status(500).json({ error: '删除失败' }) }
 })
 
 // ── 管理员 API ────────────────────────────────────────────────────────────────

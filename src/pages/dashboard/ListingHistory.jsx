@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
-import { buildAmazonListingCsv, downloadAmazonListingCsv } from '../../lib/exportAmazonListingCsv'
+import { buildAmazonCsv, buildEbayCsv, buildAliExpressCsv, downloadCsv, downloadJson } from '../../lib/exportListingCsv'
 
 /** 带认证加载的仓库图片，用于 Listing 详情中显示关联的主图 / A+ 图 */
 function AuthGalleryImage({ id, token, alt, className }) {
@@ -65,70 +66,69 @@ function dateLabel(ts) {
 
 export default function ListingHistory() {
   const { getToken } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const platform = searchParams.get('platform') || 'amazon'
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
+  const apiBase = platform === 'ebay' ? '/api/ai-assistant/ebay' : platform === 'aliexpress' ? '/api/ai-assistant/aliexpress' : '/api/ai-assistant/amazon'
+  const isAttrPlatform = platform === 'ebay' || platform === 'aliexpress'
+  const attrLabel = platform === 'ebay' ? 'Item Specifics' : platform === 'aliexpress' ? '产品属性' : null
+  const attrField = platform === 'ebay' ? 'itemSpecifics' : platform === 'aliexpress' ? 'productAttributes' : null
+
   const fetchList = useCallback(() => {
     const token = getToken()
-    if (!token) {
-      setLoading(false)
-      setError('请先登录')
-      return
-    }
-    setLoading(true)
-    setError('')
-    fetch('/api/ai-assistant/amazon/listings', { headers: { Authorization: `Bearer ${token}` } })
+    if (!token) { setLoading(false); setError('请先登录'); return }
+    setLoading(true); setError('')
+    fetch(`${apiBase}/listings`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('获取失败'))))
       .then((data) => setList(data.list || []))
       .catch((e) => setError(e.message || '加载失败'))
       .finally(() => setLoading(false))
-  }, [getToken])
+  }, [getToken, apiBase])
 
-  useEffect(() => {
-    fetchList()
-  }, [fetchList])
+  useEffect(() => { fetchList() }, [fetchList])
+  useEffect(() => { setDetail(null) }, [platform])
 
   const openDetail = (id) => {
     const token = getToken()
     if (!token) return
-    setDetailLoading(true)
-    setDetail(null)
-    fetch(`/api/ai-assistant/amazon/listings/${id}`, { headers: { Authorization: `Bearer ${token}` } })
+    setDetailLoading(true); setDetail(null)
+    fetch(`${apiBase}/listings/${id}`, { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error('获取失败'))))
-      .then(setDetail)
-      .catch(() => setDetail(null))
-      .finally(() => setDetailLoading(false))
+      .then(setDetail).catch(() => setDetail(null)).finally(() => setDetailLoading(false))
   }
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {}).catch(() => {})
-  }
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}) }
 
   const handleDelete = async (id) => {
     if (!window.confirm('确定要删除这条 Listing 吗？')) return
     const token = getToken()
     if (!token) return
     try {
-      const res = await fetch(`/api/ai-assistant/amazon/listings/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const res = await fetch(`${apiBase}/listings/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || '删除失败')
       if (detail?.id === id) setDetail(null)
       fetchList()
-    } catch (e) {
-      setError(e.message || '删除失败')
-    }
+    } catch (e) { setError(e.message || '删除失败') }
   }
 
   return (
     <div className="max-w-4xl">
       <h1 className="text-lg font-bold text-gray-900">Listing 历史</h1>
-      <p className="text-sm text-gray-500 mt-0.5">从「AI 运营助手 → 亚马逊 → 生成 Listing」保存的记录可在此查看与复制</p>
+      <p className="text-sm text-gray-500 mt-0.5">从「AI 运营助手」保存的 Listing 可在此查看与复制</p>
+
+      <div className="flex gap-2 mt-3">
+        {[{ id: 'amazon', label: '亚马逊' }, { id: 'ebay', label: 'eBay' }, { id: 'aliexpress', label: '速卖通' }].map(p => (
+          <button key={p.id} type="button" onClick={() => setSearchParams({ platform: p.id })}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${platform === p.id ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >{p.label}</button>
+        ))}
+      </div>
 
       {loading && <p className="text-sm text-gray-500 mt-4">加载中…</p>}
       {error && <p className="text-sm text-red-600 mt-4">{error}</p>}
@@ -173,53 +173,68 @@ export default function ListingHistory() {
             {detailLoading && <p className="text-sm text-gray-500">加载中…</p>}
             {detail && !detailLoading && (
               <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-xs text-gray-500">{dateLabel(detail.createdAt)}</span>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const csv = buildAmazonListingCsv({
-                          title: detail.title,
-                          searchTerms: detail.searchTerms,
-                          bullets: detail.bullets || [],
-                          description: detail.description,
-                        })
-                        downloadAmazonListingCsv(csv, `listing-${detail.id}-export.csv`)
-                      }}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    >
-                      导出 CSV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(detail.id)}
-                      className="text-xs px-3 py-1.5 rounded-lg font-medium border border-red-200 text-red-600 hover:bg-red-50"
-                    >
-                      删除
-                    </button>
+                    <button type="button" onClick={() => {
+                      let csv
+                      if (platform === 'ebay') csv = buildEbayCsv({ title: detail.title, description: detail.description, itemSpecifics: detail.itemSpecifics || [] })
+                      else if (platform === 'aliexpress') csv = buildAliExpressCsv({ title: detail.title, description: detail.description, productAttributes: detail.productAttributes || [] })
+                      else csv = buildAmazonCsv({ title: detail.title, searchTerms: detail.searchTerms, bullets: detail.bullets || [], description: detail.description })
+                      downloadCsv(csv, `${platform}-listing-${detail.id}.csv`)
+                    }} className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">导出 CSV</button>
+                    <button type="button" onClick={() => {
+                      const obj = { title: detail.title, description: detail.description }
+                      if (platform === 'ebay') obj.itemSpecifics = detail.itemSpecifics || []
+                      else if (platform === 'aliexpress') obj.productAttributes = detail.productAttributes || []
+                      else { obj.searchTerms = detail.searchTerms; obj.bullets = detail.bullets || [] }
+                      downloadJson(obj, `${platform}-listing-${detail.id}.json`)
+                    }} className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">导出 JSON</button>
+                    <button type="button" onClick={() => handleDelete(detail.id)} className="text-xs px-3 py-1.5 rounded-lg font-medium border border-red-200 text-red-600 hover:bg-red-50">删除</button>
                   </div>
                 </div>
                 <CopyBlock label="标题" text={detail.title} onCopy={copyToClipboard} markdown />
-                <CopyBlock label="后台关键词" text={detail.searchTerms} onCopy={copyToClipboard} />
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
-                  {(detail.bullets || []).map((b, i) => (
-                    <div key={i} className="flex gap-2 mb-2">
-                      <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
-                      <div className="flex-1 flex items-start gap-2">
-                        <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
-                          <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
-                            {(b || '—').replace(/\n/g, '\n\n')}
-                          </ReactMarkdown>
-                        </div>
-                        <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                {isAttrPlatform ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">{attrLabel}</label>
+                      <div className="rounded-lg border border-gray-100 bg-white p-3 space-y-1.5">
+                        {(detail[attrField] || []).length === 0 ? <p className="text-sm text-gray-500">无</p> : (
+                          (detail[attrField] || []).map((spec, i) => (
+                            <div key={i} className="flex items-center gap-2 text-sm">
+                              <span className="font-medium text-gray-700 shrink-0">{spec.name}:</span>
+                              <span className="text-gray-800">{spec.value}</span>
+                              <button type="button" onClick={() => copyToClipboard(`${spec.name}: ${spec.value}`)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-                <CopyBlock label="产品描述" text={detail.description} onCopy={copyToClipboard} markdown />
-                {detail.aplusCopy && (
+                    <CopyBlock label="产品描述" text={detail.description} onCopy={copyToClipboard} markdown />
+                  </>
+                ) : (
+                  <>
+                    <CopyBlock label="后台关键词" text={detail.searchTerms} onCopy={copyToClipboard} />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
+                      {(detail.bullets || []).map((b, i) => (
+                        <div key={i} className="flex gap-2 mb-2">
+                          <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
+                          <div className="flex-1 flex items-start gap-2">
+                            <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
+                              <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                                {(b || '—').replace(/\n/g, '\n\n')}
+                              </ReactMarkdown>
+                            </div>
+                            <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <CopyBlock label="产品描述" text={detail.description} onCopy={copyToClipboard} markdown />
+                  </>
+                )}
+                {platform === 'amazon' && detail.aplusCopy && (
                   <div className="pt-2 border-t border-gray-200">
                     <label className="block text-xs font-medium text-gray-500 mb-1">A+ 文案</label>
                     <p className="text-sm text-gray-700"><strong>Hero:</strong> {detail.aplusCopy.heroTagline}</p>
@@ -232,9 +247,9 @@ export default function ListingHistory() {
                 )}
                 {(() => {
                   const pids = detail.productImageIds
-                  const hasProduct = pids && ((pids.mainImageIds && pids.mainImageIds.length) || (pids.sceneImageIds && pids.sceneImageIds.length) || (pids.closeUpImageIds && pids.closeUpImageIds.length) || (pids.sellingPointImageIds && pids.sellingPointImageIds.length))
+                  const hasProduct = pids && ((pids.mainImageIds && pids.mainImageIds.length) || (pids.sceneImageIds && pids.sceneImageIds.length) || (pids.closeUpImageIds && pids.closeUpImageIds.length) || (pids.sellingPointImageIds && pids.sellingPointImageIds.length) || (pids.interactionImageIds && pids.interactionImageIds.length))
                   const hasLegacyMain = !hasProduct && detail.mainImageId
-                  const hasAplus = detail.aplusImageIds && detail.aplusImageIds.length > 0
+                  const hasAplus = platform === 'amazon' && detail.aplusImageIds && detail.aplusImageIds.length > 0
                   if (!hasProduct && !hasLegacyMain && !hasAplus) return null
                   return (
                     <div className="pt-2 border-t border-gray-200">
@@ -277,6 +292,16 @@ export default function ListingHistory() {
                             <div className="flex flex-wrap gap-2">
                               {pids.sellingPointImageIds.map((gid, i) => (
                                 <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`卖点图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {pids?.interactionImageIds?.length > 0 && (
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">交互图</p>
+                            <div className="flex flex-wrap gap-2">
+                              {pids.interactionImageIds.map((gid, i) => (
+                                <AuthGalleryImage key={gid} id={gid} token={getToken()} alt={`交互图${i + 1}`} className="w-32 h-32 object-contain rounded-lg border border-gray-200 bg-white" />
                               ))}
                             </div>
                           </div>

@@ -3,14 +3,14 @@ import { useSearchParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { useAuth } from '../context/AuthContext'
-import { buildAmazonListingCsv, downloadAmazonListingCsv } from '../lib/exportAmazonListingCsv'
+import { buildAmazonCsv, buildEbayCsv, buildAliExpressCsv, downloadCsv, downloadJson } from '../lib/exportListingCsv'
 import { getPointsPerImage } from '../lib/pointsConfig'
 
 // ── 平台列表 ──────────────────────────────────────────────────────────────────
 const platforms = [
   { id: 'amazon',      name: '亚马逊',     nameEn: 'Amazon',      available: true  },
-  { id: 'ebay',        name: 'eBay',        nameEn: 'eBay',        available: false },
-  { id: 'aliexpress',  name: '速卖通',     nameEn: 'AliExpress',  available: false },
+  { id: 'ebay',        name: 'eBay',        nameEn: 'eBay',        available: true  },
+  { id: 'aliexpress',  name: '速卖通',     nameEn: 'AliExpress',  available: true  },
   { id: 'shopify',     name: 'Shopify',     nameEn: 'Shopify',     available: false },
   { id: 'tiktok',      name: 'TikTok Shop', nameEn: 'TikTok Shop', available: false },
   { id: 'walmart',     name: '沃尔玛',     nameEn: 'Walmart',     available: false },
@@ -19,12 +19,52 @@ const platforms = [
   { id: 'independent', name: '独立站',     nameEn: 'Independent', available: false },
 ]
 
+const generateIcon = (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+)
+
+// ── eBay / 速卖通 功能列表 ────────────────────────────────────────────────────
+const ebayFeatures = [
+  { id: 'generate', title: '生成 Listing', desc: '输入产品信息，AI 一键生成符合 eBay 规则的标题（80 字符）、Item Specifics 与产品描述，并可生成白底主图、场景图、特写图等产品图。', icon: generateIcon },
+]
+const aliexpressFeatures = [
+  { id: 'generate', title: '生成 Listing', desc: '输入产品信息，AI 一键生成符合速卖通规则的标题（128 字符）、产品属性与详情描述，并可生成白底主图、场景图、特写图等产品图。', icon: generateIcon },
+]
+
+// ── eBay 目标市场 ─────────────────────────────────────────────────────────────
+const ebayMarkets = [
+  { value: 'us', label: '美国（eBay.com）' },
+  { value: 'uk', label: '英国（eBay.co.uk）' },
+  { value: 'de', label: '德国（eBay.de）' },
+  { value: 'fr', label: '法国（eBay.fr）' },
+  { value: 'au', label: '澳大利亚（eBay.com.au）' },
+  { value: 'ca', label: '加拿大（eBay.ca）' },
+  { value: 'it', label: '意大利（eBay.it）' },
+  { value: 'es', label: '西班牙（eBay.es）' },
+]
+
+// ── 速卖通目标市场 ────────────────────────────────────────────────────────────
+const aliexpressMarkets = [
+  { value: 'global', label: '全球' },
+  { value: 'us', label: '美国' },
+  { value: 'ru', label: '俄罗斯' },
+  { value: 'br', label: '巴西' },
+  { value: 'fr', label: '法国' },
+  { value: 'es', label: '西班牙' },
+  { value: 'de', label: '德国' },
+  { value: 'uk', label: '英国' },
+  { value: 'kr', label: '韩国' },
+  { value: 'jp', label: '日本' },
+]
+
 // ── 亚马逊功能列表 ─────────────────────────────────────────────────────────────
 const amazonFeatures = [
   {
     id: 'generate',
     title: '生成 Listing',
-    desc: '输入产品信息，AI 一键生成符合亚马逊规则的高质量标题、五点描述与详情，支持多市场多语言。',
+    desc: '输入产品信息，AI 一键生成符合亚马逊规则的高质量标题、五点描述与详情，并可生成白底主图、场景图、特写图等产品图，支持多市场多语言。',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -58,22 +98,65 @@ const markets = [
   { value: 'au', label: '澳大利亚（Amazon.com.au）' },
 ]
 
-// ── 产品类别（二级联动，与 docs/ECOMMERCE-AI-ASSISTANT.md 一致）────────────────
+// ── 亚马逊产品类别（二级联动，与 docs/ECOMMERCE-AI-ASSISTANT.md 一致）─────────
 const CATEGORY_TREE = [
-  { id: 'home', name: '家居厨房', children: ['厨具', '收纳整理', '家纺', '灯具', '清洁用品', '浴室用品'] },
-  { id: 'sports', name: '运动户外', children: ['户外装备', '健身器材', '自行车', '游泳用品', '球类运动'] },
-  { id: 'electronics', name: '电子数码', children: ['手机配件', '电脑配件', '音频设备', '摄影器材', '智能家居'] },
-  { id: 'beauty', name: '美容个护', children: ['护肤', '彩妆', '发型护理', '香水', '健康护理'] },
-  { id: 'pet', name: '宠物用品', children: ['犬用', '猫用', '小动物', '水族'] },
-  { id: 'baby', name: '婴儿用品', children: ['喂养', '婴儿衣物', '婴儿玩具', '婴儿安全'] },
-  { id: 'apparel', name: '服装鞋包', children: ['男装', '女装', '鞋类', '箱包配件'] },
-  { id: 'toys', name: '玩具游戏', children: ['益智玩具', '遥控玩具', '户外玩具', '桌游'] },
-  { id: 'auto', name: '汽车用品', children: ['内饰配件', '外饰改装', '工具', '电子设备'] },
-  { id: 'tools', name: '工具五金', children: ['电动工具', '手工具', '建材五金'] },
-  { id: 'garden', name: '园艺', children: ['园林工具', '种植用品', '户外家具'] },
-  { id: 'health', name: '健康医疗', children: ['维生素/保健品', '医疗器具', '急救用品'] },
-  { id: 'office', name: '办公文具', children: ['文具耗材', '打印耗材', '办公家具'] },
-  { id: 'other', name: '其他', children: ['其他'] },
+  { id: 'home', name: 'Home & Kitchen', children: ['Kitchen & Dining', 'Storage & Organization', 'Bedding', 'Lighting', 'Cleaning Supplies', 'Bathroom Accessories'] },
+  { id: 'sports', name: 'Sports & Outdoors', children: ['Outdoor Recreation', 'Exercise & Fitness', 'Cycling', 'Swimming', 'Team Sports'] },
+  { id: 'electronics', name: 'Electronics', children: ['Cell Phone Accessories', 'Computer Accessories', 'Audio Equipment', 'Camera & Photo', 'Smart Home'] },
+  { id: 'beauty', name: 'Beauty & Personal Care', children: ['Skin Care', 'Makeup', 'Hair Care', 'Fragrance', 'Health Care'] },
+  { id: 'pet', name: 'Pet Supplies', children: ['Dog Supplies', 'Cat Supplies', 'Small Animal Supplies', 'Fish & Aquatic Pets'] },
+  { id: 'baby', name: 'Baby', children: ['Feeding', 'Baby Clothing', 'Baby Toys', 'Baby Safety'] },
+  { id: 'apparel', name: 'Clothing, Shoes & Jewelry', children: ['Men\'s Fashion', 'Women\'s Fashion', 'Shoes', 'Bags & Accessories'] },
+  { id: 'toys', name: 'Toys & Games', children: ['Educational Toys', 'Remote Control Toys', 'Outdoor Play', 'Board Games'] },
+  { id: 'auto', name: 'Automotive', children: ['Interior Accessories', 'Exterior Accessories', 'Tools & Equipment', 'Car Electronics'] },
+  { id: 'tools', name: 'Tools & Home Improvement', children: ['Power Tools', 'Hand Tools', 'Hardware'] },
+  { id: 'garden', name: 'Garden & Outdoor', children: ['Gardening Tools', 'Planting Supplies', 'Outdoor Furniture'] },
+  { id: 'health', name: 'Health & Household', children: ['Vitamins & Supplements', 'Medical Supplies', 'First Aid'] },
+  { id: 'office', name: 'Office Products', children: ['Office Supplies', 'Printer Supplies', 'Office Furniture'] },
+  { id: 'other', name: 'Other', children: ['Other'] },
+]
+
+// ── eBay 产品类别（基于 eBay.com 官方 L1/L2 类目）──────────────────────────────
+const EBAY_CATEGORY_TREE = [
+  { id: 'electronics', name: 'Electronics', children: ['Cell Phones & Accessories', 'Computers/Tablets & Networking', 'Cameras & Photo', 'Video Games & Consoles', 'TV, Video & Home Audio', 'Portable Audio & Headphones', 'Smart Home & Surveillance', 'Major Appliances', 'Vehicle Electronics & GPS'] },
+  { id: 'home_garden', name: 'Home & Garden', children: ['Home Décor', 'Kitchen, Dining & Bar', 'Yard, Garden & Outdoor Living', 'Home Improvement', 'Tools & Workshop Equipment', 'Furniture', 'Bedding', 'Lamps, Lighting & Ceiling Fans', 'Household Supplies & Cleaning', 'Bath', 'Rugs & Carpets', 'Food & Beverages'] },
+  { id: 'clothing', name: 'Clothing, Shoes & Accessories', children: ['Women\'s Clothing', 'Women\'s Shoes', 'Women\'s Accessories', 'Men\'s Clothing', 'Men\'s Shoes', 'Men\'s Accessories', 'Kids\' Clothing', 'Kids\' Shoes', 'Luggage'] },
+  { id: 'sporting', name: 'Sporting Goods', children: ['Golf', 'Hunting', 'Cycling', 'Fishing', 'Outdoor Sports', 'Team Sports', 'Winter Sports', 'Camping & Hiking', 'Fitness, Running & Yoga', 'Water Sports', 'Tennis & Racquet Sports'] },
+  { id: 'toys', name: 'Toys & Hobbies', children: ['Collectible Card Games', 'Action Figures', 'Building Toys', 'Diecast & Toy Vehicles', 'Games', 'Radio Control', 'Models & Kits', 'Puzzles', 'Outdoor Toys & Structures', 'Preschool Toys'] },
+  { id: 'health_beauty', name: 'Health & Beauty', children: ['Fragrances', 'Vitamins & Supplements', 'Skin Care', 'Hair Care & Styling', 'Makeup', 'Shaving & Hair Removal', 'Health Care', 'Bath & Body', 'Oral Care', 'Nail Care'] },
+  { id: 'jewelry', name: 'Jewelry & Watches', children: ['Watches', 'Fine Jewelry', 'Fashion Jewelry', 'Men\'s Jewelry', 'Engagement & Wedding', 'Loose Diamonds & Gemstones', 'Body Jewelry', 'Children\'s Jewelry'] },
+  { id: 'baby', name: 'Baby Essentials', children: ['Baby Clothing', 'Strollers & Accessories', 'Diapering', 'Feeding', 'Nursery Bedding', 'Toys for Baby', 'Baby Gear', 'Car Safety Seats', 'Nursery Furniture', 'Bathing & Grooming'] },
+  { id: 'pet', name: 'Pet Supplies', children: ['Dog Supplies', 'Cat Supplies', 'Fish & Aquariums', 'Bird Supplies', 'Small Animal Supplies', 'Reptile Supplies'] },
+  { id: 'motors', name: 'eBay Motors', children: ['Parts & Accessories', 'Automotive Tools & Supplies', 'Motorcycles', 'Powersports', 'Boats'] },
+  { id: 'collectibles', name: 'Collectibles & Art', children: ['Sports Memorabilia', 'Collectibles', 'Dolls & Bears', 'Art', 'Crafts', 'Coins & Paper Money', 'Antiques', 'Stamps', 'Pottery & Glass'] },
+  { id: 'business', name: 'Business & Industrial', children: ['Healthcare, Lab & Dental', 'CNC & Metalworking', 'Test & Measurement', 'Electrical Equipment', 'Office', 'Restaurant & Food Service', 'Heavy Equipment', 'Building Materials'] },
+  { id: 'books', name: 'Books, Movies & Music', children: ['Books & Magazines', 'Music', 'Musical Instruments & Gear', 'Movies & TV'] },
+  { id: 'other', name: 'Other', children: ['Other'] },
+]
+
+// ── 速卖通产品类别（基于 AliExpress 官方类目体系）──────────────────────────────
+const ALIEXPRESS_CATEGORY_TREE = [
+  { id: 'women_clothing', name: 'Women\'s Clothing', children: ['Dresses', 'Tops & Tees', 'Pants', 'Outerwear', 'Skirts', 'Suits & Sets', 'Activewear', 'Lingerie'] },
+  { id: 'men_clothing', name: 'Men\'s Clothing', children: ['T-Shirts', 'Shirts', 'Pants', 'Jackets & Coats', 'Activewear', 'Suits', 'Underwear'] },
+  { id: 'phones', name: 'Phones & Telecommunications', children: ['Phone Cases & Covers', 'Phone Accessories', 'Screen Protectors', 'Chargers & Cables', 'Bluetooth Earphones', 'Power Banks'] },
+  { id: 'computer', name: 'Computer & Office', children: ['Laptop Accessories', 'Tablet Accessories', 'Keyboards & Mice', 'Storage Devices', 'Printer Supplies', 'Networking'] },
+  { id: 'electronics', name: 'Consumer Electronics', children: ['Earphones & Speakers', 'Wearable Devices', 'Camera & Photo', 'Gaming Accessories', 'Projectors', 'Smart Home'] },
+  { id: 'jewelry', name: 'Jewelry & Accessories', children: ['Necklaces', 'Bracelets & Bangles', 'Earrings', 'Rings', 'Brooches', 'Hair Accessories', 'Jewelry Sets'] },
+  { id: 'watches', name: 'Watches', children: ['Men\'s Watches', 'Women\'s Watches', 'Kids\' Watches', 'Smart Watches', 'Watch Bands & Accessories'] },
+  { id: 'shoes', name: 'Shoes', children: ['Women\'s Shoes', 'Men\'s Shoes', 'Kids\' Shoes', 'Sneakers', 'Sandals & Slippers', 'Boots'] },
+  { id: 'bags', name: 'Luggage & Bags', children: ['Women\'s Bags', 'Men\'s Bags', 'Backpacks', 'Luggage & Travel', 'Wallets', 'Waist Packs & Chest Bags'] },
+  { id: 'home', name: 'Home & Garden', children: ['Home Decor', 'Kitchen & Dining', 'Storage & Organization', 'Lighting', 'Bathroom', 'Garden', 'Pet Supplies', 'Festive & Party Supplies'] },
+  { id: 'home_improvement', name: 'Home Improvement', children: ['Hardware & Tools', 'Electrical Equipment', 'Plumbing', 'Locks & Security', 'Paints & Coatings'] },
+  { id: 'home_appliances', name: 'Home Appliances', children: ['Kitchen Appliances', 'Household Appliances', 'Personal Care Appliances', 'Cleaning Appliances', 'Climate Control'] },
+  { id: 'beauty', name: 'Beauty & Health', children: ['Skin Care', 'Makeup', 'Nail Art', 'Hair Styling Tools', 'Wigs', 'Beauty Devices', 'Health Care'] },
+  { id: 'mother_baby', name: 'Mother & Kids', children: ['Kids\' Clothing', 'Baby Clothing', 'Feeding', 'Maternity Clothing', 'Baby Toys', 'Baby Safety'] },
+  { id: 'toys', name: 'Toys & Hobbies', children: ['RC Toys', 'Building Blocks & Models', 'Stuffed Animals & Plush', 'Educational Toys', 'Outdoor Toys', 'Board Games', 'Collectible Models'] },
+  { id: 'sports', name: 'Sports & Entertainment', children: ['Sportswear', 'Fitness Equipment', 'Outdoor Gear', 'Camping', 'Cycling', 'Swimming', 'Team Sports', 'Yoga'] },
+  { id: 'auto', name: 'Automobiles & Motorcycles', children: ['Car Interior', 'Car Exterior', 'Car Electronics', 'Car Care', 'Motorcycle Accessories', 'LED Car Lights'] },
+  { id: 'tools', name: 'Tools', children: ['Power Tools', 'Hand Tools', 'Measuring Tools', 'Welding Equipment', 'Tool Storage'] },
+  { id: 'security', name: 'Security & Protection', children: ['Surveillance Cameras', 'Access Control', 'Alarm Systems', 'Security Accessories'] },
+  { id: 'office', name: 'Office & School Supplies', children: ['Stationery', 'Office Supplies', 'Teaching Equipment'] },
+  { id: 'other', name: 'Other', children: ['Other'] },
 ]
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
@@ -195,6 +278,7 @@ function GenerateForm() {
   const [closeUpImageCount, setCloseUpImageCount] = useState(1) // Step 3 特写图 0～4
   const [sellingPointImageCount, setSellingPointImageCount] = useState(0) // Step 3 卖点图 0～卖点数
   const [sellingPointShowText, setSellingPointShowText] = useState(false) // 卖点图是否在图上显示文字
+  const [interactionImageCount, setInteractionImageCount] = useState(0) // Step 3 交互图 0～4
   const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选 A+ 模块，最多 5 个
   const step4Ref = useRef(null)
 
@@ -384,6 +468,7 @@ function GenerateForm() {
           sellingPoints: sellingPointsLines,
           sellingPointCount: sellingPointImageCount,
           sellingPointShowText: sellingPointShowText,
+          interactionCount: interactionImageCount,
           lang: form.lang,
         }),
       })
@@ -396,10 +481,12 @@ function GenerateForm() {
         closeUpImages: data.closeUpImages || [],
         sellingPointImages: data.sellingPointImages || [],
         sellingPointLabels: data.sellingPointLabels || [],
+        interactionImages: data.interactionImages || [],
         mainImageIds: data.mainImageIds || [],
         sceneImageIds: data.sceneImageIds || [],
         closeUpImageIds: data.closeUpImageIds || [],
         sellingPointImageIds: data.sellingPointImageIds || [],
+        interactionImageIds: data.interactionImageIds || [],
         additionalImages: data.additionalImages || [],
         pointsUsed: data.pointsUsed,
         mainImageId: data.mainImageId || null,
@@ -682,9 +769,14 @@ function GenerateForm() {
                 title="在现有分析基础上，只重新生成本步的标题、五点、描述"
                 className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
               >
-                重新生成
+                {step === 'generating' ? <span className="animate-pulse">正在重新生成…</span> : '重新生成'}
               </button>
             </div>
+            {step === 'generating' && (
+              <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
+                <p className="text-sm font-medium text-gray-800 animate-pulse">正在重新生成标题·关键词·五点·描述，请稍候…</p>
+              </div>
+            )}
             <div className="space-y-4">
           <CopyBlock label="标题" text={listingResult.title} onCopy={copyToClipboard} markdown />
           <CopyBlock label="后台关键词" text={listingResult.searchTerms} onCopy={copyToClipboard} />
@@ -769,11 +861,18 @@ function GenerateForm() {
                         </label>
                       )}
                     </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">交互图</label>
+                      <select value={interactionImageCount} onChange={e => setInteractionImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                        {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                      </select>
+                      <p className="text-xs text-gray-400 mt-0.5">真人使用/手持产品的场景</p>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
-            {(productImagesResult?.mainImage || (productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length)) ? (
+            {(productImagesResult?.mainImage || (productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length || productImagesResult?.interactionImages?.length)) ? (
               <div>
                 {(() => {
                   const mainImgs = productImagesResult.mainImages || (productImagesResult.mainImage ? [productImagesResult.mainImage] : [])
@@ -781,8 +880,9 @@ function GenerateForm() {
                   const closeUpImgs = productImagesResult.closeUpImages || []
                   const sellingPointImgs = productImagesResult.sellingPointImages || []
                   const sellingPointLbls = productImagesResult.sellingPointLabels || []
+                  const interactionImgs = productImagesResult.interactionImages || []
                   const legacyImgs = !productImagesResult.mainImages && !productImagesResult.sceneImages && !productImagesResult.closeUpImages && !productImagesResult.sellingPointImages?.length ? (productImagesResult.additionalImages || []) : []
-                  const totalCount = mainImgs.length + sceneImgs.length + closeUpImgs.length + sellingPointImgs.length + legacyImgs.length
+                  const totalCount = mainImgs.length + sceneImgs.length + closeUpImgs.length + sellingPointImgs.length + interactionImgs.length + legacyImgs.length
                   return (
                     <>
                       <div className="space-y-4">
@@ -838,6 +938,19 @@ function GenerateForm() {
                             </div>
                           </div>
                         )}
+                        {interactionImgs.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-gray-700 mb-2">交互图</h4>
+                            <div className="flex flex-wrap gap-3">
+                              {interactionImgs.map((src, i) => (
+                                <div key={`int-${i}`}>
+                                  <img src={src} alt={`交互图${i + 1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />
+                                  <p className="text-xs text-gray-500 mt-1">{i + 1}/{interactionImgs.length}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         {legacyImgs.length > 0 && (
                           <div>
                             <h4 className="text-xs font-semibold text-gray-700 mb-2">附加图</h4>
@@ -863,13 +976,14 @@ function GenerateForm() {
                   <span className="block">场景图：使用场景或生活化背景</span>
                   <span className="block">特写图：产品细节、材质特写</span>
                   <span className="block">卖点图：每张对应一条你填写的卖点，视觉化展示；可勾选「显示文字」在图上展示卖点文案</span>
+                  <span className="block">交互图：真人使用、手持或与产品互动的场景</span>
                   <span className="block mt-1">亚马逊要求主图为实际拍摄，生成图建议作参考或附加图使用。</span>
                 </p>
                 <p className="text-xs text-gray-400 mb-2">生成后可点击上方「重新生成产品图」换一版再生成（会扣积分）。</p>
-                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount)} 积分（{mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
+                <p className="text-xs text-amber-700 mb-2">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount + interactionImageCount)} 积分（{mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount + interactionImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
                 {productImagesLoading && (
                   <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
-                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张）…</p>
+                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount + interactionImageCount} 张）…</p>
                     <p className="text-xs text-gray-500 mb-2">请稍候，每张约 20 秒～1 分钟</p>
                     <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                       <div className="h-full bg-gray-600 rounded-full animate-pulse" style={{ width: '50%' }} />
@@ -878,11 +992,11 @@ function GenerateForm() {
                 )}
                 <button
                   type="button"
-                  disabled={productImagesLoading || !productImageDataUrl || (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount === 0)}
+                  disabled={productImagesLoading || !productImageDataUrl || (mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount + interactionImageCount === 0)}
                   onClick={handleGenerateProductImages}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {productImagesLoading ? '生成中…' : `生成产品图（${mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount} 张）`}
+                  {productImagesLoading ? '生成中…' : `生成产品图（${mainImageCount + sceneImageCount + closeUpImageCount + sellingPointImageCount + interactionImageCount} 张）`}
                 </button>
               </div>
             )}
@@ -1082,7 +1196,7 @@ function GenerateForm() {
           {/* 所有步骤结束后：保存与导出 */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-xs text-gray-500 mb-2"><strong>保存到我的 Listing：</strong>将保存本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
-            <p className="text-xs text-gray-500 mb-3"><strong>导出 CSV：</strong>只导出文案，如果需要图片，请到仓库中查找。</p>
+            <p className="text-xs text-gray-500 mb-3"><strong>导出 CSV / JSON：</strong>只导出文案，如果需要图片，请到仓库中查找。</p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -1104,11 +1218,12 @@ function GenerateForm() {
                         aplusCopy: aplusCopy || undefined,
                         mainImageId: productImagesResult?.mainImageId || undefined,
                         aplusImageIds: aplusImages?.aplusImageIds || undefined,
-                        productImageIds: (productImagesResult?.mainImageIds?.length || productImagesResult?.sceneImageIds?.length || productImagesResult?.closeUpImageIds?.length || productImagesResult?.sellingPointImageIds?.length) ? {
+                        productImageIds: (productImagesResult?.mainImageIds?.length || productImagesResult?.sceneImageIds?.length || productImagesResult?.closeUpImageIds?.length || productImagesResult?.sellingPointImageIds?.length || productImagesResult?.interactionImageIds?.length) ? {
                           mainImageIds: productImagesResult.mainImageIds || [],
                           sceneImageIds: productImagesResult.sceneImageIds || [],
                           closeUpImageIds: productImagesResult.closeUpImageIds || [],
                           sellingPointImageIds: productImagesResult.sellingPointImageIds || [],
+                          interactionImageIds: productImagesResult.interactionImageIds || [],
                         } : undefined,
                       }),
                     })
@@ -1130,19 +1245,23 @@ function GenerateForm() {
               )}
               <button
                 type="button"
-                title="按亚马逊通用列头(item_name, bullet_point_1~5, product_description, generic_keyword)，可复制到上传表格"
+                title="按亚马逊通用列头(item_name, bullet_point_1~5, product_description, generic_keyword)"
                 onClick={() => {
-                  const csv = buildAmazonListingCsv({
-                    title: listingResult.title,
-                    searchTerms: listingResult.searchTerms,
-                    bullets: listingResult.bullets || [],
-                    description: listingResult.description,
-                  })
-                  downloadAmazonListingCsv(csv)
+                  const csv = buildAmazonCsv({ title: listingResult.title, searchTerms: listingResult.searchTerms, bullets: listingResult.bullets || [], description: listingResult.description })
+                  downloadCsv(csv, `amazon-listing-${Date.now()}.csv`)
                 }}
                 className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 导出 CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  downloadJson({ title: listingResult.title, searchTerms: listingResult.searchTerms, bullets: listingResult.bullets || [], description: listingResult.description }, `amazon-listing-${Date.now()}.json`)
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                导出 JSON
               </button>
             </div>
           </div>
@@ -1297,6 +1416,358 @@ function GenerateForm() {
           </div>
         </>
       ) : null}
+    </div>
+  )
+}
+
+// ── eBay / 速卖通 通用生成表单（共用结构，通过 platform 参数区分） ──────────────
+function PlatformGenerateForm({ platform }) {
+  const { user, getToken } = useAuth()
+  const [images, setImages] = useState([])
+  const [form, setForm] = useState({
+    category1: '', category2: '', brand: '',
+    sellingPoint1: '', sellingPoint2: '', sellingPoint3: '', sellingPoint4: '', sellingPoint5: '',
+    market: platform === 'aliexpress' ? 'global' : 'us', lang: 'en', keywords: '', notes: '',
+  })
+  const [step, setStep] = useState('idle')
+  const [error, setError] = useState('')
+  const [analyzeResult, setAnalyzeResult] = useState(null)
+  const [listingResult, setListingResult] = useState(null)
+  const [productImageDataUrl, setProductImageDataUrl] = useState('')
+  const [productImagesResult, setProductImagesResult] = useState(null)
+  const [productImagesLoading, setProductImagesLoading] = useState(false)
+  const [saveListingLoading, setSaveListingLoading] = useState(false)
+  const [savedListingId, setSavedListingId] = useState(null)
+  const [imageModel, setImageModel] = useState('Nano Banana')
+  const [mainImageCount, setMainImageCount] = useState(1)
+  const [sceneImageCount, setSceneImageCount] = useState(1)
+  const [closeUpImageCount, setCloseUpImageCount] = useState(1)
+  const [sellingPointImageCount, setSellingPointImageCount] = useState(0)
+  const [sellingPointShowText, setSellingPointShowText] = useState(false)
+  const [interactionImageCount, setInteractionImageCount] = useState(0)
+
+  const apiBase = `/api/ai-assistant/${platform}`
+  const isEbay = platform === 'ebay'
+  const isAliExpress = platform === 'aliexpress'
+  const titleLimit = isEbay ? 80 : 128
+  const attrLabel = isEbay ? 'Item Specifics' : '产品属性'
+  const attrField = isEbay ? 'itemSpecifics' : 'productAttributes'
+  const platformLabel = isEbay ? 'eBay' : '速卖通'
+  const marketsForPlatform = isAliExpress ? aliexpressMarkets : isEbay ? ebayMarkets : markets
+  const langOptions = isAliExpress
+    ? [{ v: 'en', l: 'English' }, { v: 'zh', l: '中文' }, { v: 'ru', l: 'Русский' }, { v: 'pt', l: 'Português' }, { v: 'es', l: 'Español' }, { v: 'fr', l: 'Français' }, { v: 'de', l: 'Deutsch' }, { v: 'ko', l: '한국어' }, { v: 'ja', l: '日本語' }]
+    : [{ v: 'en', l: 'English' }, { v: 'zh', l: '中文' }, { v: 'de', l: 'Deutsch' }, { v: 'fr', l: 'Français' }, { v: 'ja', l: '日本語' }, { v: 'es', l: 'Español' }]
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const categoryTree = isEbay ? EBAY_CATEGORY_TREE : isAliExpress ? ALIEXPRESS_CATEGORY_TREE : CATEGORY_TREE
+  const category1 = categoryTree.find(c => c.id === form.category1)
+  const secondOptions = category1?.children || []
+  const sellingPointsLines = [form.sellingPoint1, form.sellingPoint2, form.sellingPoint3, form.sellingPoint4, form.sellingPoint5]
+    .map(s => (s || '').trim()).filter(Boolean)
+  const canSubmit = images.length >= 1 && form.category1 && form.category2 && form.brand.trim() && sellingPointsLines.length >= 2 && form.market && form.lang
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files || [])
+    setImages(prev => [...prev, ...files.map(file => ({ file, preview: URL.createObjectURL(file) }))].slice(0, 5))
+  }
+  const removeImage = (i) => setImages(prev => prev.filter((_, j) => j !== i))
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}) }
+
+  const doAnalyze = async (dataUrl) => {
+    const res = await fetch(`${apiBase}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ images: [dataUrl], category1: category1?.name, category2: form.category2, brand: form.brand.trim(), sellingPoints: sellingPointsLines, market: form.market, lang: form.lang, keywords: form.keywords.trim() || undefined, notes: form.notes.trim() || undefined }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || '分析失败')
+    return data
+  }
+
+  const doGenerate = async () => {
+    const res = await fetch(`${apiBase}/generate-listing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ analyzeResult, category1: category1?.name, category2: form.category2, brand: form.brand.trim(), sellingPoints: sellingPointsLines, market: form.market, lang: form.lang, keywords: form.keywords.trim() || undefined, notes: form.notes.trim() || undefined }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || '生成失败')
+    return data
+  }
+
+  const handleSubmit = async () => {
+    if (!user || !getToken()) { setError('请先登录后再使用'); return }
+    setError(''); setStep('analyzing')
+    try {
+      const dataUrl = await fileToCompressedDataUrl(images[0].file)
+      setProductImageDataUrl(dataUrl)
+      const data = await doAnalyze(dataUrl)
+      setAnalyzeResult(data); setListingResult(null); setProductImagesResult(null); setStep('analysis_done')
+    } catch (e) { setError(e.message || '请求失败'); setStep('error') }
+  }
+
+  const handleConfirmAndGenerate = async () => {
+    if (!analyzeResult?.productSummary || !getToken()) return
+    setError(''); setStep('generating')
+    try { const data = await doGenerate(); setListingResult(data); setStep('done') }
+    catch (e) { setError(e.message || '生成失败'); setStep('error') }
+  }
+
+  const handleRegenerateAnalyze = async () => {
+    if (!productImageDataUrl || !getToken()) return
+    setError(''); setStep('analyzing')
+    try { const data = await doAnalyze(productImageDataUrl); setAnalyzeResult(data); setListingResult(null); setProductImagesResult(null); setStep('analysis_done') }
+    catch (e) { setError(e.message || '分析失败'); setStep('error') }
+  }
+
+  const handleRegenerateListing = async () => {
+    if (!analyzeResult?.productSummary || !getToken()) return
+    setError(''); setStep('generating')
+    try { const data = await doGenerate(); setListingResult(data); setStep('done') }
+    catch (e) { setError(e.message || '生成失败'); setStep('error') }
+  }
+
+  const handleGenerateProductImages = async () => {
+    if (!productImageDataUrl || !analyzeResult?.productName || !getToken()) return
+    setError(''); setProductImagesLoading(true)
+    try {
+      const res = await fetch(`${apiBase}/generate-product-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ productImage: productImageDataUrl, productName: analyzeResult.productName, brand: form.brand.trim(), model: imageModel, mainCount: mainImageCount, sceneCount: sceneImageCount, closeUpCount: closeUpImageCount, sellingPoints: sellingPointsLines, sellingPointCount: sellingPointImageCount, sellingPointShowText, interactionCount: interactionImageCount, lang: form.lang }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '生成失败')
+      setProductImagesResult({ mainImage: data.mainImage, mainImages: data.mainImages || [], sceneImages: data.sceneImages || [], closeUpImages: data.closeUpImages || [], sellingPointImages: data.sellingPointImages || [], sellingPointLabels: data.sellingPointLabels || [], interactionImages: data.interactionImages || [], mainImageIds: data.mainImageIds || [], sceneImageIds: data.sceneImageIds || [], closeUpImageIds: data.closeUpImageIds || [], sellingPointImageIds: data.sellingPointImageIds || [], interactionImageIds: data.interactionImageIds || [], mainImageId: data.mainImageId || null })
+    } catch (e) { setError(e.message || '生成失败') }
+    finally { setProductImagesLoading(false) }
+  }
+
+  const hasImages = productImagesResult?.mainImage || productImagesResult?.mainImages?.length || productImagesResult?.sceneImages?.length || productImagesResult?.closeUpImages?.length || productImagesResult?.sellingPointImages?.length || productImagesResult?.interactionImages?.length
+
+  const platformSteps = [
+    { id: 1, label: '分析' },
+    { id: 2, label: `标题·${attrLabel}·描述` },
+    { id: 3, label: '产品图' },
+  ]
+
+  return (
+    <div className="space-y-6">
+      {/* 步骤进度条 */}
+      {(step !== 'idle' || listingResult) && (
+        <div className="mb-2">
+          <div className="flex items-center gap-2">
+            {platformSteps.map((s, i) => {
+              const done = (s.id === 1 && step !== 'idle' && step !== 'analyzing' && step !== 'error') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!hasImages)
+              const active = (s.id === 1 && step === 'analyzing') || (s.id === 2 && step === 'generating') || (s.id === 3 && productImagesLoading)
+              return (
+                <div key={s.id} className="flex items-center gap-2">
+                  <span className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-sm font-medium ${active ? 'bg-gray-800 text-white animate-pulse' : done ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-500'}`}>{s.id}</span>
+                  <span className={`text-sm ${active ? 'font-medium text-gray-900' : done ? 'text-gray-700' : 'text-gray-500'}`}>{s.label}</span>
+                  {i < platformSteps.length - 1 && <span className="mx-1 h-px w-4 bg-gray-300" aria-hidden />}
+                </div>
+              )
+            })}
+          </div>
+          {step === 'analyzing' && <p className="text-xs text-gray-500 mt-2 animate-pulse">正在分析产品，请稍候…</p>}
+          {step === 'generating' && <p className="text-xs text-gray-500 mt-2 animate-pulse">正在生成标题·{attrLabel}·描述…</p>}
+        </div>
+      )}
+
+      {(step === 'analysis_done' || (step === 'generating' && !listingResult)) && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900">1. 分析结果（请确认后再生成标题·{attrLabel}·描述）</h3>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
+            <p className="text-xs font-medium text-gray-500">产品名称</p>
+            <p className="text-sm text-gray-900">{analyzeResult?.productName || '—'}</p>
+            <p className="text-xs font-medium text-gray-500 mt-3">产品摘要</p>
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">{analyzeResult?.productSummary || '—'}</p>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={handleConfirmAndGenerate} disabled={step === 'generating'} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">{step === 'generating' ? `正在生成标题·${attrLabel}·描述…` : '确认分析结果'}</button>
+            <button type="button" onClick={() => { setStep('idle'); setAnalyzeResult(null); setError('') }} disabled={step === 'generating'} className="px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">重新分析</button>
+          </div>
+        </div>
+      )}
+
+      {listingResult && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-sm font-semibold text-gray-900">1. 分析</h3>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleRegenerateAnalyze} disabled={step === 'analyzing' || !productImageDataUrl} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">重新分析</button>
+                <span className="text-gray-300">|</span>
+                <button type="button" onClick={() => { setListingResult(null); setStep('idle'); setAnalyzeResult(null); setProductImageDataUrl(''); setProductImagesResult(null); setSavedListingId(null) }} className="text-xs text-gray-500 hover:text-gray-900">清空全部</button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">已分析：{analyzeResult?.productName || '产品'}</p>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">2. 标题·{attrLabel}·描述</h3>
+              <button type="button" onClick={handleRegenerateListing} disabled={step === 'generating' || !analyzeResult?.productSummary} className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50">{step === 'generating' ? <span className="animate-pulse">正在重新生成…</span> : '重新生成'}</button>
+            </div>
+            {step === 'generating' && (
+              <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
+                <p className="text-sm font-medium text-gray-800 animate-pulse">正在重新生成标题·{attrLabel}·描述，请稍候…</p>
+              </div>
+            )}
+            <div className="space-y-4">
+              <CopyBlock label={`标题 (${(listingResult.title || '').length}/${titleLimit} 字符)`} text={listingResult.title} onCopy={copyToClipboard} />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{attrLabel}</label>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  {(listingResult[attrField] || []).length === 0 ? <p className="text-sm text-gray-500">无</p> : (
+                    <div className="space-y-1.5">
+                      {(listingResult[attrField] || []).map((spec, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-gray-700 shrink-0">{spec.name}:</span>
+                          <span className="text-gray-800">{spec.value}</span>
+                          <button type="button" onClick={() => copyToClipboard(`${spec.name}: ${spec.value}`)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <CopyBlock label="产品描述" text={listingResult.description} onCopy={copyToClipboard} markdown />
+            </div>
+          </div>
+
+          {/* Step 3 产品图 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">3. 产品图</h3>
+              {hasImages && <button type="button" onClick={() => setProductImagesResult(null)} className="text-xs text-gray-500 hover:text-gray-900">重新生成产品图</button>}
+            </div>
+            {!hasImages && (
+              <div className="mb-3 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">生图模型</label>
+                  <select value={imageModel} onChange={e => setImageModel(e.target.value)} className="w-full max-w-xs border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">
+                    {IMAGE_MODEL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div><label className="block text-xs text-gray-500 mb-1">白底主图</label><select value={mainImageCount} onChange={e => setMainImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">{[1,2,3,4].map(n=><option key={n} value={n}>{n} 张</option>)}</select></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">场景图</label><select value={sceneImageCount} onChange={e => setSceneImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">{[0,1,2,3,4].map(n=><option key={n} value={n}>{n} 张</option>)}</select></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">特写图</label><select value={closeUpImageCount} onChange={e => setCloseUpImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">{[0,1,2,3,4].map(n=><option key={n} value={n}>{n} 张</option>)}</select></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">卖点图</label><select value={Math.min(sellingPointImageCount, sellingPointsLines.length)} onChange={e => setSellingPointImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">{Array.from({length: sellingPointsLines.length+1},(_,n)=><option key={n} value={n}>{n} 张</option>)}</select></div>
+                  <div><label className="block text-xs text-gray-500 mb-1">交互图</label><select value={interactionImageCount} onChange={e => setInteractionImageCount(Number(e.target.value))} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white">{[0,1,2,3,4].map(n=><option key={n} value={n}>{n} 张</option>)}</select></div>
+                </div>
+                {sellingPointImageCount > 0 && (
+                  <label className="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" checked={sellingPointShowText} onChange={e => setSellingPointShowText(e.target.checked)} className="rounded border-gray-300" />卖点图上显示文字</label>
+                )}
+                <p className="text-xs text-amber-700">预计消耗 {getPointsPerImage(imageModel, '1K 标准') * (mainImageCount + sceneImageCount + closeUpImageCount + Math.min(sellingPointImageCount, sellingPointsLines.length) + interactionImageCount)} 积分（{mainImageCount + sceneImageCount + closeUpImageCount + Math.min(sellingPointImageCount, sellingPointsLines.length) + interactionImageCount} 张 × {getPointsPerImage(imageModel, '1K 标准')} 积分/张）</p>
+                {productImagesLoading && (
+                  <div className="my-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-800 mb-1">正在生成产品图（共 {mainImageCount + sceneImageCount + closeUpImageCount + Math.min(sellingPointImageCount, sellingPointsLines.length) + interactionImageCount} 张）…</p>
+                    <p className="text-xs text-gray-500 mb-2">请稍候，每张约 20 秒～1 分钟</p>
+                    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-gray-600 rounded-full animate-pulse" style={{ width: '50%' }} />
+                    </div>
+                  </div>
+                )}
+                <button type="button" onClick={handleGenerateProductImages} disabled={productImagesLoading || !productImageDataUrl || !analyzeResult?.productName} className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-white hover:bg-gray-600 disabled:opacity-50">{productImagesLoading ? '生成中…' : `生成产品图（${mainImageCount + sceneImageCount + closeUpImageCount + Math.min(sellingPointImageCount, sellingPointsLines.length) + interactionImageCount} 张）`}</button>
+              </div>
+            )}
+            {hasImages && (
+              <div className="space-y-4">
+                {productImagesResult.mainImages?.length > 0 && <div><h4 className="text-xs font-semibold text-gray-700 mb-2">白底主图</h4><div className="flex flex-wrap gap-3">{productImagesResult.mainImages.map((src,i) => <img key={i} src={src} alt={`主图${i+1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />)}</div></div>}
+                {productImagesResult.sceneImages?.length > 0 && <div><h4 className="text-xs font-semibold text-gray-700 mb-2">场景图</h4><div className="flex flex-wrap gap-3">{productImagesResult.sceneImages.map((src,i) => <img key={i} src={src} alt={`场景${i+1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />)}</div></div>}
+                {productImagesResult.closeUpImages?.length > 0 && <div><h4 className="text-xs font-semibold text-gray-700 mb-2">特写图</h4><div className="flex flex-wrap gap-3">{productImagesResult.closeUpImages.map((src,i) => <img key={i} src={src} alt={`特写${i+1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />)}</div></div>}
+                {productImagesResult.sellingPointImages?.length > 0 && <div><h4 className="text-xs font-semibold text-gray-700 mb-2">卖点图</h4><div className="flex flex-wrap gap-3">{productImagesResult.sellingPointImages.map((src,i) => <div key={i}><img src={src} alt="" className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />{productImagesResult.sellingPointLabels?.[i] && <p className="text-xs text-gray-500 mt-1 truncate max-w-[160px]">{productImagesResult.sellingPointLabels[i]}</p>}</div>)}</div></div>}
+                {productImagesResult.interactionImages?.length > 0 && <div><h4 className="text-xs font-semibold text-gray-700 mb-2">交互图</h4><div className="flex flex-wrap gap-3">{productImagesResult.interactionImages.map((src,i) => <img key={i} src={src} alt={`交互图${i+1}`} className="w-40 h-40 object-contain rounded-lg border border-gray-200 bg-white" />)}</div></div>}
+                <p className="text-xs text-gray-500">产品图已保存到仓库</p>
+              </div>
+            )}
+          </div>
+
+          {/* 保存 */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-xs text-gray-500 mb-3">保存到 Listing 历史，可在「Listing 历史」中查看。</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" disabled={saveListingLoading} onClick={async () => {
+                if (!getToken()) return; setSaveListingLoading(true)
+                try {
+                  const body = { name: analyzeResult?.productName ? `${analyzeResult.productName} ${platformLabel}` : '', title: listingResult.title, description: listingResult.description, analyzeResult: analyzeResult || undefined, mainImageId: productImagesResult?.mainImageId || undefined, productImageIds: (productImagesResult?.mainImageIds?.length || productImagesResult?.sceneImageIds?.length || productImagesResult?.closeUpImageIds?.length || productImagesResult?.sellingPointImageIds?.length || productImagesResult?.interactionImageIds?.length) ? { mainImageIds: productImagesResult.mainImageIds || [], sceneImageIds: productImagesResult.sceneImageIds || [], closeUpImageIds: productImagesResult.closeUpImageIds || [], sellingPointImageIds: productImagesResult.sellingPointImageIds || [], interactionImageIds: productImagesResult.interactionImageIds || [] } : undefined }
+                  if (isEbay) body.itemSpecifics = listingResult.itemSpecifics || []
+                  else body.productAttributes = listingResult.productAttributes || []
+                  const res = await fetch(`${apiBase}/save-listing`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` }, body: JSON.stringify(body) })
+                  const data = await res.json(); if (!res.ok) throw new Error(data.error || '保存失败'); setSavedListingId(data.id)
+                } catch (e) { setError(e.message || '保存失败') } finally { setSaveListingLoading(false) }
+              }} className="text-xs px-3 py-1.5 rounded-lg font-medium bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-50">
+                {saveListingLoading ? '保存中…' : savedListingId ? '已保存' : '保存到我的 Listing'}
+              </button>
+              {savedListingId && <Link to={`/dashboard/listings?platform=${platform}`} className="text-xs text-gray-500 hover:text-gray-900">查看历史 →</Link>}
+              <button type="button" onClick={() => {
+                let csv
+                if (isEbay) csv = buildEbayCsv({ title: listingResult.title, description: listingResult.description, itemSpecifics: listingResult.itemSpecifics || [] })
+                else csv = buildAliExpressCsv({ title: listingResult.title, description: listingResult.description, productAttributes: listingResult.productAttributes || [] })
+                downloadCsv(csv, `${platform}-listing-${Date.now()}.csv`)
+              }} className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">导出 CSV</button>
+              <button type="button" onClick={() => {
+                const obj = { title: listingResult.title, description: listingResult.description }
+                obj[attrField] = listingResult[attrField] || []
+                downloadJson(obj, `${platform}-listing-${Date.now()}.json`)
+              }} className="text-xs px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">导出 JSON</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(step === 'idle' || step === 'error' || step === 'analyzing') && (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">产品图片 <span className="text-red-500">*</span></label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {images.map((img, i) => (
+                <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100">
+                  <img src={img.preview} alt="" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => removeImage(i)} className="absolute top-0.5 right-0.5 w-5 h-5 rounded bg-black/60 text-white text-xs flex items-center justify-center">×</button>
+                </div>
+              ))}
+              {images.length < 5 && (
+                <label className="w-20 h-20 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-gray-400 text-2xl cursor-pointer hover:bg-gray-50">
+                  <input type="file" accept="image/*" className="hidden" multiple onChange={handleImageChange} /> +
+                </label>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">一级类目 <span className="text-red-500">*</span></label><select value={form.category1} onChange={e => { set('category1', e.target.value); set('category2', '') }} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"><option value="">请选择</option>{categoryTree.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">二级类目 <span className="text-red-500">*</span></label><select value={form.category2} onChange={e => set('category2', e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" disabled={!form.category1}><option value="">请选择</option>{secondOptions.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+          </div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">品牌名 <span className="text-red-500">*</span></label><input value={form.brand} onChange={e => set('brand', e.target.value)} placeholder={isEbay ? '无品牌填 Unbranded' : isAliExpress ? '无品牌填 无品牌 或 NONE' : '无品牌可填 Generic'} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" /></div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">核心卖点 <span className="text-red-500">*</span> <span className="text-gray-400 font-normal">至少 2 条</span></label>
+            <div className="space-y-2 mt-1">{[1,2,3,4,5].map(i => <input key={i} value={form[`sellingPoint${i}`]} onChange={e => set(`sellingPoint${i}`, e.target.value)} placeholder={`第 ${i} 条卖点`} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />)}</div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">参考关键词 <span className="text-gray-400">可选</span></label>
+            <input value={form.keywords} onChange={e => set('keywords', e.target.value)} placeholder={isEbay ? '会直接融入 80 字符标题和 Item Specifics' : isAliExpress ? '会融入 128 字符标题，前 60 字符权重最高' : '多个关键词用逗号或空格分隔'} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+            {isEbay && <p className="text-xs text-gray-400 mt-1">eBay 无后台搜索词，关键词需直接体现在标题中</p>}
+            {isAliExpress && <p className="text-xs text-gray-400 mt-1">速卖通无后台搜索词，关键词需体现在标题和产品属性中</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">特殊认证/备注 <span className="text-gray-400">可选</span></label>
+            <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={isEbay ? 'CE、GPSR、FCC 等（卖欧洲需 CE + GPSR 合规）' : isAliExpress ? 'CE、UKCA、CPC、UL 等（欧洲需 CE，英国需 UKCA）' : 'CE、FCC、BPA-free 等'} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+            {isEbay && <p className="text-xs text-gray-400 mt-1">认证会写入 Item Specifics 和描述中</p>}
+            {isAliExpress && <p className="text-xs text-gray-400 mt-1">认证写入产品属性和描述；实际证书需在卖家后台另行上传</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">目标市场 <span className="text-red-500">*</span></label><select value={form.market} onChange={e => set('market', e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">{marketsForPlatform.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">输出语言 <span className="text-red-500">*</span></label><select value={form.lang} onChange={e => set('lang', e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">{langOptions.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}</select></div>
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="pt-2">
+            <button disabled={!canSubmit || step === 'analyzing' || step === 'generating'} className={`w-full py-3 rounded-xl text-sm font-semibold transition ${canSubmit && step !== 'analyzing' && step !== 'generating' ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`} onClick={handleSubmit}>{step === 'analyzing' ? '正在分析产品…' : '分析产品'}</button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1493,11 +1964,21 @@ export default function AiAssistant() {
                         本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9、Cosmo、Rufus、GEO 等原则。
                       </p>
                     )}
+                    {platformId === 'ebay' && (
+                      <p className="text-2xl text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                        生成符合 eBay Cassini 搜索规则的标题（80 字符）、Item Specifics、产品描述与产品图。
+                      </p>
+                    )}
+                    {platformId === 'aliexpress' && (
+                      <p className="text-2xl text-gray-500 mt-3 pt-3 border-t border-gray-100">
+                        生成符合速卖通规则的标题（128 字符）、产品属性、详情描述与产品图，支持多语言多市场。
+                      </p>
+                    )}
                   </div>
 
                   {/* 功能卡片 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {amazonFeatures.map(f => (
+                    {(platformId === 'ebay' ? ebayFeatures : platformId === 'aliexpress' ? aliexpressFeatures : amazonFeatures).map(f => (
                       <div
                         key={f.id}
                         className={`text-left p-5 rounded-xl border transition ${
@@ -1547,7 +2028,7 @@ export default function AiAssistant() {
                     </button>
                     <span className="text-gray-300">/</span>
                     <span className="text-sm font-semibold text-gray-900">
-                      {amazonFeatures.find(f => f.id === selectedFeature)?.title}
+                      {(platformId === 'ebay' ? ebayFeatures : platformId === 'aliexpress' ? aliexpressFeatures : amazonFeatures).find(f => f.id === selectedFeature)?.title}
                     </span>
                   </div>
                   {platformId === 'amazon' && (
@@ -1558,8 +2039,9 @@ export default function AiAssistant() {
 
                   {/* 表单内容 */}
                   <div className="max-w-2xl">
-                    {selectedFeature === 'generate' && <GenerateForm />}
-                    {selectedFeature === 'optimize' && <OptimizeForm />}
+                    {platformId === 'amazon' && selectedFeature === 'generate' && <GenerateForm />}
+                    {platformId === 'amazon' && selectedFeature === 'optimize' && <OptimizeForm />}
+                    {(platformId === 'ebay' || platformId === 'aliexpress') && selectedFeature === 'generate' && <PlatformGenerateForm key={platformId} platform={platformId} />}
                   </div>
                 </div>
               )}

@@ -65,6 +65,34 @@ export function getDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_listing_snapshots_user ON amazon_listing_snapshots(user_email);
     CREATE INDEX IF NOT EXISTS idx_listing_snapshots_created ON amazon_listing_snapshots(created_at DESC);
+    CREATE TABLE IF NOT EXISTS ebay_listing_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      name TEXT DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      item_specifics TEXT NOT NULL DEFAULT '[]',
+      description TEXT NOT NULL DEFAULT '',
+      analyze_result TEXT,
+      main_image_id TEXT,
+      product_image_ids TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_ebay_listing_snapshots_user ON ebay_listing_snapshots(user_email);
+    CREATE INDEX IF NOT EXISTS idx_ebay_listing_snapshots_created ON ebay_listing_snapshots(created_at DESC);
+    CREATE TABLE IF NOT EXISTS aliexpress_listing_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      name TEXT DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      product_attributes TEXT NOT NULL DEFAULT '[]',
+      description TEXT NOT NULL DEFAULT '',
+      analyze_result TEXT,
+      main_image_id TEXT,
+      product_image_ids TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_aliexpress_listing_user ON aliexpress_listing_snapshots(user_email);
+    CREATE INDEX IF NOT EXISTS idx_aliexpress_listing_created ON aliexpress_listing_snapshots(created_at DESC);
   `)
     try {
       const galleryInfo = db.prepare('PRAGMA table_info(gallery)').all()
