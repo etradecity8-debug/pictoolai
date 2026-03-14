@@ -79,8 +79,25 @@
 - **注册页文案**：`src/pages/Register.jsx` 增加「新注册用户赠送 150 积分供您体验」。
 
 ### 联系我们
-- **页面**：`/contact` 仅保留微信联系方式（已移除姓名/邮箱/留言表单），文案「请通过微信联系我们：微信号：XXXX」。
+- **页面**：`/contact` 仅保留微信联系方式（已移除姓名/邮箱/留言表单），文案「请通过微信联系我们：微信号：XXXX」；新增「返回主页」按钮。
 - **Header 导航**：`src/components/layout/Header.jsx` 新增「联系我们」链接（桌面端与移动端均可见）。
+
+### 定价与产品
+- **定价页**：选择套餐后弹出联系我们弹窗（`ContactModal`），因付费未接入，引导用户通过微信联系。
+- **删除产品页**：移除「了解产品」按钮、`/product` 路由、`Product.jsx`、Footer「产品功能」链接。
+- **删除 ProductShowcase**：主页移除产品能力展示区块（全品类组图/风格复刻/服装组图/图片精修标签与示例）。
+
+### 电商AI运营助手
+- **下拉改侧边栏**：Header 的「电商AI运营助手」改为直接链接 `/ai-assistant`，平台选择在 AiAssistant 页面左侧侧边栏展示。
+- **优化 Listing**：亚马逊功能卡片「优化 Listing」灰掉（`disabled: true`），显示「即将上线」。
+
+### 主页改版
+- **Hero**：黑色块 `slate-900` 居中，网格装饰（8% 透明度、48px 格）；主标「智绘电商新生态，重塑商品视觉力」，副标中 Google Gemini Nano Banana 加粗蓝 `#4285F4`；紧凑高度 `py-10 sm:py-12 lg:py-14`。
+- **FeatureCards**：左对齐、01/02/03 编号样式；文案：操作零门槛、智能修图、电商全流程适配；紧凑布局。
+- **FaqSection**：全部展开无下拉；左对齐；6 条 FAQ 两列网格；编号 01–06 大号灰色、与 FeatureCards 统一。
+- **CtaSection**：黑色块 `slate-900` 居中卡片，紧凑高度。
+- **统一宽度**：全主页用 `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`，与 Header（Logo 左、退出右）对齐。
+- **Footer**：「关于我们」「帮助中心」灰掉不可点（`disabled: true`）。
 
 ---
 

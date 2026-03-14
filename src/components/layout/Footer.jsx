@@ -2,15 +2,14 @@ import { Link } from 'react-router-dom'
 
 const footerLinks = {
   产品: [
-    { to: '/product', label: '产品功能' },
     { to: '/pricing', label: '定价' },
   ],
   公司: [
-    { to: '/about', label: '关于我们' },
+    { to: '/about', label: '关于我们', disabled: true },
     { to: '/contact', label: '联系我们' },
   ],
   支持: [
-    { to: '/contact', label: '帮助中心' },
+    { to: '/contact', label: '帮助中心', disabled: true },
   ],
 }
 
@@ -31,11 +30,17 @@ export default function Footer() {
             <div key={title}>
               <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
               <ul className="mt-3 space-y-2">
-                {links.map(({ to, label }) => (
-                  <li key={to}>
-                    <Link to={to} className="text-sm text-gray-500 hover:text-gray-900">
-                      {label}
-                    </Link>
+                {links.map(({ to, label, disabled }) => (
+                  <li key={`${to}-${label}`}>
+                    {disabled ? (
+                      <span className="text-sm text-gray-400 cursor-not-allowed select-none">
+                        {label}
+                      </span>
+                    ) : (
+                      <Link to={to} className="text-sm text-gray-500 hover:text-gray-900">
+                        {label}
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -4,7 +4,6 @@ import GuestOnlyRoute from './components/GuestOnlyRoute'
 import Header from './components/layout/Header'
 import Footer from './components/layout/Footer'
 import Home from './pages/Home'
-import Product from './pages/Product'
 import Pricing from './pages/Pricing'
 import About from './pages/About'
 import Contact from './pages/Contact'
@@ -48,7 +47,6 @@ export default function App() {
       <Route path="/about" element={<MarketingLayout><About /></MarketingLayout>} />
       <Route path="/contact" element={<MarketingLayout><Contact /></MarketingLayout>} />
       {/* 以下需登录后访问，未登录会跳转到 /login */}
-      <Route path="/product" element={<ProtectedRoute><MarketingLayout><Product /></MarketingLayout></ProtectedRoute>} />
       <Route path="/detail-set" element={<ProtectedRoute><MarketingLayout><DetailSet /></MarketingLayout></ProtectedRoute>} />
       <Route path="/style-clone" element={<Navigate to="/ai-designer/style-clone" replace />} />
       <Route path="/apparel-set" element={<ProtectedRoute><MarketingLayout><ApparelSet /></MarketingLayout></ProtectedRoute>} />

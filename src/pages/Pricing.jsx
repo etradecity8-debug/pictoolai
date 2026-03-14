@@ -1,6 +1,28 @@
 import { Fragment, useState } from 'react'
 import { POINTS_TABLE, SUBSCRIPTION_PLANS } from '../lib/pointsConfig'
 
+/** 联系我们弹窗（付费未接入时引导用户通过微信联系） */
+function ContactModal({ open, onClose }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="relative bg-white rounded-xl shadow-xl p-8 max-w-sm mx-4">
+        <h3 className="text-xl font-bold text-gray-900">联系我们</h3>
+        <p className="mt-4 text-gray-700">请通过微信联系我们：</p>
+        <p className="mt-2 text-lg font-medium text-gray-900">微信号：XXXX</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-6 w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary-dark transition"
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const PLAN_COLORS = {
   entry: 'bg-pink-50',
   pro: 'bg-blue-50',
@@ -15,9 +37,11 @@ const PLAN_HIGHLIGHT = {
 
 export default function Pricing() {
   const [selectedPlanId, setSelectedPlanId] = useState(null)
+  const [contactModalOpen, setContactModalOpen] = useState(false)
 
-  const togglePlan = (planId) => {
+  const handleSelectPlan = (planId) => {
     setSelectedPlanId((prev) => (prev === planId ? null : planId))
+    setContactModalOpen(true)
   }
 
   return (
@@ -179,7 +203,7 @@ export default function Pricing() {
                 </ul>
                 <button
                   type="button"
-                  onClick={() => togglePlan(plan.id)}
+                  onClick={() => handleSelectPlan(plan.id)}
                   className={`mt-6 w-full py-2.5 rounded-lg font-medium transition ${
                     isSelected
                       ? 'bg-primary text-white hover:bg-primary-dark'
@@ -193,6 +217,8 @@ export default function Pricing() {
           })}
         </div>
       </section>
+
+      <ContactModal open={contactModalOpen} onClose={() => setContactModalOpen(false)} />
     </div>
   )
 }

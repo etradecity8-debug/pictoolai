@@ -36,6 +36,7 @@ const amazonFeatures = [
     id: 'optimize',
     title: '优化 Listing',
     desc: '粘贴现有 Listing，AI 分析标题权重、关键词密度与转化逻辑，提供可直接使用的优化版本。',
+    disabled: true,
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -1497,23 +1498,34 @@ export default function AiAssistant() {
                   {/* 功能卡片 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {amazonFeatures.map(f => (
-                      <button
+                      <div
                         key={f.id}
-                        onClick={() => setSelectedFeature(f.id)}
-                        className="group text-left p-5 rounded-xl border border-gray-200 hover:border-gray-900 hover:shadow-sm transition bg-white"
+                        className={`text-left p-5 rounded-xl border transition ${
+                          f.disabled
+                            ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-75'
+                            : 'group border-gray-200 hover:border-gray-900 hover:shadow-sm bg-white cursor-pointer'
+                        }`}
+                        role={f.disabled ? undefined : 'button'}
+                        tabIndex={f.disabled ? -1 : 0}
+                        onClick={() => !f.disabled && setSelectedFeature(f.id)}
+                        onKeyDown={(e) => !f.disabled && (e.key === 'Enter' || e.key === ' ') && setSelectedFeature(f.id)}
                       >
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-gray-900 flex items-center justify-center mb-4 transition text-gray-600 group-hover:text-white">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition ${
+                          f.disabled ? 'bg-gray-200 text-gray-400' : 'bg-gray-100 group-hover:bg-gray-900 text-gray-600 group-hover:text-white'
+                        }`}>
                           {f.icon}
                         </div>
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">{f.title}</h3>
-                        <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
-                        <div className="mt-4 flex items-center text-xs font-medium text-gray-400 group-hover:text-gray-900 transition">
-                          <span>开始使用</span>
-                          <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                        <h3 className={`text-base font-semibold mb-2 ${f.disabled ? 'text-gray-500' : 'text-gray-900'}`}>{f.title}</h3>
+                        <p className={`text-sm leading-relaxed ${f.disabled ? 'text-gray-400' : 'text-gray-500'}`}>{f.desc}</p>
+                        <div className={`mt-4 flex items-center text-xs font-medium ${f.disabled ? 'text-gray-400' : 'text-gray-400 group-hover:text-gray-900 transition'}`}>
+                          <span>{f.disabled ? '即将上线' : '开始使用'}</span>
+                          {!f.disabled && (
+                            <svg className="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          )}
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 </div>
