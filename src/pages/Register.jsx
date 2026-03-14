@@ -44,6 +44,7 @@ export default function Register() {
     <div className="min-h-[60vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900 text-center">免费注册</h1>
+        <p className="mt-2 text-center text-sm text-gray-500">新注册用户赠送 150 积分供您体验</p>
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

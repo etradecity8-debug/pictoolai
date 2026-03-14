@@ -89,6 +89,25 @@ export function grantPoints(email, amount, days = 30) {
   return Math.max(0, newBalance)
 }
 
+/** 新用户注册赠送积分（默认 150，有效期 30 天） */
+export function grantSignupBonus(email, amount = 150, days = 30) {
+  const db = getDb()
+  const now = Date.now()
+  const expiresAt = now + days * 24 * 60 * 60 * 1000
+  const current = getBalance(email)
+  const newBalance = current + amount
+  db.prepare(
+    `INSERT INTO user_points (user_email, balance, expires_at, last_granted_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_email) DO UPDATE SET
+       balance = excluded.balance,
+       expires_at = excluded.expires_at,
+       last_granted_at = excluded.last_granted_at`
+  ).run(email, Math.max(0, newBalance), expiresAt, now)
+  addTransaction(email, amount, `新用户注册赠送 ${amount} 积分，有效期 ${days} 天`)
+  return Math.max(0, newBalance)
+}
+
 /** 获取用户订阅信息（余额 + 到期时间 + 最后充值时间），含过期检查 */
 export function getSubscriptionInfo(email) {
   const balance = getBalance(email) // 含惰性清零

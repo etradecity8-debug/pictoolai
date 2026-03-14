@@ -171,6 +171,17 @@ export default function Header() {
               </svg>
               <span>订阅</span>
             </Link>
+            {/* 联系我们 */}
+            <Link
+              to="/contact"
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                location.pathname === '/contact'
+                  ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
+              }`}
+            >
+              <span>联系我们</span>
+            </Link>
 
             {/* 竖线分隔 */}
             <div className="hidden lg:block w-px h-5 bg-gray-300 mx-1" />
@@ -271,6 +282,15 @@ export default function Header() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2h-2m-4-1v8" />
               </svg>
               <span>订阅计划</span>
+            </Link>
+            <Link
+              to="/contact"
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
+                location.pathname === '/contact' ? 'text-gray-900 font-medium' : 'text-gray-600 hover:bg-white/60 hover:text-gray-900'
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              <span>联系我们</span>
             </Link>
             <div className="border-t border-gray-100 my-1" />
             {user ? (

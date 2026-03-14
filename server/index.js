@@ -26,6 +26,7 @@ import {
   getTransactions,
   deductPoints,
   grantPoints,
+  grantSignupBonus,
   getSubscriptionInfo,
 } from './points.js'
 
@@ -126,6 +127,8 @@ app.post('/api/register', async (req, res) => {
     }
     const hash = await bcrypt.hash(password, 10)
     dbCreateUser(normalizedEmail, hash)
+    // 新用户默认赠送 150 积分，有效期 30 天
+    grantSignupBonus(normalizedEmail)
     const token = jwt.sign({ email: normalizedEmail }, JWT_SECRET, { expiresIn: '7d' })
     const balance = getBalance(normalizedEmail)
     return res.json({ token, user: { email: normalizedEmail, role: 'user', pointsBalance: balance } })
