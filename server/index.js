@@ -1801,11 +1801,11 @@ app.post('/api/ai-assistant/amazon/generate-product-images', requireAuth, async 
 
     const mainPrompt = `${noTextRule} --- Amazon main image: Pure white background only (RGB 255,255,255, #FFFFFF). ${productCtx} Product must fill approximately 85% of the frame, centered. Professional product photography, high resolution, clean studio lighting. Single product only, no props or text.`
     const scenePrompt = `${noTextRule} --- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting. Product on a clean surface or in a natural environment (e.g. desk, kitchen, living room). Show product in context. Professional product photography, high resolution. No text, no logos. ${productCtx}`
-    const closeUpPrompt = `${noTextRule} --- Amazon detail/close-up image: Same product. Extreme close-up or macro shot showing product details, texture, materials, craftsmanship. Highlight key features. Professional product photography, high resolution. No text, no logos. ${productCtx}
+    const closeUpPrompt = `${noTextRule} --- Amazon detail/close-up image: Same product. Create a NEW image—extreme close-up or macro shot showing product details, texture, materials, craftsmanship with ENHANCED visual quality. Highlight key features. Pure white or soft gradient studio background. Professional product photography, high resolution. No text, no logos. ${productCtx}
 
-CRITICAL - Reference image usage: Use the reference ONLY for the product's appearance (shape, color, material). Do NOT copy its background, table, room, or any unrelated elements. Create a completely new, clean composition.
+CRITICAL - Reference image usage: Use the reference ONLY for the product's appearance (shape, color, material). Do NOT copy its background, table, room, or any unrelated elements. Generate a completely new, clean composition with enhanced detail and texture—do NOT simply return or reproduce the reference image.
 
-CRITICAL - Clean product only: (1) Pure white or soft gradient studio background (no walls, furniture, or clutter). (2) Product surface must be DRY—no water, no droplets, no moisture, no dew. (3) Physically correct placement: seating products (stool, chair) belong on the floor or in a studio—never on a table. For close-up, show a product detail (e.g. leg joint, surface texture) with the product in proper context or isolated on clean white.`
+CRITICAL - Clean product only: (1) Pure white or soft gradient studio background (no walls, furniture, or clutter). (2) Product surface must be DRY—no water, no droplets. (3) For close-up, show a product detail (e.g. leg joint, surface texture, material weave) with the product isolated or in proper studio context.`
 
     let idx = 0
     for (let i = 0; i < m; i++) {
@@ -2180,7 +2180,8 @@ app.post('/api/ai-assistant/ebay/generate-product-images', requireAuth, async (r
       try { saveImageToGallery(email, sid, `${productName || '产品'}·eBay场景${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
     }
     for (let i = 0; i < c; i++) {
-      idx++; const contents = [...baseContents, { text: `${noTextRule} --- eBay detail image: Close-up showing texture, materials, craftsmanship. ${productCtx} Professional photography. No text.` }]
+      idx++; const closeUpPrompt = `${noTextRule} --- eBay detail/close-up image: Same product. Create a NEW image. Extreme close-up or macro shot showing product details, texture, materials, craftsmanship. Highlight key features. Pure white or soft gradient studio background. Professional product photography, high resolution. No text, no logos. ${productCtx} CRITICAL: Use the reference ONLY for the product's appearance. Do NOT copy its background, table, room, or any unrelated elements. Generate a completely new, clean composition with enhanced detail and texture.`
+      const contents = [...baseContents, { text: closeUpPrompt }]
       const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
       const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
       if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
@@ -2438,7 +2439,8 @@ app.post('/api/ai-assistant/aliexpress/generate-product-images', requireAuth, as
       try { saveImageToGallery(email, sid, `${productName || '产品'}·速卖通场景${i+1}`, dataUrl, pointsPerImg, modelName || null, '1K 标准') } catch (e) { console.error(e.message) }
     }
     for (let i = 0; i < c; i++) {
-      idx++; const contents = [...baseContents, { text: `${noTextRule} --- AliExpress detail image: Close-up showing texture and quality. ${productCtx} Professional photography. No text.` }]
+      idx++; const closeUpPrompt = `${noTextRule} --- AliExpress detail/close-up image: Same product. Create a NEW image. Extreme close-up or macro shot showing product details, texture, materials, quality, craftsmanship. Highlight key features. Pure white or soft gradient studio background. Professional product photography, high resolution. No text, no logos. ${productCtx} CRITICAL: Use the reference ONLY for the product's appearance. Do NOT copy its background, table, room, or any unrelated elements. Generate a completely new, clean composition with enhanced detail and texture.`
+      const contents = [...baseContents, { text: closeUpPrompt }]
       const resp = await ai.models.generateContent({ model: imageModelId, contents, config: genCfg })
       const part = resp?.candidates?.[0]?.content?.parts?.find(p => p.inlineData?.data)
       if (!part) return res.status(500).json({ error: `第 ${idx} 张生成失败` })
