@@ -71,16 +71,20 @@ export default function Gallery() {
     fetchList()
   }, [fetchList])
 
-  // 用 token 拉取每张图片为 blob；绝对 URL（COS 签名）无需 Authorization
+  // 绝对 URL（COS 签名）直接用作展示，避免 fetch 跨域；相对路径用 token 拉取为 blob
   useEffect(() => {
     const token = getToken()
     if (!token || items.length === 0) return
     const controller = new AbortController()
     blobUrlsRef.current = {}
+    const absoluteUpdates = {}
     items.forEach((item) => {
       const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
-      const headers = isAbsolute ? {} : { Authorization: `Bearer ${token}` }
-      fetch(item.url, { headers, signal: controller.signal })
+      if (isAbsolute) {
+        absoluteUpdates[item.id] = item.url
+        return
+      }
+      fetch(item.url, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
         .then((r) => r.blob())
         .then((blob) => {
           const url = URL.createObjectURL(blob)
@@ -89,6 +93,7 @@ export default function Gallery() {
         })
         .catch(() => {})
     })
+    if (Object.keys(absoluteUpdates).length) setBlobUrls((prev) => ({ ...prev, ...absoluteUpdates }))
     return () => {
       controller.abort()
       Object.values(blobUrlsRef.current).forEach((u) => URL.revokeObjectURL(u))
@@ -111,14 +116,14 @@ export default function Gallery() {
           next.delete(id)
           return next
         })
-        if (blobUrls[id]) {
+        if (blobUrls[id] && blobUrls[id].startsWith('blob:')) {
           URL.revokeObjectURL(blobUrls[id])
-          setBlobUrls((prev) => {
-            const next = { ...prev }
-            delete next[id]
-            return next
-          })
         }
+        setBlobUrls((prev) => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
       })
       .catch(() => setError('删除失败'))
   }
@@ -164,7 +169,7 @@ export default function Gallery() {
         return next
       })
       deleted.forEach((id) => {
-        if (blobUrls[id]) {
+        if (blobUrls[id] && blobUrls[id].startsWith('blob:')) {
           URL.revokeObjectURL(blobUrls[id])
         }
       })
@@ -177,22 +182,26 @@ export default function Gallery() {
     if (deleted.length < ids.length) setError('部分删除失败，请重试')
   }, [selectedIds, getToken, blobUrls])
 
-  /** 批量保存：弹出「选择文件夹」，将选中图片写入客户所选目录 */
+  /** 批量保存：弹出「选择文件夹」，将选中图片写入客户所选目录（统一走后端接口，避免 COS 跨域） */
   const batchDownload = useCallback(async () => {
     const ids = Array.from(selectedIds)
     if (ids.length === 0) return
+    const token = getToken()
+    if (!token) return
     const files = []
     ids.forEach((id, index) => {
       const item = items.find((i) => i.id === id)
-      const url = blobUrls[id]
-      if (!item || !url) return
+      if (!item || !blobUrls[id]) return
       const base = (item.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_')
-      files.push({ id, url, name: ids.length > 1 ? `${base}_${index + 1}` : base })
+      files.push({ id, name: ids.length > 1 ? `${base}_${index + 1}` : base })
     })
     const blobs = await Promise.all(
       files.map(async (f) => {
         try {
-          const res = await fetch(f.url)
+          const res = await fetch(`/api/gallery/image/${f.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          if (!res.ok) return null
           const blob = await res.blob()
           return { blob, name: f.name }
         } catch (_) {
@@ -209,7 +218,7 @@ export default function Gallery() {
       if (e.name === 'AbortError') return
       setError(e.message || '保存失败。如遇「含有系统文件」提示，请另选一个文件夹（例如在文稿内新建空文件夹）')
     }
-  }, [selectedIds, items, blobUrls])
+  }, [selectedIds, items, blobUrls, getToken])
 
   if (loading) {
     return (
@@ -339,7 +348,12 @@ export default function Gallery() {
                               type="button"
                               onClick={async () => {
                                 try {
-                                  const res = await fetch(blobUrls[item.id])
+                                  const token = getToken()
+                                  if (!token) return
+                                  const res = await fetch(`/api/gallery/image/${item.id}`, {
+                                    headers: { Authorization: `Bearer ${token}` },
+                                  })
+                                  if (!res.ok) return
                                   const blob = await res.blob()
                                   const name = (item.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
                                   await saveBlobWithPicker(blob, name)

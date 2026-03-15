@@ -847,7 +847,9 @@ function galleryFilePath(email, id, ext) {
   return join('gallery', hash, `${id}.${ext}`)
 }
 
-/** 将一张图片写入仓库（文件 + 数据库），可选上传 COS；pointsUsed/model/clarity 可选。若需列表立即带 COS 地址，调用处应 await 本函数 */
+/** 将一张图片写入仓库（文件 + 数据库），可选上传 COS；pointsUsed/model/clarity 可选。
+ * 调用方 await 时：列表下次请求可立即带 COS 地址（仅 POST /api/gallery 如此）。
+ * 调用方不 await（电商生图/修改图片/风格复刻/A+/Listing 等）：先写本地+入库，COS 异步上传，用户进仓库立即可见图（相对路径），过一会儿刷新可见 COS URL。详见 docs/COS-CDN.md */
 async function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model = null, clarity = null) {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed || !parsed.data) return
