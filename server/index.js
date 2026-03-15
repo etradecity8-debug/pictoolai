@@ -2648,7 +2648,7 @@ app.post('/api/admin/users/:email/grant', requireAdmin, (req, res) => {
   }
 })
 
-// 删除客户（同时清除该用户的积分与流水，重注册后积分为 0）
+// 删除客户（同时清除积分、流水、该用户的仓库图片与文件，重注册后积分为 0）
 app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
   try {
     const targetEmail = req.params.email.toLowerCase()
@@ -2656,10 +2656,18 @@ app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
     const user = dbFindUser(targetEmail)
     if (!user) return res.status(404).json({ error: '用户不存在' })
     const db = getDb()
+    // 删除该用户所有仓库记录，并删本地文件与 COS 对象
+    const galleryRows = db.prepare('SELECT file_path, cos_key FROM gallery WHERE user_email = ?').all(targetEmail)
+    for (const row of galleryRows) {
+      const fullPath = join(__dirname, row.file_path)
+      if (existsSync(fullPath)) try { unlinkSync(fullPath) } catch (e) { console.error('[Admin] 删本地图失败', row.file_path, e.message) }
+      if (row.cos_key && isCosEnabled()) deleteFromCos(row.cos_key).catch((e) => console.error('[Admin] 删 COS 对象失败', row.cos_key, e.message))
+    }
+    db.prepare('DELETE FROM gallery WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
     db.prepare('DELETE FROM user_points WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM points_transactions WHERE user_email = ?').run(targetEmail)
-    console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}`)
+    console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}（含 ${galleryRows.length} 张仓库图）`)
     return res.json({ ok: true })
   } catch (e) {
     console.error(e)
