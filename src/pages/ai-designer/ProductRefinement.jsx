@@ -10,7 +10,8 @@ function GalleryThumb({ url, title, token, onClick }) {
   useEffect(() => {
     if (!url) return
     let revoked = false
-    const headers = token ? { Authorization: `Bearer ${token}` } : {}
+    const isAbsolute = typeof url === 'string' && url.startsWith('http')
+    const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
     fetch(url, { headers })
       .then((r) => r.ok ? r.blob() : Promise.reject())
       .then((blob) => { if (!revoked) setBlobUrl(URL.createObjectURL(blob)) })
@@ -194,7 +195,8 @@ export default function ProductRefinement() {
     setGalleryPicker({ open: false })
     try {
       const token = getToken()
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
+      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
+      const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
       const res = await fetch(item.url, { headers })
       const blob = await res.blob()
       const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })

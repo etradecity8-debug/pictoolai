@@ -14,6 +14,7 @@
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | 用风格复刻（参考图+产品图→高转化详情图） | AI美工 → 风格复刻，路由 `/ai-designer/style-clone`，见 PROJECT-OVERVIEW |
 | 部署到服务器、查地区限制 | [DEPLOY.md](./DEPLOY.md) |
+| 仓库图片国内加速（COS+CDN） | [COS-CDN.md](./COS-CDN.md) |
 | 查已知问题、待办 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
 
 ---
@@ -57,6 +58,7 @@
 | 文档 | 说明 |
 |------|------|
 | [DEPLOY.md](./DEPLOY.md) | VPS 部署步骤（含附录：Gemini 地区限制） |
+| [COS-CDN.md](./COS-CDN.md) | 仓库图片国内加速：腾讯云 COS + 临时签名 URL（可选） |
 
 ---
 

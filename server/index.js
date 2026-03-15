@@ -10,6 +10,7 @@ import cors from 'cors'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
 import { createHash } from 'crypto'
 import imageSize from 'image-size'
 import bcrypt from 'bcryptjs'
@@ -32,10 +33,67 @@ import {
 
 setGetDb(getDb)
 
+const require = createRequire(import.meta.url)
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 3001
 const JWT_SECRET = process.env.JWT_SECRET || 'pictoolai-dev-secret-change-in-production'
+
+// 腾讯云 COS：仅当配置了 COS 相关环境变量时启用（仓库图片加速）
+let cosClient = null
+const COS_BUCKET = process.env.COS_BUCKET || ''
+const COS_REGION = process.env.COS_REGION || ''
+const COS_CDN_DOMAIN = process.env.COS_CDN_DOMAIN || '' // 可选，如 img.pictoolai.studio
+function getCosClient() {
+  if (cosClient) return cosClient
+  const SecretId = process.env.COS_SECRET_ID
+  const SecretKey = process.env.COS_SECRET_KEY
+  if (!SecretId || !SecretKey || !COS_BUCKET || !COS_REGION) return null
+  const COS = require('cos-nodejs-sdk-v5')
+  cosClient = new COS({ SecretId, SecretKey })
+  return cosClient
+}
+function isCosEnabled() {
+  return !!(process.env.COS_SECRET_ID && process.env.COS_SECRET_KEY && COS_BUCKET && COS_REGION)
+}
+function uploadToCos(Key, Body, ContentType) {
+  return new Promise((resolve, reject) => {
+    const client = getCosClient()
+    if (!client) return reject(new Error('COS not configured'))
+    client.putObject(
+      { Bucket: COS_BUCKET, Region: COS_REGION, Key, Body, ContentType },
+      (err, data) => (err ? reject(err) : resolve(data))
+    )
+  })
+}
+function getCosSignedUrl(Key, Expires = 3600) {
+  return new Promise((resolve, reject) => {
+    const client = getCosClient()
+    if (!client) return resolve(null)
+    client.getObjectUrl(
+      { Bucket: COS_BUCKET, Region: COS_REGION, Key, Sign: true, Expires },
+      (err, data) => {
+        if (err) return reject(err)
+        let url = data?.Url || data
+        if (typeof url !== 'string') url = data?.url
+        if (COS_CDN_DOMAIN && url) {
+          try {
+            const u = new URL(url)
+            url = url.replace(u.origin, `https://${COS_CDN_DOMAIN.replace(/^https?:\/\//, '')}`)
+          } catch (_) {}
+        }
+        resolve(url || null)
+      }
+    )
+  })
+}
+function deleteFromCos(Key) {
+  return new Promise((resolve, reject) => {
+    const client = getCosClient()
+    if (!client) return resolve()
+    client.deleteObject({ Bucket: COS_BUCKET, Region: COS_REGION, Key }, (err) => (err ? reject(err) : resolve()))
+  })
+}
 
 // API Key 仅从环境变量读取，不写进源码、不提交。调用方不要 log 此值。
 function getGeminiApiKey() {
@@ -789,7 +847,7 @@ function galleryFilePath(email, id, ext) {
   return join('gallery', hash, `${id}.${ext}`)
 }
 
-/** 将一张图片写入仓库（文件 + 数据库），pointsUsed/model/clarity 可选，生图扣积分时传入 */
+/** 将一张图片写入仓库（文件 + 数据库），可选上传 COS；pointsUsed/model/clarity 可选 */
 function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model = null, clarity = null) {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed || !parsed.data) return
@@ -801,7 +859,14 @@ function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model 
   writeFileSync(fullPath, buf)
   const filePath = galleryFilePath(email, id, ext)
   const savedAt = Date.now()
-  getDb().prepare('INSERT INTO gallery (id, user_email, title, file_path, saved_at, points_used, model, clarity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, email, title || '未命名', filePath, savedAt, pointsUsed != null ? pointsUsed : null, model || null, clarity || null)
+  getDb().prepare('INSERT INTO gallery (id, user_email, title, file_path, saved_at, points_used, model, clarity, cos_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, email, title || '未命名', filePath, savedAt, pointsUsed != null ? pointsUsed : null, model || null, clarity || null, null)
+  if (isCosEnabled()) {
+    const Key = filePath
+    const ContentType = ext === 'png' ? 'image/png' : 'image/jpeg'
+    uploadToCos(Key, buf, ContentType).then(() => {
+      getDb().prepare('UPDATE gallery SET cos_key = ? WHERE id = ? AND user_email = ?').run(Key, id, email)
+    }).catch((e) => console.error('[COS] 上传仓库图片失败', id, e.message))
+  }
 }
 
 // 保存图片到仓库：dataUrl 转为文件，元数据写入 SQLite
@@ -822,19 +887,28 @@ app.post('/api/gallery', requireAuth, (req, res) => {
   }
 })
 
-// 拉取当前用户的仓库列表（从数据库读取）
-app.get('/api/gallery', requireAuth, (req, res) => {
+// 拉取当前用户的仓库列表（有 cos_key 则返回 COS 临时签名 URL，否则返回相对路径）
+app.get('/api/gallery', requireAuth, async (req, res) => {
   try {
     const email = req.user.email
-    const rows = getDb().prepare('SELECT id, title, saved_at AS savedAt, points_used AS pointsUsed, model, clarity FROM gallery WHERE user_email = ? ORDER BY saved_at DESC').all(email)
-    const list = rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      url: `/api/gallery/image/${row.id}`,
-      savedAt: row.savedAt,
-      pointsUsed: row.pointsUsed != null ? row.pointsUsed : undefined,
-      model: row.model != null && String(row.model).trim() ? String(row.model).trim() : undefined,
-      clarity: row.clarity != null && String(row.clarity).trim() ? String(row.clarity).trim() : undefined,
+    const rows = getDb().prepare('SELECT id, title, saved_at AS savedAt, points_used AS pointsUsed, model, clarity, cos_key AS cosKey FROM gallery WHERE user_email = ? ORDER BY saved_at DESC').all(email)
+    const list = await Promise.all(rows.map(async (row) => {
+      let url = `/api/gallery/image/${row.id}`
+      if (row.cosKey && isCosEnabled()) {
+        try {
+          const signed = await getCosSignedUrl(row.cosKey, 3600)
+          if (signed) url = signed
+        } catch (_) {}
+      }
+      return {
+        id: row.id,
+        title: row.title,
+        url,
+        savedAt: row.savedAt,
+        pointsUsed: row.pointsUsed != null ? row.pointsUsed : undefined,
+        model: row.model != null && String(row.model).trim() ? String(row.model).trim() : undefined,
+        clarity: row.clarity != null && String(row.clarity).trim() ? String(row.clarity).trim() : undefined,
+      }
     }))
     return res.json({ items: list })
   } catch (e) {
@@ -862,15 +936,18 @@ app.get('/api/gallery/image/:id', requireAuth, (req, res) => {
   }
 })
 
-// 从仓库删除一张（删数据库记录 + 删文件）
+// 从仓库删除一张（删数据库记录 + 删本地文件 + 若有 cos_key 则删 COS 对象）
 app.delete('/api/gallery/:id', requireAuth, (req, res) => {
   try {
     const { id } = req.params
     const email = req.user.email
-    const row = getDb().prepare('SELECT file_path FROM gallery WHERE id = ? AND user_email = ?').get(id, email)
+    const row = getDb().prepare('SELECT file_path, cos_key FROM gallery WHERE id = ? AND user_email = ?').get(id, email)
     if (!row) return res.status(404).json({ error: '图片不存在' })
     const fullPath = join(__dirname, row.file_path)
     if (existsSync(fullPath)) unlinkSync(fullPath)
+    if (row.cos_key && isCosEnabled()) {
+      deleteFromCos(row.cos_key).catch((e) => console.error('[COS] 删除对象失败', row.cos_key, e.message))
+    }
     getDb().prepare('DELETE FROM gallery WHERE id = ? AND user_email = ?').run(id, email)
     return res.json({ ok: true })
   } catch (e) {

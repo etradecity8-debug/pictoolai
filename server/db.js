@@ -30,7 +30,8 @@ export function getDb() {
       saved_at INTEGER NOT NULL,
       points_used INTEGER,
       model TEXT,
-      clarity TEXT
+      clarity TEXT,
+      cos_key TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_gallery_user_email ON gallery(user_email);
     CREATE INDEX IF NOT EXISTS idx_gallery_saved_at ON gallery(saved_at DESC);
@@ -100,6 +101,7 @@ export function getDb() {
       if (!galleryNames.includes('points_used')) db.exec('ALTER TABLE gallery ADD COLUMN points_used INTEGER')
       if (!galleryNames.includes('model')) db.exec('ALTER TABLE gallery ADD COLUMN model TEXT')
       if (!galleryNames.includes('clarity')) db.exec('ALTER TABLE gallery ADD COLUMN clarity TEXT')
+      if (!galleryNames.includes('cos_key')) db.exec('ALTER TABLE gallery ADD COLUMN cos_key TEXT')
     } catch (_) {}
     try {
       const ptInfo = db.prepare('PRAGMA table_info(user_points)').all()

@@ -71,17 +71,16 @@ export default function Gallery() {
     fetchList()
   }, [fetchList])
 
-  // 用 token 拉取每张图片为 blob，生成可显示的 URL
+  // 用 token 拉取每张图片为 blob；绝对 URL（COS 签名）无需 Authorization
   useEffect(() => {
     const token = getToken()
     if (!token || items.length === 0) return
     const controller = new AbortController()
     blobUrlsRef.current = {}
     items.forEach((item) => {
-      fetch(item.url, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: controller.signal,
-      })
+      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
+      const headers = isAbsolute ? {} : { Authorization: `Bearer ${token}` }
+      fetch(item.url, { headers, signal: controller.signal })
         .then((r) => r.blob())
         .then((blob) => {
           const url = URL.createObjectURL(blob)
