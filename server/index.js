@@ -1212,7 +1212,7 @@ OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. CRITICA
           'text-replace': '文字替换', 'text-translate': '文字翻译',
         }[mode] || mode
         try {
-          await saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)
+          saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)
         } catch (e) {
           console.error('[后端 API] 修改图片存图库失败', e.message)
         }
