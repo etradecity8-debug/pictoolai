@@ -847,8 +847,8 @@ function galleryFilePath(email, id, ext) {
   return join('gallery', hash, `${id}.${ext}`)
 }
 
-/** 将一张图片写入仓库（文件 + 数据库），可选上传 COS；pointsUsed/model/clarity 可选 */
-function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model = null, clarity = null) {
+/** 将一张图片写入仓库（文件 + 数据库），可选上传 COS；pointsUsed/model/clarity 可选。若需列表立即带 COS 地址，调用处应 await 本函数 */
+async function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model = null, clarity = null) {
   const parsed = parseDataUrl(dataUrl)
   if (!parsed || !parsed.data) return
   const dir = userGalleryDir(email)
@@ -863,14 +863,17 @@ function saveImageToGallery(email, id, title, dataUrl, pointsUsed = null, model 
   if (isCosEnabled()) {
     const Key = filePath
     const ContentType = ext === 'png' ? 'image/png' : 'image/jpeg'
-    uploadToCos(Key, buf, ContentType).then(() => {
+    try {
+      await uploadToCos(Key, buf, ContentType)
       getDb().prepare('UPDATE gallery SET cos_key = ? WHERE id = ? AND user_email = ?').run(Key, id, email)
-    }).catch((e) => console.error('[COS] 上传仓库图片失败', id, e.message))
+    } catch (e) {
+      console.error('[COS] 上传仓库图片失败', id, e.message)
+    }
   }
 }
 
-// 保存图片到仓库：dataUrl 转为文件，元数据写入 SQLite
-app.post('/api/gallery', requireAuth, (req, res) => {
+// 保存图片到仓库：dataUrl 转为文件，元数据写入 SQLite，并等待 COS 上传完成以便列表立即带 COS 地址
+app.post('/api/gallery', requireAuth, async (req, res) => {
   try {
     const { image: dataUrl, title } = req.body || {}
     const parsed = parseDataUrl(dataUrl)
@@ -879,7 +882,7 @@ app.post('/api/gallery', requireAuth, (req, res) => {
     }
     const email = req.user.email
     const id = `g-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    saveImageToGallery(email, id, title || '未命名', dataUrl)
+    await saveImageToGallery(email, id, title || '未命名', dataUrl)
     return res.json({ id })
   } catch (e) {
     console.error(e)
@@ -1209,7 +1212,7 @@ OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. CRITICA
           'text-replace': '文字替换', 'text-translate': '文字翻译',
         }[mode] || mode
         try {
-          saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)
+          await saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)
         } catch (e) {
           console.error('[后端 API] 修改图片存图库失败', e.message)
         }
