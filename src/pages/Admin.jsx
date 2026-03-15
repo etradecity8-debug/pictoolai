@@ -255,6 +255,8 @@ export default function Admin() {
   const [grantTarget, setGrantTarget] = useState(null)
   const [txTarget, setTxTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState(null)
 
   const fetchUsers = useCallback(() => {
     setLoading(true)
@@ -301,16 +303,48 @@ export default function Admin() {
             <h1 className="text-2xl font-bold text-gray-900">客户管理</h1>
             <p className="text-sm text-gray-500 mt-1">共 {users.length} 个用户</p>
           </div>
-          <button
-            onClick={fetchUsers}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-white transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            刷新
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => {
+                setCleanupResult(null)
+                setCleanupLoading(true)
+                try {
+                  const res = await fetch('/api/admin/cleanup-orphan-gallery', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${getToken()}` },
+                  })
+                  const data = await res.json()
+                  if (!res.ok) throw new Error(data.error || '清理失败')
+                  setCleanupResult(data.deleted === 0 ? '没有需要清理的孤儿仓库记录' : `已清理 ${data.deleted} 条孤儿仓库记录及文件`)
+                } catch (e) {
+                  setCleanupResult('清理失败：' + e.message)
+                } finally {
+                  setCleanupLoading(false)
+                }
+              }}
+              disabled={cleanupLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-50"
+              title="删除「用户已不存在」的仓库记录与本地图片（如先删用户再上线新逻辑时遗留的数据）"
+            >
+              {cleanupLoading ? '清理中…' : '清理孤儿仓库'}
+            </button>
+            <button
+              onClick={fetchUsers}
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-white transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              刷新
+            </button>
+          </div>
         </div>
+        {cleanupResult && (
+          <div className="mb-4 text-sm text-gray-600 bg-gray-100 rounded-lg px-4 py-2">
+            {cleanupResult}
+          </div>
+        )}
 
         {/* 搜索 */}
         <div className="mb-4">

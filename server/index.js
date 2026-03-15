@@ -2675,6 +2675,29 @@ app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
   }
 })
 
+// 一次性清理「用户已删除但仓库记录/文件仍在」的孤儿数据（管理员专用）
+app.post('/api/admin/cleanup-orphan-gallery', requireAdmin, (req, res) => {
+  try {
+    const db = getDb()
+    const existingEmails = new Set(db.prepare('SELECT email FROM users').all().map((r) => r.email))
+    const allGallery = db.prepare('SELECT id, user_email, file_path, cos_key FROM gallery').all()
+    const orphanRows = allGallery.filter((r) => !existingEmails.has(r.user_email))
+    let deleted = 0
+    for (const row of orphanRows) {
+      const fullPath = join(__dirname, row.file_path)
+      if (existsSync(fullPath)) try { unlinkSync(fullPath) } catch (e) { console.error('[Admin] 删孤儿图失败', row.file_path, e.message) }
+      if (row.cos_key && isCosEnabled()) deleteFromCos(row.cos_key).catch((e) => console.error('[Admin] 删孤儿 COS 失败', row.cos_key, e.message))
+      db.prepare('DELETE FROM gallery WHERE id = ? AND user_email = ?').run(row.id, row.user_email)
+      deleted++
+    }
+    if (deleted > 0) console.log(`[Admin] ${req.user.email} 清理了 ${deleted} 条孤儿仓库记录`)
+    return res.json({ ok: true, deleted })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '清理失败' })
+  }
+})
+
 // 查看某客户的积分流水
 app.get('/api/admin/users/:email/transactions', requireAdmin, (req, res) => {
   try {
