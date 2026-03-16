@@ -78,6 +78,36 @@
 
 ---
 
+## 今日完成（2026-03-16）
+
+### 亚马逊 Listing 四大新功能
+- **A/B 文案变体**：优化/生成 Listing 结果区新增「生成 A/B 变体」按钮，后端 `POST /api/ai-assistant/amazon/generate-variants` 根据不同策略角度（功能参数型、场景情感型等）生成 2-3 套变体，前端 Tab 切换对比。不扣积分。
+- **合规自检增强**：`optimize-listing` prompt 中合规扫描从 6 类扩展到 9 大类（标题格式、五点格式、描述规则、促销用语、IP/品牌、医疗声明、农药/杀菌、环保声明、其他），每项带 error/warning/info 三级严重度。前端按严重程度分组渲染（红/黄/灰），显示位置、类别、问题文本和修改建议。
+- **竞品对比**：新增功能卡片 + `POST /api/ai-assistant/amazon/competitor-compare` 接口 + `CompetitorForm` 组件。输入自己和 1-3 个竞品 Listing，输出关键词差异（优势词/待补充/共有词）、卖点矩阵表格、标题和五点策略分析、行动计划。不扣积分。
+- **关键词研究**：新增功能卡片 + `POST /api/ai-assistant/amazon/keyword-research` 接口 + `KeywordResearchForm` 组件。输入产品名称，输出核心搜索词、5 类长尾词分组、后台关键词建议、标题排布建议、趋势分析、差异分析（可选）。不扣积分。
+
+### eBay / 速卖通模块升级
+- **新增「优化 Listing」功能**：
+  - eBay：`POST /api/ai-assistant/ebay/optimize-listing`，基于 Cassini 搜索算法深度诊断，含产品分析、三维度评分、合规自检（三级严重度）、双语诊断报告、优化版 Listing
+  - 速卖通：`POST /api/ai-assistant/aliexpress/optimize-listing`，基于速卖通搜索算法（标题权重 32.7%、关键词重复惩罚等），同样完整诊断+优化+合规+双语
+  - 前端新增 `PlatformOptimizeForm` 组件（eBay/速卖通共用），含方法论卡、输入区、诊断报告（双语切换）、合规自检、优化后版本
+  - `ebayFeatures`、`aliexpressFeatures` 各增加 optimize 卡片
+- **生成模块增强**：
+  - analyze 接口升级为「深度产品智能分析」，新增提取 `topKeywords`（8-12 个高频搜索词）、`buyerQuestions`（3-5 个买家常问）、`buyerPersonas`（2-3 个买家画像）
+  - generate-listing prompt 从规则型升级为策略驱动型，标题/属性/描述各有明确策略
+  - 前端分析结果页新增「产品洞察」展示区
+- **广告语更新**：eBay/速卖通功能卡片描述与亚马逊风格对齐，突出平台特有算法和具体分析能力
+
+### 智能粘贴（三平台通用）
+- **后端**：新增 `POST /api/ai-assistant/smart-paste` 通用接口，AI 从粘贴的整页文本中智能提取标题、五点/属性、描述、品牌等字段。不扣积分。
+- **前端**：三处加入智能粘贴入口：
+  - 亚马逊「优化 Listing」：方法论卡下方可折叠面板
+  - eBay/速卖通「优化 Listing」：同样的折叠面板
+  - 亚马逊「竞品对比」：每个 Listing 块下方的行内入口
+- **用户体验**：打开商品页 → Ctrl+A 全选 → Ctrl+C 复制 → 粘贴到文本框 → 点「智能识别并填充」→ 自动拆分到各字段
+
+---
+
 ## 今日完成（2026-03-15）
 
 ### eBay / 速卖通模块优化
@@ -136,7 +166,7 @@
 
 ### 电商AI运营助手
 - **下拉改侧边栏**：Header 的「电商AI运营助手」改为直接链接 `/ai-assistant`，平台选择在 AiAssistant 页面左侧侧边栏展示。
-- **优化 Listing**：亚马逊功能卡片「优化 Listing」灰掉（`disabled: true`），显示「即将上线」。
+- **优化 Listing**：已实现「诊断 + 一键优化」——粘贴现有 Listing 文案，AI 逐项评分（标题/五点/描述/关键词）并标记合规风险，同时输出优化版本。不扣积分。
 
 ### 主页改版
 - **Hero**：黑色块 `slate-900` 居中，网格装饰（8% 透明度、48px 格）；主标「智绘电商新生态，重塑商品视觉力」，副标中 Google Gemini Nano Banana 加粗蓝 `#4285F4`；紧凑高度 `py-10 sm:py-12 lg:py-14`。

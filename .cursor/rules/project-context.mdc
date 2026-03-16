@@ -53,7 +53,7 @@ alwaysApply: true
 - **亚马逊 A+ 详情页**（`/amazon-aplus`）：**MVP 阶段**，4步流程：填写信息→确认文案→生成图片→查看结果。两个后端接口：`/api/amazon-aplus/analyze`（文案，不扣积分）+ `/api/amazon-aplus/generate`（顺序生成4张图，扣积分，存图库）。支持10种语言、3种风格。图文一一对应，所有文案一键复制。**完整方案待后续迭代**（A/B对比模块、规格图、导出ZIP等），详见 `docs/KNOWN_ISSUES.md`。
 - **A+ 图片生成注意**：4张图顺序生成（非并行），避免 Nano Banana 2 并发限速；prompt 中加最高优先级禁文字规则，防止 AI 将产品名渲染到图上（尤其中文产品名）；积分按实际成功张数扣除；图库标题与实际生成图绑定（不因失败导致标题错位）。
 - **导航栏**：当前显示「电商生图」「AI美工」「电商AI运营助手」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「服装组图」「万能画布」。
-- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选；「优化 Listing」功能灰掉。
+- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选；「优化 Listing」已实现（诊断+一键优化，不扣积分）。
 - **联系我们**：`/contact` 仅微信，有「返回主页」；定价页选套餐弹 ContactModal；Header 有入口。
 - **主页**：Hero 黑色块居中、FeatureCards/FAQ 左对齐、CTA 黑色块；全用 `max-w-7xl` 与 Header 对齐；产品页与 ProductShowcase 已删；Footer「关于我们」「帮助中心」灰掉。
 - **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。

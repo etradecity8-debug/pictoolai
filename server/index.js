@@ -1671,7 +1671,7 @@ app.post('/api/ai-assistant/amazon/analyze', requireAuth, async (req, res) => {
 
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
-    const prompt = `You are an Amazon listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, bullets, description generation). Extract concrete, Rufus-friendly facts: dimensions, weight, material, certifications, and any verifiable specs from the image or notes, and include them in productSummary and keyAttributes so the next step can use them as the factual base for the listing.
+    const prompt = `You are a senior Amazon listing strategist. Analyze the product image and user inputs to build a comprehensive product intelligence report. This report will drive the next step (title, bullets, description generation) with deep A9/Cosmo/Rufus/GEO optimization.
 
 User inputs:
 - Category: ${category1 || ''} > ${category2 || ''}
@@ -1682,12 +1682,33 @@ User inputs:
 ${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
 ${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
 
-Output a JSON object only (no markdown):
+Your tasks:
+
+1. PRODUCT IDENTIFICATION: From the image + inputs, identify the product and write a concise summary.
+
+2. KEY SPECS EXTRACTION (Rufus + GEO): Extract every concrete, verifiable spec you can find or infer — dimensions, weight, material, capacity, color, quantity, certifications. Be precise (e.g. "12 oz / 350ml" not just "medium size"). Use ${marketLabel}-appropriate units.
+
+3. HIGH-VOLUME KEYWORDS (A9): Based on the product category and ${marketLabel} market, list 10-15 search terms that real shoppers would type. Include:
+   - Core product term (e.g. "water bottle", "yoga mat")
+   - Long-tail variants (e.g. "insulated water bottle for gym")
+   - Material/feature terms (e.g. "stainless steel", "leak proof")
+   - Use-case terms (e.g. "travel", "office", "kids")
+   - Synonyms and alternate names
+   ${keywords?.trim() ? `- Incorporate these reference keywords where relevant: ${keywords.trim()}` : ''}
+
+4. BUYER QUESTIONS (Rufus): List the top 5 questions that buyers typically ask before purchasing this type of product. Think about concerns like durability, safety, compatibility, ease of use, maintenance, etc.
+
+5. BUYER PERSONAS (Cosmo): Identify 3-4 distinct buyer personas with specific usage scenarios. Format: "[Who] + [scenario/need]" (e.g. "Gym-goers who need a durable, leak-proof bottle for workouts").
+
+Output a JSON object only (no markdown fences). ALL text in ${langLabel}:
 {
-  "productName": "short product name in output language",
-  "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
-  "keyAttributes": ["attr1", "attr2", "attr3"],
-  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+  "productName": "short product name",
+  "productSummary": "2-4 sentences: what it is, key features, target use, key differentiators",
+  "keyAttributes": ["specific attr with data, e.g. 'Material: 18/8 stainless steel'", "Capacity: 500ml / 17oz", "..."],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}",
+  "topKeywords": ["keyword1", "keyword2", "...10-15 high-volume search terms"],
+  "buyerQuestions": ["question1", "question2", "question3", "question4", "question5"],
+  "buyerPersonas": ["persona1 + scenario", "persona2 + scenario", "persona3 + scenario"]
 }`
 
     const contents = [
@@ -1701,12 +1722,15 @@ Output a JSON object only (no markdown):
     if (!out || !out.productSummary) {
       return res.status(500).json({ error: '产品分析解析失败，请重试' })
     }
-    console.log('[Amazon Listing] 分析完成 | 产品:', out.productName)
+    console.log('[Amazon Listing] 分析完成 | 产品:', out.productName, '| keywords:', (out.topKeywords || []).length)
     return res.json({
       productName: out.productName || '',
       productSummary: out.productSummary || '',
       keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [],
       suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}`,
+      topKeywords: Array.isArray(out.topKeywords) ? out.topKeywords : [],
+      buyerQuestions: Array.isArray(out.buyerQuestions) ? out.buyerQuestions : [],
+      buyerPersonas: Array.isArray(out.buyerPersonas) ? out.buyerPersonas : [],
     })
   } catch (e) {
     console.error('[Amazon Listing] analyze 失败', e.message)
@@ -1727,73 +1751,84 @@ app.post('/api/ai-assistant/amazon/generate-listing', requireAuth, async (req, r
 
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
-    const prompt = `You are an Amazon listing copywriter. Generate a full listing in ${langLabel} that complies with Amazon policy.
+    const topKeywords = Array.isArray(analyzeResult.topKeywords) ? analyzeResult.topKeywords : []
+    const buyerQuestions = Array.isArray(analyzeResult.buyerQuestions) ? analyzeResult.buyerQuestions : []
+    const buyerPersonas = Array.isArray(analyzeResult.buyerPersonas) ? analyzeResult.buyerPersonas : []
 
-Amazon rules (MUST follow):
+    const prompt = `You are a senior Amazon listing strategist. Generate a full listing in ${langLabel} using the product intelligence data below. Every section must be driven by the analyzed keywords, buyer questions, and personas — not generic filler.
 
-Title (effective 2025):
-- Max 200 characters. Put brand + core product + key attributes in the first 50–80 characters for search.
-- No ALL CAPS, no competitor brands, no keyword stuffing.
-- Do not repeat the same word more than twice (except articles, prepositions, conjunctions like "and", "the", "of").
-- Do not use these characters unless part of brand name: ! $ ? _ { } ^ ¬ ¦
+=== PRODUCT INTELLIGENCE (from analysis step) ===
 
-Bullet points (5 items):
-- Each bullet max 500 characters (some categories limit to 255 — prefer concise under 255 when possible).
-- Structure: each bullet = one clear benefit or one answer to a customer question; use concrete specs/data from the analysis where relevant (Rufus-friendly); you may combine pain-point → solution, use case, and hard facts across the 5 points.
-- No price, promotion, or off-site links; no exaggerated or medical/unsupported claims.
-- No special characters (™ ® €) or emojis; no repetition of content across bullets.
-- No ASIN, "N/A", "TBD", or "not applicable"; no company info, contact details, or website links.
-- No refund/guarantee language; no prohibited marketing phrases. Each bullet = one clear benefit or answer to a customer question.
+Product: ${analyzeResult.productName || ''}
+Summary: ${analyzeResult.productSummary}
+Key specs: ${(analyzeResult.keyAttributes || []).join(' | ')}
+Category: ${category1 || ''} > ${category2 || ''}
+Brand: ${brand.trim()}
+Selling points: ${points.join(' | ')}
+${topKeywords.length ? `High-volume search keywords: ${topKeywords.join(', ')}` : ''}
+${buyerQuestions.length ? `Top buyer questions: ${buyerQuestions.map((q, i) => `Q${i + 1}. ${q}`).join(' | ')}` : ''}
+${buyerPersonas.length ? `Buyer personas: ${buyerPersonas.join(' | ')}` : ''}
+${keywords?.trim() ? `Reference keywords: ${keywords.trim()}` : ''}
+${notes?.trim() ? `Notes: ${notes.trim()}` : ''}
 
-Product description:
-- Max 2000 characters. Do not duplicate bullets; no off-site links, contact info, or prohibited words.
-- No competitor comparison; no "best seller" or "top-rated" type claims.
+Target market: ${marketLabel}
+Output language: ${langLabel}
 
-Search terms (backend keywords):
-- Max 250 bytes total. Do NOT repeat words already in title or bullets; comma or space separated; no competitor brands.
+=== TITLE STRATEGY (A9) ===
 
-Prohibited and replacements (compliance):
-- Promotional: No Best seller, Top rated, Free shipping, On sale, Satisfaction Guarantee, Order now, Amazon's Choice, Certified (unless certified). No emoji in listing.
-- IP/Brand: No other brands; use "compatible with [Brand]" or "for [Brand]", not "[Brand] Case". Prefer generic terms: hook and loop (not Velcro), bodysuit/romper (not Onesie), lip balm (not Chapstick), cotton swab (not Q-tip), ice pop (not Popsicle).
-- Medical: No cure, heal, treat, prevent, relief, FDA approved/cleared unless you have proof; no disease names (e.g. cancer, diabetes).
-- Pesticide/Biocides: No anti-bacterial, anti-microbial, anti-fungal, disinfect, sanitize, sterilize unless EPA registered. Avoid "non-toxic"; prefer "BPA Free" or "Safe material". No absolute safety claims (Safe, Healthy, Harmless).
-- Green: No eco-friendly, environmentally friendly, green, biodegradable, compostable, sustainable unless certified; use concrete material claims (e.g. "Made of 100% natural bamboo", "Recycled paper packaging").
-- Other: No contact info, no "Leave a review"/Feedback, avoid "New"/"Newest" unless truly new; no ALL CAPS except brand.
+Structure: [Brand] + [Core Product Term] + [Top 2-3 Attributes] + [Use Case or Differentiator]
+- Front-load the highest-volume keyword from the search keywords list in the first 50-80 characters
+- Weave in 3-5 additional search keywords naturally (no stuffing, no word repeated >2 times)
+- ≤200 characters. No ALL CAPS (except brand). No forbidden characters (! $ ? _ { } ^ ¬ ¦)
 
-A9 (traditional search):
-- Title: First 50–80 characters MUST contain brand + core product term + 1–2 high-intent attribute words; order: brand + product + attributes.
-- Bullets: Distribute long-tail keywords naturally across 5 bullets; each bullet focuses on one theme; avoid keyword stuffing; prefer natural sentences.
-- Search terms: Do NOT repeat words from title or bullets; prefer synonyms, variants, and complementary terms.
+=== BULLETS STRATEGY (5 bullets, each ≤500 chars, prefer ≤255) ===
 
-Cosmo (semantic search):
-- Bullets: Each bullet MUST use natural language to describe WHO uses it (target user), WHAT scenario (use case), and WHAT problem it solves (pain→solution).
-- Avoid keyword-first phrasing; lead with benefit or scenario, e.g. "Whether you're...", "Perfect for...", "When...".
+Each bullet has a specific role. Follow this assignment:
 
-Rufus (AI shopping assistant):
-- Bullets: Each bullet MUST implicitly answer a common buyer question (e.g. Will it leak? How long does it last? Is it easy to clean? Is it durable?).
-- Answers MUST be concrete: dimensions, weight, material, certifications, test results; use keyAttributes from analysis when available.
-- Structure: [Implicit question] → [Direct answer with specifics].
+Bullet 1 [A9 + Cosmo]: Lead with the #1 benefit and a primary use scenario from the buyer personas. Weave in 2-3 high-volume keywords naturally. Start with a benefit or scenario, NOT the product name.
 
-GEO (structured content + localization for ${marketLabel}):
-- Include precise data: dimensions, weight, material percentages, certifications; avoid vague claims like "lightweight" or "durable" without numbers.
-- Use market-appropriate units: US (inches, lbs); EU/JP (cm, kg). Use local terminology for ${marketLabel}.
+Bullet 2 [Rufus + GEO]: Answer buyer question Q1 ("${buyerQuestions[0] || 'most common concern'}") with concrete specs from key specs. Include precise measurements in ${marketLabel}-appropriate units.
 
-Input:
-- Product summary from analysis: ${analyzeResult.productSummary}
-- Product name: ${analyzeResult.productName || ''}
-- Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
-- Category: ${category1 || ''} > ${category2 || ''}
-- Brand: ${brand.trim()}
-- Selling points: ${points.join(' | ')}
-${keywords?.trim() ? `- Reference keywords to include where relevant: ${keywords.trim()}` : ''}
-${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
+Bullet 3 [Rufus + GEO]: Answer buyer question Q2 ("${buyerQuestions[1] || 'second concern'}") with specific data — material, dimensions, weight, capacity, certifications. No vague claims without numbers.
 
-Output ONLY valid JSON (no markdown):
+Bullet 4 [Cosmo]: Describe a specific usage scenario from buyer personas. Use natural, conversational language (e.g. "Whether you're...", "Perfect for..."). Include 1-2 long-tail keywords.
+
+Bullet 5 [Rufus]: Answer buyer question Q3 ("${buyerQuestions[2] || 'third concern'}") OR cover what's in the box / care instructions / compatibility with specifics.
+
+Rules for ALL bullets:
+- No price, promotion, or off-site links; no medical/unsupported claims
+- No special characters (™ ® €) or emojis; no content repetition across bullets
+- No ASIN, "N/A", company info, contact details, refund/guarantee language
+- Each bullet starts with a benefit or scenario, never with the product name
+
+=== DESCRIPTION STRATEGY (≤2000 chars) ===
+
+- Paint 2-3 usage scenarios from buyer personas that bullets didn't fully cover
+- Reinforce key benefits with DIFFERENT wording (no copy-paste from bullets)
+- Include remaining search keywords that didn't fit in title/bullets
+- No off-site links, contact info, competitor comparisons, or "best seller" claims
+
+=== SEARCH TERMS STRATEGY (≤250 bytes) ===
+
+- ONLY words NOT already in the optimized title or bullets
+- Synonyms, alternate spellings, related terms from the search keywords list
+- Space-separated (no commas needed). No competitor brands, no ASINs
+- Prioritize: terms that cover buyer questions/scenarios not yet addressed in visible listing
+
+=== COMPLIANCE (MUST follow) ===
+
+- Promotional: No "best seller", "top rated", "free shipping", "on sale", "guarantee", "order now", "Amazon's Choice", "certified" (unless actually certified)
+- IP/Brand: No competitor brands. Use "compatible with [Brand]" not "[Brand] Case". Use generic terms: "hook and loop" not "Velcro", "bodysuit" not "Onesie", "lip balm" not "Chapstick", "cotton swab" not "Q-tip"
+- Medical: No "cure", "heal", "treat", "prevent", "FDA approved" without proof
+- Pesticide: No "anti-bacterial", "disinfect", "sanitize" without EPA registration. Avoid "non-toxic"; prefer "BPA Free"
+- Green: No "eco-friendly", "biodegradable", "sustainable" without certification. Use concrete claims like "Made of 100% natural bamboo"
+
+Output ONLY valid JSON (no markdown fences). ALL text in ${langLabel}:
 {
-  "title": "full title string, ≤200 chars, in ${langLabel}",
-  "searchTerms": "comma or space separated backend keywords, ≤250 bytes total",
+  "title": "optimized title ≤200 chars",
+  "searchTerms": "backend keywords ≤250 bytes",
   "bullets": ["bullet1", "bullet2", "bullet3", "bullet4", "bullet5"],
-  "description": "product description paragraph(s), ≤2000 chars"
+  "description": "product description ≤2000 chars"
 }`
 
     const ai = new GoogleGenAI({ apiKey })
@@ -1818,6 +1853,604 @@ Output ONLY valid JSON (no markdown):
   } catch (e) {
     console.error('[Amazon Listing] generate-listing 失败', e.message)
     return res.status(500).json({ error: e.message || 'Listing 生成失败，请稍后重试' })
+  }
+})
+
+// ── 优化 Listing：诊断现有 Listing + 一键优化（不扣积分）───────────────────────
+app.post('/api/ai-assistant/amazon/optimize-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { title, bullets, description, searchTerms, market, lang } = req.body || {}
+    if (!title?.trim()) return res.status(400).json({ error: '请粘贴现有标题' })
+    if (!bullets?.trim()) return res.status(400).json({ error: '请粘贴五点描述' })
+
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+
+    const prompt = `You are a senior Amazon listing strategist. You must perform a DEEP, multi-step optimization — not a surface-level rewrite.
+
+LANGUAGE RULES (CRITICAL — follow exactly):
+1. First, detect the language of the INPUT listing below (look at the title and bullets). Set "inputLanguage" in the JSON to the detected language name (e.g. "English", "中文", "Deutsch").
+2. "diagnosis" section: Write ALL text (summary, issue descriptions, compliance flags) in the DETECTED INPUT LANGUAGE. If input is English, diagnosis must be in English. If input is Chinese, diagnosis must be in Chinese. This lets the seller match issues to their original wording.
+3. "diagnosisZh" section: Write the SAME content as "diagnosis" but translated into 简体中文. Same scores, same number of issues, just in Chinese. If the input is already in Chinese, "diagnosisZh" should still be provided (it will be identical or nearly identical to "diagnosis").
+4. "optimized" section: Write entirely in ${langLabel} (the target output language). If input language differs from ${langLabel}, translate while optimizing.
+5. "analysis" section: Write in ${langLabel}.
+
+=== STEP 1: PRODUCT INTELLIGENCE (do this analysis internally, output in "analysis") ===
+
+From the existing listing, identify:
+A. Product category & subcategory (e.g. "Kitchen > Water Bottles")
+B. Brand name (extract from title)
+C. Core product term — the 1-2 word generic name buyers would search (e.g. "water bottle", "yoga mat")
+D. 10-15 high-volume search keywords that real ${marketLabel} shoppers would type for this product type. Think like a buyer: include the core term, long-tail variants, use-case terms, material/feature terms, and synonyms. Example for a water bottle: "insulated water bottle", "stainless steel water bottle", "water bottle for gym", "leak proof water bottle", "BPA free water bottle", "thermos bottle", etc.
+E. Top 5 buyer questions — the most common concerns/questions buyers have before purchasing this type of product (e.g. "Does it keep drinks cold?", "Is it dishwasher safe?", "Will it fit in a cup holder?")
+F. 3-4 buyer personas — who buys this product and in what scenario (e.g. "office workers who want to stay hydrated", "gym-goers who need a durable bottle", "parents packing kids' lunchboxes")
+G. Key differentiating specs — extract any concrete specs (dimensions, weight, material, capacity, certifications) mentioned or implied in the listing
+
+=== STEP 2: DIAGNOSE THE EXISTING LISTING ===
+
+Score each section 1–10 and list specific problems. Evaluate against these concrete criteria:
+
+Title diagnosis:
+- Are any of the top search keywords from Step 1D present? Which are missing?
+- Are brand + core product term in the first 50-80 characters?
+- Any forbidden characters (! $ ? _ { } ^ ¬ ¦)? ALL CAPS (except brand)? Word repeated >2 times?
+- Is it ≤200 characters?
+
+Bullets diagnosis:
+- [A9] Are the top search keywords distributed across bullets, or concentrated/missing?
+- [Cosmo] Does each bullet describe a real scenario or use case in natural language, or is it keyword-stuffed?
+- [Rufus] Does each bullet answer one of the top buyer questions from Step 1E with concrete specs/data?
+- [GEO] Are measurements in correct units for ${marketLabel}? Are specs precise (not vague like "lightweight" without a number)?
+- Are there prohibited claims (medical/eco/promotional)?
+
+Description diagnosis:
+- Does it duplicate bullets or add new value (usage scenarios, brand story)?
+- ≤2000 characters? Any off-site links or contact info?
+
+Search terms diagnosis (if provided):
+- Any words repeated from title/bullets? Any competitor brands?
+- ≤250 bytes?
+
+Compliance deep scan — check EVERY item below. For each violation found, output a structured object with level, category, location, text, and suggestion.
+
+Levels:
+- "error": Will cause listing suppression or rejection. Must fix before publishing.
+- "warning": Violates best practices or soft rules. Strongly recommended to fix.
+- "info": Optimization suggestion, not a rule violation.
+
+Check categories:
+
+1. Title format rules:
+   - [error] Title >200 characters
+   - [error] Forbidden characters: ! $ ? _ { } ^ ¬ ¦ (unless part of brand name)
+   - [warning] ALL CAPS words (except brand name)
+   - [warning] Same word repeated >2 times (except articles/prepositions)
+   - [info] Core product term not in first 80 characters
+
+2. Bullet format rules:
+   - [warning] Any bullet >500 characters
+   - [info] Any bullet >255 characters (some categories enforce 255 limit)
+   - [error] Content duplicated across bullets
+   - [warning] Bullet starts with product name or keyword instead of benefit/scenario
+
+3. Description rules:
+   - [warning] Description >2000 characters
+   - [error] Contains off-site links, URLs, or contact info
+   - [error] Duplicates bullet content verbatim
+
+4. Promotional claims [error]:
+   - "best seller", "top rated", "free shipping", "on sale", "satisfaction guarantee", "money back", "order now", "Amazon's Choice", "certified" (unless actually certified), "#1", "award-winning" (without proof)
+
+5. IP / Brand [error]:
+   - Competitor brand names used incorrectly (should be "compatible with [Brand]" or "for [Brand]")
+   - Trademarked generics: "Velcro"→"hook and loop", "Chapstick"→"lip balm", "Q-tip"→"cotton swab", "Onesie"→"bodysuit", "Popsicle"→"ice pop", "Jacuzzi"→"hot tub", "Band-Aid"→"adhesive bandage"
+
+6. Medical claims [error]:
+   - "cure", "heal", "treat", "prevent", "relief", "FDA approved", "FDA cleared", "clinically proven", "doctor recommended" without proof
+   - Disease names (cancer, diabetes, arthritis, etc.) without medical device registration
+
+7. Pesticide / Biocide [error]:
+   - "anti-bacterial", "anti-microbial", "anti-fungal", "disinfect", "sanitize", "sterilize" without EPA/BPR registration
+   - "non-toxic" (vague safety claim) → prefer "BPA Free" or specific material safety data
+   - Absolute safety claims: "safe", "healthy", "harmless" without qualification
+
+8. Environmental claims [error]:
+   - "eco-friendly", "environmentally friendly", "green", "biodegradable", "compostable", "sustainable", "carbon neutral" without certification
+   - Fix: use concrete claims like "Made of 100% natural bamboo", "Recycled paper packaging"
+
+9. Other [warning]:
+   - Contact info (email, phone, website)
+   - "Leave a review", "feedback appreciated"
+   - "New", "Newest", "Latest" (unless truly new product launch)
+   - HTML tags or special markup
+   - Emoji or special symbols (™ ® © €)
+   - "N/A", "TBD", "not applicable", ASIN references
+
+=== STEP 3: WRITE THE OPTIMIZED LISTING using Step 1 intelligence ===
+
+Title optimization strategy:
+- Structure: [Brand] + [Core Product Term] + [Top 2-3 Attributes/Keywords] + [Use Case or Differentiator]
+- Front-load the highest-volume keyword from Step 1D in the first 50-80 characters
+- Weave in 3-5 additional keywords from Step 1D naturally (no stuffing)
+- ≤200 characters, no forbidden characters
+
+Bullets optimization strategy (5 bullets, each ≤500 chars, prefer ≤255):
+- Bullet 1 [A9+Cosmo]: Lead with the #1 benefit + primary use scenario from Step 1F. Include 2-3 keywords from Step 1D naturally.
+- Bullet 2 [Rufus]: Answer buyer question #1 from Step 1E with concrete specs from Step 1G. Structure: "[Benefit/Feature] — [specific data]".
+- Bullet 3 [Rufus+GEO]: Answer buyer question #2 with precise measurements in ${marketLabel}-appropriate units. Include material, dimensions, weight, or capacity.
+- Bullet 4 [Cosmo]: Describe a specific usage scenario from Step 1F. Use natural, conversational language. Include 1-2 long-tail keywords.
+- Bullet 5 [Rufus]: Answer buyer question #3 or cover what's in the box / warranty / care instructions with specifics.
+- Each bullet must start with a benefit or scenario, NOT a keyword. Avoid starting every bullet with the product name.
+
+Description optimization strategy:
+- Paint 2-3 usage scenarios from Step 1F that bullets didn't cover
+- Reinforce key benefits with different wording (no copy-paste from bullets)
+- Include remaining keywords from Step 1D that didn't fit in title/bullets
+- ≤2000 characters
+
+Search terms optimization strategy:
+- ONLY include words NOT already in the optimized title or bullets
+- Use synonyms, Spanish/alternate spellings, related terms from Step 1D
+- No commas needed (Amazon treats spaces as separators)
+- No competitor brands, no ASINs
+- ≤250 bytes
+
+EXISTING LISTING:
+
+Title: ${title.trim()}
+
+Bullets:
+${bullets.trim()}
+
+${description?.trim() ? `Description:\n${description.trim()}` : '(No description provided)'}
+
+${searchTerms?.trim() ? `Search terms:\n${searchTerms.trim()}` : '(No search terms provided)'}
+
+Target market: ${marketLabel}
+Output language: ${langLabel}
+
+Output ONLY valid JSON (no markdown fences).
+
+EXAMPLE for an English input listing with target language ${langLabel}:
+{
+  "inputLanguage": "English",
+  "analysis": {
+    "productCategory": "category > subcategory",
+    "brand": "brand name",
+    "coreProductTerm": "core term in ${langLabel}",
+    "topKeywords": ["10-15 keywords in ${langLabel}"],
+    "buyerQuestions": ["5 questions in ${langLabel}"],
+    "buyerPersonas": ["3-4 personas in ${langLabel}"],
+    "keySpecs": ["spec: value"]
+  },
+  "diagnosis": {
+    "titleScore": 7,
+    "titleIssues": ["This issue is written in English because input was English", "Another English issue"],
+    "bulletsScore": 6,
+    "bulletsIssues": ["English issue about bullets"],
+    "descriptionScore": 5,
+    "descriptionIssues": ["English issue"],
+    "searchTermsScore": 4,
+    "searchTermsIssues": ["English issue"],
+    "complianceFlags": [{"level": "error", "category": "Promotional", "location": "Bullet 5", "text": "'Satisfaction Guarantee'", "suggestion": "Remove or replace with specific quality data"}],
+    "overallScore": 6,
+    "summary": "English summary because input was English"
+  },
+  "diagnosisZh": {
+    "titleScore": 7,
+    "titleIssues": ["这个问题用中文写，因为这是中文翻译版", "另一个中文问题"],
+    "bulletsScore": 6,
+    "bulletsIssues": ["关于五点的中文问题"],
+    "descriptionScore": 5,
+    "descriptionIssues": ["中文问题"],
+    "searchTermsScore": 4,
+    "searchTermsIssues": ["中文问题"],
+    "complianceFlags": [{"level": "error", "category": "促销用语", "location": "五点第5条", "text": "'满意保证'", "suggestion": "删除或替换为具体质量数据"}],
+    "overallScore": 6,
+    "summary": "中文总结"
+  },
+  "optimized": {
+    "title": "title in ${langLabel}",
+    "bullets": ["5 bullets in ${langLabel}"],
+    "description": "description in ${langLabel}",
+    "searchTerms": "keywords in ${langLabel}"
+  }
+}
+
+Remember: "diagnosis" language MUST match "inputLanguage". "diagnosisZh" is ALWAYS in 简体中文.`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.diagnosis || !out.optimized) {
+      return res.status(500).json({ error: '优化结果解析失败，请重试' })
+    }
+
+    // 清洗优化后的标题
+    const forbiddenTitleChars = /[!$?_{}\^¬¦]/g
+    const optimizedTitle = String(out.optimized.title || '').replace(forbiddenTitleChars, '').replace(/\s+/g, ' ').trim().slice(0, 200)
+    let optimizedSearchTerms = String(out.optimized.searchTerms || '').trim()
+    while (Buffer.byteLength(optimizedSearchTerms, 'utf8') > 250 && optimizedSearchTerms.length > 0) {
+      optimizedSearchTerms = optimizedSearchTerms.slice(0, -1)
+    }
+    const optimizedBullets = Array.isArray(out.optimized.bullets) ? out.optimized.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+    while (optimizedBullets.length < 5) optimizedBullets.push('')
+    const optimizedDescription = String(out.optimized.description || '').slice(0, 2000)
+
+    console.log('[Amazon Listing] 优化完成 | overall score:', out.diagnosis.overallScore, '| inputLang:', out.inputLanguage, '| keywords:', (out.analysis?.topKeywords || []).length)
+    return res.json({
+      inputLanguage: out.inputLanguage || null,
+      analysis: out.analysis || null,
+      diagnosis: out.diagnosis,
+      diagnosisZh: out.diagnosisZh || null,
+      optimized: {
+        title: optimizedTitle,
+        bullets: optimizedBullets,
+        description: optimizedDescription,
+        searchTerms: optimizedSearchTerms,
+      },
+    })
+  } catch (e) {
+    console.error('[Amazon Listing] optimize-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || '优化失败，请稍后重试' })
+  }
+})
+
+// ── A/B 文案变体：基于同一分析数据生成不同风格的 Listing 版本（不扣积分）──
+app.post('/api/ai-assistant/amazon/generate-variants', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { currentListing, analysis, market, lang, variantCount } = req.body || {}
+    if (!currentListing?.title) return res.status(400).json({ error: '请提供当前 Listing' })
+    const count = Math.min(Math.max(parseInt(variantCount) || 2, 1), 3)
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+
+    const analysisBlock = analysis ? `
+Product intelligence:
+- Category: ${analysis.productCategory || ''}
+- Brand: ${analysis.brand || ''}
+- Core term: ${analysis.coreProductTerm || ''}
+- Top keywords: ${(analysis.topKeywords || []).join(', ')}
+- Buyer questions: ${(analysis.buyerQuestions || []).join(' | ')}
+- Buyer personas: ${(analysis.buyerPersonas || []).join(' | ')}
+- Key specs: ${(analysis.keySpecs || analysis.keyAttributes || []).join(' | ')}` : ''
+
+    const prompt = `You are a senior Amazon listing copywriter. The seller already has a Version A listing. Generate ${count} alternative version(s) with DIFFERENT angles/styles, while maintaining the same product facts and Amazon compliance.
+
+CURRENT VERSION A (do NOT repeat this — create something distinctly different):
+Title: ${currentListing.title}
+Bullets:
+${(currentListing.bullets || []).join('\n')}
+${currentListing.description ? `Description: ${currentListing.description}` : ''}
+${currentListing.searchTerms ? `Search terms: ${currentListing.searchTerms}` : ''}
+${analysisBlock}
+
+Target market: ${marketLabel}
+Output language: ${langLabel} (ALL output MUST be in ${langLabel})
+
+VARIANT STYLE GUIDELINES:
+- Each variant must use a DIFFERENT strategic angle. Choose from these approaches and label each variant:
+  * "功能参数型" / "Spec-Driven": Lead with concrete specs, measurements, certifications. Best for technical/comparison shoppers.
+  * "场景情感型" / "Scenario-Driven": Lead with usage scenarios, emotional benefits, lifestyle positioning. Best for impulse/gift buyers.
+  * "问题解决型" / "Problem-Solution": Each bullet opens with a common pain point, then presents the product as the solution.
+  * "对比差异型" / "Differentiator": Emphasizes what makes this product unique vs alternatives (without naming competitors).
+- Each variant must still follow all Amazon rules (title ≤200 chars, bullets ≤500 chars each, description ≤2000 chars, search terms ≤250 bytes, no prohibited content).
+- Each variant should cover DIFFERENT keywords from the top keywords list to maximize A/B testing value.
+- The search terms in each variant should be complementary (cover different synonym sets).
+
+Output ONLY valid JSON (no markdown fences). ALL text in ${langLabel}:
+{
+  "variants": [
+    {
+      "style": "style label in ${langLabel}",
+      "styleDescription": "1 sentence explaining the angle in ${langLabel}",
+      "title": "variant title ≤200 chars",
+      "bullets": ["bullet1", "bullet2", "bullet3", "bullet4", "bullet5"],
+      "description": "variant description ≤2000 chars",
+      "searchTerms": "variant search terms ≤250 bytes"
+    }
+  ]
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out?.variants || !Array.isArray(out.variants) || out.variants.length === 0) {
+      return res.status(500).json({ error: '变体生成解析失败，请重试' })
+    }
+
+    const forbiddenTitleChars = /[!$?_{}\^¬¦]/g
+    const variants = out.variants.slice(0, count).map(v => {
+      const title = String(v.title || '').replace(forbiddenTitleChars, '').replace(/\s+/g, ' ').trim().slice(0, 200)
+      let searchTerms = String(v.searchTerms || '').trim()
+      while (Buffer.byteLength(searchTerms, 'utf8') > 250 && searchTerms.length > 0) searchTerms = searchTerms.slice(0, -1)
+      const bullets = Array.isArray(v.bullets) ? v.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+      while (bullets.length < 5) bullets.push('')
+      return {
+        style: v.style || '',
+        styleDescription: v.styleDescription || '',
+        title,
+        bullets,
+        description: String(v.description || '').slice(0, 2000),
+        searchTerms,
+      }
+    })
+
+    console.log('[Amazon Listing] 变体生成完成 | count:', variants.length, '| styles:', variants.map(v => v.style).join(', '))
+    return res.json({ variants })
+  } catch (e) {
+    console.error('[Amazon Listing] generate-variants 失败', e.message)
+    return res.status(500).json({ error: e.message || '变体生成失败，请稍后重试' })
+  }
+})
+
+// ── 智能粘贴：从粘贴文本中提取 Listing 字段（不扣积分）─────────────────────
+app.post('/api/ai-assistant/smart-paste', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { text, platform } = req.body || {}
+    if (!text?.trim() || text.trim().length < 20) return res.status(400).json({ error: '粘贴内容太短，请复制完整的 Listing 页面内容' })
+
+    const platformHint = platform === 'ebay' ? 'eBay' : platform === 'aliexpress' ? 'AliExpress' : 'Amazon'
+    const prompt = `You are an expert at extracting structured listing data from raw pasted text. The user copied an entire ${platformHint} product listing page and pasted it below. Extract the listing fields.
+
+IMPORTANT:
+- The pasted text may contain navigation menus, ads, reviews, sidebar content, etc. IGNORE everything that is NOT part of the product listing itself.
+- Extract ONLY the actual listing content (title, bullet points / item specifics / product attributes, description, brand).
+- If a field cannot be found, return an empty string or empty array — do NOT fabricate content.
+- Keep the extracted text in its ORIGINAL language — do NOT translate.
+- For bullets: extract each bullet point as a separate string. On Amazon these are the "About this item" bullet points. On eBay/AliExpress there are no bullets — skip this field.
+- For itemSpecifics (eBay) or productAttributes (AliExpress): extract key-value pairs from the specifications/details table.
+- For searchTerms (Amazon only): this is NOT visible on the listing page, so always return empty string.
+
+RAW PASTED TEXT:
+---
+${text.trim().slice(0, 15000)}
+---
+
+Output ONLY valid JSON (no markdown fences):
+{
+  "platform": "${platformHint}",
+  "title": "the product title exactly as it appears",
+  "brand": "brand name or empty string",
+  "bullets": ["bullet1", "bullet2", "..."],
+  "description": "product description text",
+  "itemSpecifics": [{"name":"key","value":"val"}],
+  "productAttributes": [{"name":"key","value":"val"}],
+  "price": "price if visible, or empty string",
+  "asin": "ASIN if visible (Amazon), or empty string"
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const raw = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(raw, true)
+    if (!out || (!out.title && !out.description)) {
+      return res.status(500).json({ error: '未能从粘贴内容中识别到 Listing 信息，请确认复制了完整的商品页面' })
+    }
+    console.log('[SmartPaste] 提取完成 | platform:', out.platform, '| title length:', (out.title || '').length)
+    return res.json({
+      platform: out.platform || platformHint,
+      title: String(out.title || '').trim(),
+      brand: String(out.brand || '').trim(),
+      bullets: Array.isArray(out.bullets) ? out.bullets.map(b => String(b).trim()).filter(Boolean) : [],
+      description: String(out.description || '').trim(),
+      itemSpecifics: Array.isArray(out.itemSpecifics) ? out.itemSpecifics.filter(s => s.name && s.value) : [],
+      productAttributes: Array.isArray(out.productAttributes) ? out.productAttributes.filter(a => a.name && a.value) : [],
+      price: String(out.price || '').trim(),
+      asin: String(out.asin || '').trim(),
+    })
+  } catch (e) {
+    console.error('[SmartPaste] 失败', e.message)
+    return res.status(500).json({ error: e.message || '智能识别失败，请稍后重试' })
+  }
+})
+
+// ── 竞品对比：分析自己与竞品 Listing 的差异（不扣积分）─────────────────────
+app.post('/api/ai-assistant/amazon/competitor-compare', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { myListing, competitors, market, lang } = req.body || {}
+    if (!myListing?.title) return res.status(400).json({ error: '请填写你的 Listing 标题' })
+    if (!Array.isArray(competitors) || competitors.length === 0 || !competitors[0]?.title) {
+      return res.status(400).json({ error: '请至少填写一个竞品 Listing' })
+    }
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+
+    const competitorBlocks = competitors.slice(0, 3).map((c, i) => `
+COMPETITOR ${i + 1}:
+Title: ${c.title || ''}
+Bullets:
+${c.bullets || ''}
+${c.description ? `Description: ${c.description}` : ''}`).join('\n')
+
+    const prompt = `You are an Amazon competitive intelligence analyst. Compare the seller's listing against ${competitors.length} competitor listing(s) and provide actionable insights.
+
+MY LISTING:
+Title: ${myListing.title}
+Bullets:
+${myListing.bullets || ''}
+${myListing.description ? `Description: ${myListing.description}` : ''}
+${competitorBlocks}
+
+Target market: ${marketLabel}
+ALL output MUST be in ${langLabel}.
+
+Perform these analyses:
+
+1. KEYWORD GAP: Extract keywords from all listings. Identify:
+   - Keywords I have that competitors don't (my advantage)
+   - Keywords competitors have that I'm missing (opportunity)
+   - Keywords we all share (table stakes — must keep)
+
+2. SELLING POINT MATRIX: For each key benefit/feature mentioned across all listings, mark who covers it. Identify:
+   - My unique selling points (differentiators)
+   - Competitor-only selling points I should consider adding
+   - Shared selling points (must-haves)
+
+3. TITLE STRUCTURE: Compare title strategies:
+   - Keyword placement and priority differences
+   - What competitors front-load vs what I front-load
+   - Which title would likely rank better for the top search terms
+
+4. BULLET STRATEGY: Compare bullet approaches:
+   - Which buyer questions does each listing answer?
+   - Where are competitors using better Rufus/Cosmo/GEO tactics?
+   - Content gaps in my bullets
+
+5. ACTION PLAN: Provide 5-8 specific, prioritized recommendations to improve my listing based on competitive gaps. Each recommendation should reference which competitor inspired it.
+
+Output ONLY valid JSON (no markdown fences):
+{
+  "keywordGap": {
+    "myAdvantage": ["keywords only in my listing"],
+    "myOpportunity": ["keywords competitors have that I'm missing"],
+    "shared": ["keywords everyone uses"]
+  },
+  "sellingPointMatrix": [
+    { "feature": "feature name", "mine": true, "competitors": [true, false] }
+  ],
+  "titleAnalysis": {
+    "myStrength": "what my title does well",
+    "myWeakness": "what my title lacks vs competitors",
+    "bestPractice": "which title element to adopt"
+  },
+  "bulletAnalysis": {
+    "myStrength": "what my bullets do well",
+    "gaps": ["gap1", "gap2"],
+    "competitorTactics": ["tactic competitors use that I should adopt"]
+  },
+  "actionPlan": [
+    { "priority": 1, "action": "specific recommendation", "reason": "why, referencing competitor" }
+  ]
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.actionPlan) {
+      return res.status(500).json({ error: '竞品分析解析失败，请重试' })
+    }
+    console.log('[Amazon Listing] 竞品对比完成 | actions:', (out.actionPlan || []).length)
+    return res.json(out)
+  } catch (e) {
+    console.error('[Amazon Listing] competitor-compare 失败', e.message)
+    return res.status(500).json({ error: e.message || '竞品分析失败，请稍后重试' })
+  }
+})
+
+// ── 关键词研究：基于产品品类的系统化关键词策略（不扣积分）──────────────────
+app.post('/api/ai-assistant/amazon/keyword-research', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { productName, category, market, lang, existingKeywords } = req.body || {}
+    if (!productName?.trim()) return res.status(400).json({ error: '请填写产品名称' })
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+
+    const prompt = `You are an Amazon keyword research specialist. Generate a comprehensive keyword strategy for the following product in the ${marketLabel} market.
+
+Product: ${productName.trim()}
+${category?.trim() ? `Category: ${category.trim()}` : ''}
+${existingKeywords?.trim() ? `Existing keywords already in use: ${existingKeywords.trim()}` : ''}
+Output language: ${langLabel}
+ALL output MUST be in ${langLabel}.
+
+Perform deep keyword research:
+
+1. CORE TERMS (1-3): The highest-volume generic search terms for this product type. These are the terms that shoppers type most frequently.
+
+2. LONG-TAIL KEYWORDS (15-20): Organized by search intent:
+   - Feature/Spec keywords: terms about material, size, color, capacity, etc.
+   - Scenario/Use-case keywords: terms describing when/where/how the product is used
+   - Audience keywords: terms targeting specific buyer groups (kids, office, gym, etc.)
+   - Problem/Solution keywords: terms describing problems the product solves
+   - Comparison keywords: terms buyers use when comparing options (best, vs, alternative)
+
+3. BACKEND SUGGESTIONS (10-15): Keywords that should go in Search Terms field:
+   - Synonyms and alternate spellings not covered by core/long-tail
+   - Common misspellings that real buyers might type
+   - Related/complementary product terms
+   - Do NOT repeat words from core terms or long-tail groups
+
+4. TITLE STRATEGY: Recommend how to arrange keywords in a title:
+   - Which 2-3 keywords should appear in the first 80 characters
+   - Suggested title structure template
+   - Total keyword coverage estimate
+
+5. SEASONAL/TREND NOTES: Any seasonal patterns, trending terms, or time-sensitive considerations for this product type.
+
+${existingKeywords?.trim() ? `6. GAP ANALYSIS: Compare existing keywords against your research. Identify what's missing and what's redundant.` : ''}
+
+Output ONLY valid JSON (no markdown fences):
+{
+  "coreTerms": [
+    { "term": "core keyword", "reasoning": "why this is a core term" }
+  ],
+  "longTailGroups": [
+    {
+      "group": "Feature/Spec",
+      "icon": "🔧",
+      "keywords": ["keyword1", "keyword2", "keyword3", "keyword4"]
+    },
+    {
+      "group": "Scenario/Use-case",
+      "icon": "🎯",
+      "keywords": ["keyword1", "keyword2", "keyword3", "keyword4"]
+    },
+    {
+      "group": "Audience",
+      "icon": "👥",
+      "keywords": ["keyword1", "keyword2", "keyword3"]
+    },
+    {
+      "group": "Problem/Solution",
+      "icon": "💡",
+      "keywords": ["keyword1", "keyword2", "keyword3"]
+    },
+    {
+      "group": "Comparison",
+      "icon": "⚖️",
+      "keywords": ["keyword1", "keyword2"]
+    }
+  ],
+  "backendSuggestions": ["keyword1", "keyword2", "..."],
+  "titleStrategy": {
+    "priorityKeywords": ["top 2-3 keywords for first 80 chars"],
+    "templateSuggestion": "[Brand] + [Core Term] + [Key Attribute] + [Use Case]",
+    "coverageNotes": "explanation of keyword coverage"
+  },
+  "trends": "seasonal/trend notes or null if not applicable"${existingKeywords?.trim() ? `,
+  "gapAnalysis": {
+    "missing": ["keywords you should add"],
+    "redundant": ["keywords that are redundant or low value"],
+    "wellCovered": ["keywords that are well placed"]
+  }` : ''}
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.coreTerms) {
+      return res.status(500).json({ error: '关键词研究解析失败，请重试' })
+    }
+    console.log('[Amazon Listing] 关键词研究完成 | core:', (out.coreTerms || []).length, '| groups:', (out.longTailGroups || []).length)
+    return res.json(out)
+  } catch (e) {
+    console.error('[Amazon Listing] keyword-research 失败', e.message)
+    return res.status(500).json({ error: e.message || '关键词研究失败，请稍后重试' })
   }
 })
 
@@ -2106,7 +2739,7 @@ app.post('/api/ai-assistant/ebay/analyze', requireAuth, async (req, res) => {
 
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
-    const prompt = `You are an eBay listing expert. Analyze the product image and user inputs to output a structured product summary for the next step (title, item specifics, description generation). Extract concrete specs: dimensions, weight, material, certifications from the image or notes.
+    const prompt = `You are an eBay listing expert and Cassini search specialist. Analyze the product image and user inputs to perform DEEP PRODUCT INTELLIGENCE for eBay listing generation.
 
 User inputs:
 - Category: ${category1 || ''} > ${category2 || ''}
@@ -2117,12 +2750,22 @@ User inputs:
 ${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
 ${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
 
+Perform these analyses:
+1. PRODUCT IDENTIFICATION: name, category, brand
+2. KEY SPECS EXTRACTION: dimensions, weight, material, certifications from the image or notes — these drive Item Specifics and Cassini filtering
+3. HIGH-VOLUME CASSINI KEYWORDS (8-12): the search terms eBay buyers actually type for this product type in the ${marketLabel} market. Include brand+product combos, feature keywords, and use-case keywords. These will drive title and Item Specifics optimization.
+4. BUYER QUESTIONS (3-5): common questions eBay buyers ask about this product type. These will drive description content.
+5. BUYER PERSONAS (2-3): who buys this product and in what scenario. These will inform description tone and selling angles.
+
 Output a JSON object only (no markdown):
 {
   "productName": "short product name in output language",
   "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
-  "keyAttributes": ["attr1", "attr2", "attr3"],
-  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+  "keyAttributes": ["specific attr with data, e.g. 'Stainless Steel 304', '500ml capacity'"],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}",
+  "topKeywords": ["cassini keyword1", "cassini keyword2", "...up to 12"],
+  "buyerQuestions": ["question1", "question2", "...up to 5"],
+  "buyerPersonas": ["persona1 + scenario", "persona2 + scenario"]
 }`
 
     const contents = [
@@ -2134,8 +2777,8 @@ Output a JSON object only (no markdown):
     const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
     const out = extractAnalyzeJson(text, true)
     if (!out || !out.productSummary) return res.status(500).json({ error: '产品分析解析失败，请重试' })
-    console.log('[eBay Listing] 分析完成 | 产品:', out.productName)
-    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}` })
+    console.log('[eBay Listing] 分析完成 | 产品:', out.productName, '| keywords:', (out.topKeywords || []).length)
+    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}`, topKeywords: Array.isArray(out.topKeywords) ? out.topKeywords : [], buyerQuestions: Array.isArray(out.buyerQuestions) ? out.buyerQuestions : [], buyerPersonas: Array.isArray(out.buyerPersonas) ? out.buyerPersonas : [] })
   } catch (e) {
     console.error('[eBay Listing] analyze 失败', e.message)
     return res.status(500).json({ error: e.message || '产品分析失败，请稍后重试' })
@@ -2154,40 +2797,52 @@ app.post('/api/ai-assistant/ebay/generate-listing', requireAuth, async (req, res
 
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
-    const prompt = `You are an eBay listing copywriter. Generate a listing in ${langLabel} for eBay ${marketLabel} market.
+    const prompt = `You are an eBay listing copywriter and Cassini optimization expert. Generate a strategy-driven listing in ${langLabel} for eBay ${marketLabel} market.
 
-eBay rules (MUST follow):
-- Title: max 80 characters. Put brand + core product + key attributes. If brand is "Unbranded", do NOT put "Unbranded" in the title — use the space for keywords instead. No keyword stuffing, no ALL CAPS (except brand acronyms). No special symbols unless part of brand.
-- Item Specifics: 10-20 key-value pairs relevant to the category. Include Brand (use "Unbranded" if no brand), MPN (use "Does not apply" if unknown), Type, Material, Color, Size/Dimensions, UPC/EAN (use "Does not apply" if unknown). Use standard eBay attribute names. Values should be concise.
-- Description: Professional product description in plain text (NO HTML tags — no &lt;p&gt;, &lt;br&gt;, &lt;b&gt;, etc.), 500-2000 characters. Use line breaks to separate paragraphs. Include features, specifications, and usage scenarios. No competitor mentions, no off-site links, no contact info.
-- eBay has NO bullet points and NO search terms field. Do NOT generate these.
-
-Cassini search optimization:
-- Title: Front-load the most important keywords in the first 3-4 words. eBay has NO backend search terms — all keywords MUST be in the title and Item Specifics.
-- Item Specifics are critical for Cassini ranking — fill as many as possible. They power filtered search; missing specifics = invisible in filtered results.
-- If the user provided reference keywords, prioritize embedding them in the title (highest weight) and reflect them in relevant Item Specifics.
-- Description should naturally include relevant keywords without stuffing.
-
-Certifications and compliance:
-- If certifications are provided (CE, FCC, etc.), include them as Item Specifics (e.g. {"name":"Certification","value":"CE, FCC"}).
-- For EU sales: GPSR compliance (since Dec 2024) requires manufacturer info — add Item Specifics for "Country/Region of Manufacture" if possible.
-- Never claim certifications that are not explicitly provided by the user.
-
-Input:
-- Product summary: ${analyzeResult.productSummary}
+=== PRODUCT INTELLIGENCE (from analysis step) ===
 - Product name: ${analyzeResult.productName || ''}
+- Summary: ${analyzeResult.productSummary}
 - Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
+- Top Cassini keywords: ${(analyzeResult.topKeywords || []).join(', ')}
+- Buyer questions: ${(analyzeResult.buyerQuestions || []).join(' | ')}
+- Buyer personas: ${(analyzeResult.buyerPersonas || []).join(' | ')}
 - Category: ${category1 || ''} > ${category2 || ''}
 - Brand: ${brand.trim()}
 - Selling points: ${points.join(' | ')}
 ${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
 ${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
 
+=== TITLE STRATEGY (Cassini-optimized, ≤80 chars) ===
+- Structure: [Brand] + [Core Product Term] + [Top 2-3 Attributes/Keywords]
+- Front-load the highest-volume keyword from topKeywords in the first 3-4 words
+- Weave in 3-5 additional keywords naturally — eBay has NO backend search terms
+- If brand is "Unbranded", omit it and use space for keywords
+- No ALL CAPS (except brand acronyms), no special symbols unless part of brand
+
+=== ITEM SPECIFICS STRATEGY (15-25 key-value pairs) ===
+- MUST include: Brand, MPN ("Does not apply" if unknown), Type, Material, Color, Size/Dimensions, UPC/EAN ("Does not apply" if unknown)
+- Add category-specific specifics to maximize Cassini filtered search visibility
+- Embed keywords from topKeywords into relevant specifics (e.g. Features, Style, Use)
+- For EU: add "Country/Region of Manufacture" for GPSR compliance
+- If certifications provided in notes, add Certification specific
+
+=== DESCRIPTION STRATEGY (800-1500 chars, plain text, NO HTML) ===
+- Open with the #1 benefit that addresses buyer question #1 from buyerQuestions
+- Paragraph 2: key features and specifications from keyAttributes with concrete data
+- Paragraph 3: usage scenario from buyerPersonas — paint a picture of the buyer using the product
+- Paragraph 4: what's in the box / warranty / care instructions
+- Naturally embed keywords from topKeywords without stuffing
+- No competitor mentions, no off-site links, no contact info
+
+=== COMPLIANCE ===
+- Never claim certifications not provided by the user
+- No promotional claims: "best seller", "#1", "guaranteed"
+
 Output ONLY valid JSON (no markdown):
 {
   "title": "eBay title, ≤80 chars, in ${langLabel}",
   "itemSpecifics": [{"name":"Brand","value":"..."},{"name":"Type","value":"..."},{"name":"Material","value":"..."},...],
-  "description": "product description, 500-2000 chars, in ${langLabel}"
+  "description": "product description, 800-1500 chars, plain text, in ${langLabel}"
 }`
 
     const ai = new GoogleGenAI({ apiKey })
@@ -2348,6 +3003,141 @@ app.delete('/api/ai-assistant/ebay/listings/:id', requireAuth, (req, res) => {
   } catch (e) { return res.status(500).json({ error: '删除失败' }) }
 })
 
+// ── AI 运营助手 · eBay Listing 优化 ──────────────────────────────────────────
+app.post('/api/ai-assistant/ebay/optimize-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { title, itemSpecifics, description, market, lang } = req.body || {}
+    if (!title?.trim() && !description?.trim()) return res.status(400).json({ error: '请粘贴标题或描述' })
+    const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
+    const marketLabel = (market || 'us').toUpperCase()
+    const specsText = Array.isArray(itemSpecifics) && itemSpecifics.length > 0
+      ? itemSpecifics.map(s => `${s.name}: ${s.value}`).join('\n')
+      : (typeof itemSpecifics === 'string' ? itemSpecifics : '')
+
+    const prompt = `You are an eBay listing optimization expert for the ${marketLabel} market. Analyze the existing listing below, diagnose problems, and output an optimized version.
+
+LANGUAGE RULES (CRITICAL — follow exactly):
+1. First, detect the language of the INPUT listing below. Store this as "inputLanguage".
+2. "diagnosis" section: Write ALL text in the DETECTED INPUT LANGUAGE.
+3. "diagnosisZh" section: Write the SAME content as "diagnosis" but translated into 简体中文. If input is already Chinese, still output diagnosisZh (identical content is fine).
+4. "optimized" section: Write entirely in ${langLabel}. If the input language differs from ${langLabel}, translate while optimizing.
+5. "analysis" section: Write in ${langLabel}.
+
+=== EXISTING LISTING ===
+Title: ${title || '(empty)'}
+${specsText ? `Item Specifics:\n${specsText}` : ''}
+${description ? `Description:\n${description}` : ''}
+
+=== STEP 1: PRODUCT INTELLIGENCE ===
+A. Identify product category, brand (or "Unbranded"), core product term
+B. Extract key specs from Item Specifics and description (dimensions, weight, material, etc.)
+C. List the top 8-12 high-volume Cassini search keywords for this product type on eBay ${marketLabel}
+D. List 3-5 common buyer questions for this product type
+E. Note which Item Specifics are missing but important for this category
+
+=== STEP 2: DIAGNOSE ===
+Score each area 1-10 and explain issues:
+
+Title diagnosis:
+- Length (≤80 chars)? Keyword placement (core keywords in first 3-4 words)?
+- Brand handling? Forbidden characters? ALL CAPS words?
+- Keyword coverage vs Step 1C keywords?
+
+Item Specifics diagnosis:
+- How many provided? Are critical ones missing (Brand, MPN, Type, Material, Color, Size)?
+- Item Specifics = Cassini filtered search visibility. Missing = invisible in filtered results.
+- For EU: GPSR compliance (manufacturer info, Country/Region of Manufacture)?
+
+Description diagnosis:
+- Length (500-2000 chars ideal)? Does it answer buyer questions from Step 1D?
+- HTML tags present (should be plain text)?
+- External links, contact info, competitor mentions?
+
+Compliance deep scan (output structured objects with level/category/location/text/suggestion):
+- [error] Title >80 chars, forbidden chars, ALL CAPS
+- [error] Competitor brand misuse, fake certifications
+- [error] Medical/pesticide/environmental claims without proof
+- [error] Off-site links, contact info in description
+- [warning] Missing critical Item Specifics (Brand, MPN, Type)
+- [warning] Description contains HTML tags
+- [warning] Same keyword repeated >2 times in title
+- [info] Title not using full 80 chars, missing high-volume keywords
+
+=== STEP 3: WRITE OPTIMIZED LISTING ===
+
+Title strategy (Cassini-optimized):
+- Structure: [Brand] + [Core Product Term] + [Key Attributes/Keywords]
+- Front-load highest-volume keyword in first 3-4 words
+- Use full 80 chars wisely — eBay has NO backend search terms
+- If brand is "Unbranded", omit it and use space for keywords
+
+Item Specifics strategy:
+- Minimum 15 key-value pairs; fill ALL relevant standard eBay specifics
+- Include: Brand, MPN, Type, Material, Color, Size/Dimensions, Weight, UPC/EAN, Condition, Features
+- Add category-specific specifics (e.g. Wattage for electronics, Thread Count for textiles)
+- For EU market: add Country/Region of Manufacture for GPSR compliance
+
+Description strategy:
+- 800-1500 chars, plain text, NO HTML
+- Open with product highlight, then specs, then usage scenarios
+- Naturally embed keywords from Step 1C
+- Answer buyer questions from Step 1D
+
+Output ONLY valid JSON (no markdown fences):
+{
+  "inputLanguage": "detected language name",
+  "analysis": {
+    "productCategory": "category",
+    "brand": "brand or Unbranded",
+    "coreProductTerm": "main search term",
+    "topKeywords": ["keyword1","keyword2","..."],
+    "buyerQuestions": ["q1","q2","..."],
+    "missingSpecifics": ["specific1","specific2","..."]
+  },
+  "diagnosis": {
+    "overallScore": 7,
+    "summary": "1-2 sentence summary of main issues (in input language)",
+    "issues": [
+      { "area": "Title|Item Specifics|Description", "score": 8, "problem": "...", "suggestion": "..." }
+    ],
+    "complianceFlags": [
+      { "level": "error|warning|info", "category": "...", "location": "...", "text": "...", "suggestion": "..." }
+    ]
+  },
+  "diagnosisZh": { "overallScore": 7, "summary": "...(Chinese)...", "issues": [...], "complianceFlags": [...] },
+  "optimized": {
+    "title": "optimized eBay title ≤80 chars",
+    "itemSpecifics": [{"name":"Brand","value":"..."},{"name":"Type","value":"..."},...],
+    "description": "optimized description 800-1500 chars, plain text"
+  }
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.optimized) return res.status(500).json({ error: '优化解析失败，请重试' })
+
+    const optimizedTitle = String(out.optimized.title || '').replace(/\s+/g, ' ').trim().slice(0, 80)
+    const optimizedSpecs = Array.isArray(out.optimized.itemSpecifics) ? out.optimized.itemSpecifics.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
+    const optimizedDesc = String(out.optimized.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+
+    console.log('[eBay Listing] 优化完成 | score:', out.diagnosis?.overallScore, '| compliance:', (out.diagnosis?.complianceFlags || []).length)
+    return res.json({
+      inputLanguage: out.inputLanguage || null,
+      analysis: out.analysis || null,
+      diagnosis: out.diagnosis,
+      diagnosisZh: out.diagnosisZh || null,
+      optimized: { title: optimizedTitle, itemSpecifics: optimizedSpecs, description: optimizedDesc },
+    })
+  } catch (e) {
+    console.error('[eBay Listing] optimize-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || 'eBay Listing 优化失败，请稍后重试' })
+  }
+})
+
 // ── AI 运营助手 · 速卖通 Listing 生成 ─────────────────────────────────────────
 app.post('/api/ai-assistant/aliexpress/analyze', requireAuth, async (req, res) => {
   const apiKey = getGeminiApiKey()
@@ -2364,7 +3154,7 @@ app.post('/api/ai-assistant/aliexpress/analyze', requireAuth, async (req, res) =
 
     const langLabel = { zh: '中文', en: 'English', ru: 'Русский', pt: 'Português', es: 'Español', fr: 'Français', de: 'Deutsch', ko: '한국어', ja: '日本語' }[lang] || 'English'
     const marketLabel = (market || 'global').toUpperCase()
-    const prompt = `You are an AliExpress listing expert. Analyze the product image and user inputs to output a structured product summary for listing generation. Extract concrete specs: dimensions, weight, material, certifications.
+    const prompt = `You are an AliExpress listing expert and search optimization specialist. Analyze the product image and user inputs to perform DEEP PRODUCT INTELLIGENCE for AliExpress listing generation.
 
 User inputs:
 - Category: ${category1 || ''} > ${category2 || ''}
@@ -2375,12 +3165,24 @@ User inputs:
 ${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
 ${notes?.trim() ? `- Special notes/certifications: ${notes.trim()}` : ''}
 
+AliExpress search facts: Title carries 32.7% search weight. First 60 chars are most important (mobile truncation). Keyword repetition is penalized 15-40%.
+
+Perform these analyses:
+1. PRODUCT IDENTIFICATION: name, category, brand (use "无品牌" if unbranded)
+2. KEY SPECS EXTRACTION: dimensions, weight, material, certifications — these drive product attributes and search filtering
+3. HIGH-VOLUME SEARCH KEYWORDS (8-12): terms AliExpress buyers actually search for this product type in the ${marketLabel} market. Include feature keywords, use-case keywords, audience keywords. Each keyword unique — NO repetition.
+4. BUYER QUESTIONS (3-5): common questions AliExpress buyers ask about this product
+5. BUYER PERSONAS (2-3): who buys this product and in what scenario
+
 Output a JSON object only (no markdown):
 {
   "productName": "short product name in output language",
   "productSummary": "2-4 sentences describing the product, key features, and target use (in output language)",
-  "keyAttributes": ["attr1", "attr2", "attr3"],
-  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}"
+  "keyAttributes": ["specific attr with data, e.g. 'Stainless Steel 304', '500ml capacity'"],
+  "suggestedCategory": "${(category1 || '')} > ${(category2 || '')}",
+  "topKeywords": ["search keyword1", "keyword2", "...up to 12"],
+  "buyerQuestions": ["question1", "question2", "...up to 5"],
+  "buyerPersonas": ["persona1 + scenario", "persona2 + scenario"]
 }`
 
     const contents = [{ inlineData: { mimeType: parsed.mimeType, data: parsed.data } }, { text: prompt }]
@@ -2389,8 +3191,8 @@ Output a JSON object only (no markdown):
     const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
     const out = extractAnalyzeJson(text, true)
     if (!out || !out.productSummary) return res.status(500).json({ error: '产品分析解析失败，请重试' })
-    console.log('[AliExpress Listing] 分析完成 | 产品:', out.productName)
-    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}` })
+    console.log('[AliExpress Listing] 分析完成 | 产品:', out.productName, '| keywords:', (out.topKeywords || []).length)
+    return res.json({ productName: out.productName || '', productSummary: out.productSummary || '', keyAttributes: Array.isArray(out.keyAttributes) ? out.keyAttributes : [], suggestedCategory: out.suggestedCategory || `${category1 || ''} > ${category2 || ''}`, topKeywords: Array.isArray(out.topKeywords) ? out.topKeywords : [], buyerQuestions: Array.isArray(out.buyerQuestions) ? out.buyerQuestions : [], buyerPersonas: Array.isArray(out.buyerPersonas) ? out.buyerPersonas : [] })
   } catch (e) {
     console.error('[AliExpress Listing] analyze 失败', e.message)
     return res.status(500).json({ error: e.message || '产品分析失败' })
@@ -2409,44 +3211,55 @@ app.post('/api/ai-assistant/aliexpress/generate-listing', requireAuth, async (re
 
     const langLabel = { zh: '中文', en: 'English', ru: 'Русский', pt: 'Português', es: 'Español', fr: 'Français', de: 'Deutsch', ko: '한국어', ja: '日本語' }[lang] || 'English'
     const marketLabel = (market || 'global').toUpperCase()
-    const prompt = `You are an AliExpress listing copywriter. Generate a listing in ${langLabel} for AliExpress ${marketLabel} market.
+    const prompt = `You are an AliExpress listing copywriter and search optimization expert. Generate a strategy-driven listing in ${langLabel} for AliExpress ${marketLabel} market.
 
-AliExpress rules (MUST follow):
-- Title: max 128 characters. Include core keywords buyers search for. Front-load the most important product terms + key attributes. No ALL CAPS except brand acronyms. Avoid excessive punctuation. If the brand is "NONE", "无品牌", or "Unbranded", do NOT include brand in the title — use the space for product keywords instead. Otherwise format: [Brand] + [Core Product] + [Key Features/Attributes]. AliExpress allows longer titles than eBay — use the space wisely to include more search keywords but keep it natural and readable.
-- Product Attributes: 10-25 key-value pairs. Include: Brand (if unbranded, set value to "无品牌" or "NONE"), Material, Type, Color, Size, Weight, Origin, Features, Applicable scenarios, Season, Target audience, etc. These are crucial for AliExpress search and category filtering. Use standard AliExpress attribute names. IMPORTANT: Never fabricate a brand name — if the product has no brand, always use "无品牌" or "NONE".
-- Description: Rich product description, 500-3000 characters. AliExpress descriptions are primarily viewed on mobile. Structure with short paragraphs. Include: product highlights, specifications, package contents, usage scenarios. No competitor mentions, no external links, no contact info. No HTML tags — plain text with line breaks.
-- AliExpress has NO bullet points and NO search terms field. Do NOT generate these.
-
-AliExpress search optimization:
-- Title is the primary ranking factor (32.7% of search relevance). AliExpress has NO backend search terms — all keywords MUST be in the title and product attributes.
-- First 60 characters of the title carry the highest weight (mobile truncation). Place core product keywords here.
-- If the user provided reference keywords, prioritize embedding them in the title, especially in the first 60 characters.
-- Product attributes directly affect category filtering and search visibility — fill as many relevant attributes as possible.
-- Keyword repetition or stuffing is penalized (15-40% ranking drop). Each keyword should appear only once.
-- Description supports conversion — focus on answering buyer questions and showcasing value.
-
-Certifications and compliance:
-- If certifications are provided (CE, UKCA, CPC, UL, etc.), include them in product attributes (e.g. {"name":"Certification","value":"CE"}).
-- EU market: CE certification is strictly enforced — products without CE may be delisted. Mention in attributes and description.
-- UK market: UKCA certification required since Jan 2023.
-- Never claim certifications that are not explicitly provided by the user.
-- Note: Actual certification documents must be uploaded separately in the seller backend — the listing text is for buyer reference only.
-
-Input:
-- Product summary: ${analyzeResult.productSummary}
+=== PRODUCT INTELLIGENCE (from analysis step) ===
 - Product name: ${analyzeResult.productName || ''}
+- Summary: ${analyzeResult.productSummary}
 - Key attributes: ${(analyzeResult.keyAttributes || []).join(', ')}
+- Top search keywords: ${(analyzeResult.topKeywords || []).join(', ')}
+- Buyer questions: ${(analyzeResult.buyerQuestions || []).join(' | ')}
+- Buyer personas: ${(analyzeResult.buyerPersonas || []).join(' | ')}
 - Category: ${category1 || ''} > ${category2 || ''}
 - Brand: ${brand.trim()}
 - Selling points: ${points.join(' | ')}
 ${keywords?.trim() ? `- Reference keywords: ${keywords.trim()}` : ''}
 ${notes?.trim() ? `- Notes: ${notes.trim()}` : ''}
 
+=== TITLE STRATEGY (AliExpress search optimized, ≤128 chars) ===
+- Title = 32.7% of search relevance — the #1 ranking factor
+- First 60 chars (mobile truncation): [Brand if applicable] + [Core Product Term] + [#1 keyword from topKeywords]
+- Remaining chars: weave in 4-6 more keywords from topKeywords naturally
+- Each keyword appears ONLY ONCE — repetition is penalized 15-40%
+- If brand is "NONE"/"无品牌"/"Unbranded", omit brand and use space for keywords
+- No ALL CAPS except brand acronyms
+
+=== PRODUCT ATTRIBUTES STRATEGY (15-25 key-value pairs) ===
+- MUST include: Brand ("无品牌" if unbranded), Material, Type, Color, Size, Weight, Origin
+- Add: Features, Applicable Scenarios, Season, Target Audience, Style
+- Embed keywords from topKeywords into relevant attribute values
+- For EU: add Certification attribute with actual certifications only
+- Never fabricate brand name — unbranded = "无品牌" or "NONE"
+
+=== DESCRIPTION STRATEGY (800-2000 chars, mobile-optimized, NO HTML) ===
+- Paragraph 1: Hook — lead with #1 benefit addressing buyer question #1 from buyerQuestions
+- Paragraph 2: Key features + specs from keyAttributes with concrete data
+- Paragraph 3: Usage scenario from buyerPersonas — paint buyer using the product
+- Paragraph 4: Package contents + care/maintenance tips
+- Short paragraphs for mobile readability
+- Naturally embed keywords from topKeywords — no stuffing
+- No competitor mentions, no external links, no contact info
+
+=== COMPLIANCE ===
+- Never claim certifications not explicitly provided
+- EU: CE is mandatory. UK: UKCA since Jan 2023
+- No promotional claims: "best seller", "#1", "guaranteed"
+
 Output ONLY valid JSON (no markdown):
 {
   "title": "AliExpress title, ≤128 chars, in ${langLabel}",
   "productAttributes": [{"name":"Brand","value":"..."},{"name":"Material","value":"..."},{"name":"Type","value":"..."},...],
-  "description": "product description, 500-3000 chars, in ${langLabel}"
+  "description": "product description, 800-2000 chars, plain text, in ${langLabel}"
 }`
 
     const ai = new GoogleGenAI({ apiKey })
@@ -2605,6 +3418,151 @@ app.delete('/api/ai-assistant/aliexpress/listings/:id', requireAuth, (req, res) 
     if (result.changes === 0) return res.status(404).json({ error: '未找到' })
     return res.json({ ok: true })
   } catch (e) { return res.status(500).json({ error: '删除失败' }) }
+})
+
+// ── AI 运营助手 · 速卖通 Listing 优化 ────────────────────────────────────────
+app.post('/api/ai-assistant/aliexpress/optimize-listing', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  try {
+    const { title, productAttributes, description, market, lang } = req.body || {}
+    if (!title?.trim() && !description?.trim()) return res.status(400).json({ error: '请粘贴标题或描述' })
+    const langLabel = { zh: '中文', en: 'English', ru: 'Русский', pt: 'Português', es: 'Español', fr: 'Français', de: 'Deutsch', ko: '한국어', ja: '日本語' }[lang] || 'English'
+    const marketLabel = (market || 'global').toUpperCase()
+    const attrsText = Array.isArray(productAttributes) && productAttributes.length > 0
+      ? productAttributes.map(a => `${a.name}: ${a.value}`).join('\n')
+      : (typeof productAttributes === 'string' ? productAttributes : '')
+
+    const prompt = `You are an AliExpress listing optimization expert for the ${marketLabel} market. Analyze the existing listing, diagnose problems, and output an optimized version.
+
+LANGUAGE RULES (CRITICAL — follow exactly):
+1. First, detect the language of the INPUT listing below. Store this as "inputLanguage".
+2. "diagnosis" section: Write ALL text in the DETECTED INPUT LANGUAGE.
+3. "diagnosisZh" section: Write the SAME content as "diagnosis" but translated into 简体中文. If input is already Chinese, still output diagnosisZh (identical content is fine).
+4. "optimized" section: Write entirely in ${langLabel}. If the input language differs from ${langLabel}, translate while optimizing.
+5. "analysis" section: Write in ${langLabel}.
+
+=== EXISTING LISTING ===
+Title: ${title || '(empty)'}
+${attrsText ? `Product Attributes:\n${attrsText}` : ''}
+${description ? `Description:\n${description}` : ''}
+
+=== STEP 1: PRODUCT INTELLIGENCE ===
+A. Identify product category, brand (or "无品牌"), core product term
+B. Extract key specs from attributes and description
+C. List the top 8-12 high-volume AliExpress search keywords for this product type
+D. List 3-5 common buyer questions for this product type
+E. Note which product attributes are missing but important for this category
+
+AliExpress search algorithm facts:
+- Title carries 32.7% of search relevance weight — it's the #1 ranking factor
+- First 60 characters carry the highest weight (mobile truncation point)
+- Keyword repetition is penalized (15-40% ranking drop)
+- Product attributes directly affect category filtering visibility
+- NO backend search terms — all keywords MUST be in title + attributes
+
+=== STEP 2: DIAGNOSE ===
+Score each area 1-10:
+
+Title diagnosis:
+- Length (≤128 chars)? Are first 60 chars optimized for mobile?
+- Core product keywords placed early enough?
+- Keyword repetition (penalized by algorithm)?
+- Brand handling (if unbranded, is space wasted on "无品牌")?
+
+Product Attributes diagnosis:
+- How many provided? Missing critical ones (Brand, Material, Type, Color, Size)?
+- Attributes directly power category filtering — missing = invisible in filtered results
+- For EU market: CE certification attribute needed?
+
+Description diagnosis:
+- Length (500-3000 chars ideal)? Mobile-friendly short paragraphs?
+- Does it answer buyer questions from Step 1D?
+- Package contents listed? Specifications included?
+- External links, contact info (forbidden)?
+
+Compliance deep scan (structured objects):
+- [error] Title >128 chars, keyword stuffing (same word >2 times)
+- [error] Fake brand name for unbranded product
+- [error] Medical/pesticide/environmental claims without certification
+- [error] External links, contact info, competitor mentions
+- [error] Claiming CE/UKCA/CPC certification not provided
+- [warning] Missing critical attributes (Brand, Material, Type)
+- [warning] Description >3000 chars or <300 chars
+- [warning] Title first 60 chars don't contain core product keyword
+- [info] Not using full 128-char title space, missing high-volume keywords
+
+=== STEP 3: WRITE OPTIMIZED LISTING ===
+
+Title strategy (AliExpress search optimized):
+- First 60 chars: [Brand if applicable] + [Core Product Term] + [#1 keyword]
+- Remaining chars: additional keywords, attributes, use cases
+- ≤128 chars total, each keyword appears only once
+- If unbranded: omit brand, start with core product term
+
+Product Attributes strategy:
+- Minimum 15 key-value pairs
+- Include: Brand, Material, Type, Color, Size, Weight, Origin, Features, Applicable Scenarios, Target Audience, Season
+- For EU: add Certification attribute with actual certifications
+- Category-specific attributes (e.g. Battery for electronics, Fabric Type for clothing)
+
+Description strategy:
+- 800-2000 chars, mobile-optimized short paragraphs
+- Structure: hook → key features → specifications → package contents → usage tips
+- Naturally embed keywords from Step 1C
+- Answer buyer questions from Step 1D
+
+Output ONLY valid JSON (no markdown fences):
+{
+  "inputLanguage": "detected language name",
+  "analysis": {
+    "productCategory": "category",
+    "brand": "brand or 无品牌",
+    "coreProductTerm": "main search term",
+    "topKeywords": ["keyword1","keyword2","..."],
+    "buyerQuestions": ["q1","q2","..."],
+    "missingAttributes": ["attr1","attr2","..."]
+  },
+  "diagnosis": {
+    "overallScore": 7,
+    "summary": "1-2 sentence summary (in input language)",
+    "issues": [
+      { "area": "Title|Product Attributes|Description", "score": 8, "problem": "...", "suggestion": "..." }
+    ],
+    "complianceFlags": [
+      { "level": "error|warning|info", "category": "...", "location": "...", "text": "...", "suggestion": "..." }
+    ]
+  },
+  "diagnosisZh": { "overallScore": 7, "summary": "...(Chinese)...", "issues": [...], "complianceFlags": [...] },
+  "optimized": {
+    "title": "optimized AliExpress title ≤128 chars",
+    "productAttributes": [{"name":"Brand","value":"..."},{"name":"Material","value":"..."},...],
+    "description": "optimized description 800-2000 chars"
+  }
+}`
+
+    const ai = new GoogleGenAI({ apiKey })
+    const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
+    const text = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    const out = extractAnalyzeJson(text, true)
+    if (!out || !out.optimized) return res.status(500).json({ error: '优化解析失败，请重试' })
+
+    const optimizedTitle = String(out.optimized.title || '').replace(/\s+/g, ' ').trim().slice(0, 128)
+    const optimizedAttrs = Array.isArray(out.optimized.productAttributes) ? out.optimized.productAttributes.slice(0, 30).map(a => ({ name: String(a.name || ''), value: String(a.value || '') })) : []
+    const optimizedDesc = String(out.optimized.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+
+    console.log('[AliExpress Listing] 优化完成 | score:', out.diagnosis?.overallScore, '| compliance:', (out.diagnosis?.complianceFlags || []).length)
+    return res.json({
+      inputLanguage: out.inputLanguage || null,
+      analysis: out.analysis || null,
+      diagnosis: out.diagnosis,
+      diagnosisZh: out.diagnosisZh || null,
+      optimized: { title: optimizedTitle, productAttributes: optimizedAttrs, description: optimizedDesc },
+    })
+  } catch (e) {
+    console.error('[AliExpress Listing] optimize-listing 失败', e.message)
+    return res.status(500).json({ error: e.message || '速卖通 Listing 优化失败，请稍后重试' })
+  }
 })
 
 // ── 管理员 API ────────────────────────────────────────────────────────────────

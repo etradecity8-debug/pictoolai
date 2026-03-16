@@ -24,13 +24,21 @@ const generateIcon = (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
   </svg>
 )
+const optimizeIcon = (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+)
 
 // ── eBay / 速卖通 功能列表 ────────────────────────────────────────────────────
 const ebayFeatures = [
-  { id: 'generate', title: '生成 Listing', desc: '输入产品信息，AI 一键生成符合 eBay 规则的标题（80 字符）、Item Specifics 与产品描述，并可生成白底主图、场景图、特写图等产品图。', icon: generateIcon },
+  { id: 'generate', title: '生成 Listing', desc: '上传产品图，AI 自动提取 Cassini 高频搜索词、买家问题与目标画像，策略化生成 80 字符标题 · 15+ Item Specifics · 产品描述与产品图，支持多市场多语言。', icon: generateIcon },
+  { id: 'optimize', title: '优化 Listing', desc: '基于 Cassini 搜索算法深度诊断，AI 自动提取关键词缺口、Item Specifics 覆盖率与 GPSR 合规风险，逐项评分并一键输出优化版本。', icon: optimizeIcon },
 ]
 const aliexpressFeatures = [
-  { id: 'generate', title: '生成 Listing', desc: '输入产品信息，AI 一键生成符合速卖通规则的标题（128 字符）、产品属性与详情描述，并可生成白底主图、场景图、特写图等产品图。', icon: generateIcon },
+  { id: 'generate', title: '生成 Listing', desc: '上传产品图，AI 自动提取搜索高频词、买家问题与目标画像，基于标题权重 32.7% 算法策略化生成 128 字符标题 · 15+ 产品属性 · 详情描述与产品图。', icon: generateIcon },
+  { id: 'optimize', title: '优化 Listing', desc: '基于速卖通搜索算法深度诊断，AI 检测关键词重复惩罚、属性覆盖缺失与 CE/UKCA 合规风险，逐项评分并一键输出优化版本。', icon: optimizeIcon },
 ]
 
 // ── eBay 目标市场 ─────────────────────────────────────────────────────────────
@@ -64,7 +72,7 @@ const amazonFeatures = [
   {
     id: 'generate',
     title: '生成 Listing',
-    desc: '输入产品信息，AI 一键生成符合亚马逊规则的高质量标题、五点描述与详情，并可生成白底主图、场景图、特写图等产品图，支持多市场多语言。',
+    desc: '上传产品图，AI 自动提取搜索关键词、买家问题与目标画像，基于 A9 · Cosmo · Rufus · GEO 四大算法生成高转化 Listing 与产品图，支持多市场多语言。',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -75,12 +83,33 @@ const amazonFeatures = [
   {
     id: 'optimize',
     title: '优化 Listing',
-    desc: '粘贴现有 Listing，AI 分析标题权重、关键词密度与转化逻辑，提供可直接使用的优化版本。',
-    disabled: true,
+    desc: '基于 A9 · Cosmo · Rufus · GEO 四大算法深度诊断，AI 自动提取高频搜索词、买家问题与竞品差异，逐项评分并一键输出优化版本。',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
           d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'competitor',
+    title: '竞品对比',
+    desc: '粘贴竞品 Listing，AI 对比关键词覆盖、卖点差异、标题策略，找出你的优势与机会点，输出可执行的优化行动清单。',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'keywords',
+    title: '关键词研究',
+    desc: '输入产品名称，AI 生成系统化关键词策略：核心词、长尾词分组、后台关键词建议与标题排布方案，覆盖 A9 全链路。',
+    icon: (
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
     ),
   },
@@ -239,7 +268,7 @@ function getAplusImageCount(modules) {
 }
 
 // ── 初始表单 ───────────────────────────────────────────────────────────────────
-const initOptimize = { title: '', bullets: '', description: '', market: 'us', lang: 'zh' }
+const initOptimize = { title: '', bullets: '', description: '', searchTerms: '', market: 'us', lang: 'en' }
 
 // ── 生成 Listing 表单（必填：图片≥1、二级类目、品牌、卖点≥2、市场、语言）────────
 function GenerateForm() {
@@ -272,6 +301,9 @@ function GenerateForm() {
   const [aplusImagesLoading, setAplusImagesLoading] = useState(false)
   const [saveListingLoading, setSaveListingLoading] = useState(false)
   const [savedListingId, setSavedListingId] = useState(null)
+  const [genVariants, setGenVariants] = useState([])
+  const [genVariantsLoading, setGenVariantsLoading] = useState(false)
+  const [genActiveTab, setGenActiveTab] = useState(0)
   const [imageModel, setImageModel] = useState('Nano Banana') // Step 3/4 生图模型，默认 Nano Banana(2.5) 兼容性更好
   const [mainImageCount, setMainImageCount] = useState(1)   // Step 3 白底主图 0～4
   const [sceneImageCount, setSceneImageCount] = useState(1) // Step 3 场景图 0～4
@@ -379,6 +411,34 @@ function GenerateForm() {
     }
   }
 
+  const handleGenerateVariants = async () => {
+    const token = getToken()
+    if (!token || !listingResult) return
+    setGenVariantsLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/ai-assistant/amazon/generate-variants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          currentListing: listingResult,
+          analysis: analyzeResult || null,
+          market: form.market,
+          lang: form.lang,
+          variantCount: 2,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '变体生成失败')
+      setGenVariants(data.variants || [])
+      setGenActiveTab(0)
+    } catch (e) {
+      setError(e.message || '变体生成失败')
+    } finally {
+      setGenVariantsLoading(false)
+    }
+  }
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {}).catch(() => {})
   }
@@ -423,6 +483,10 @@ function GenerateForm() {
     if (!analyzeResult?.productSummary || !getToken()) return
     setError('')
     setStep('generating')
+    setGenVariants([])
+    setGenActiveTab(0)
+    setGenVariants([])
+    setGenActiveTab(0)
     try {
       const genRes = await fetch('/api/ai-assistant/amazon/generate-listing', {
         method: 'POST',
@@ -692,6 +756,58 @@ function GenerateForm() {
             <p className="text-xs font-medium text-gray-500 mt-3">产品摘要</p>
             <p className="text-sm text-gray-800 whitespace-pre-wrap">{analyzeResult?.productSummary || '—'}</p>
           </div>
+          {/* 产品洞察 */}
+          {(analyzeResult?.topKeywords?.length > 0 || analyzeResult?.buyerQuestions?.length > 0 || analyzeResult?.buyerPersonas?.length > 0 || analyzeResult?.keyAttributes?.length > 0) && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-4 space-y-3">
+              <p className="text-xs font-bold text-gray-800">产品洞察（以下数据将驱动 Listing 生成）</p>
+              {analyzeResult.topKeywords?.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1 block">高频搜索词 · A9</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {analyzeResult.topKeywords.map((kw, i) => (
+                      <span key={i} className="inline-block px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs">{kw}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {analyzeResult.buyerQuestions?.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1 block">买家常见问题 · Rufus</span>
+                  <ul className="space-y-0.5">
+                    {analyzeResult.buyerQuestions.map((q, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex gap-1.5">
+                        <span className="text-blue-400 shrink-0">Q{i + 1}.</span>
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {analyzeResult.buyerPersonas?.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1 block">目标买家 · Cosmo</span>
+                  <ul className="space-y-0.5">
+                    {analyzeResult.buyerPersonas.map((p, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex gap-1.5">
+                        <span className="text-blue-400 shrink-0">•</span>
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {analyzeResult.keyAttributes?.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1 block">关键规格 · GEO</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {analyzeResult.keyAttributes.map((s, i) => (
+                      <span key={i} className="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap items-center gap-3">
             <button
@@ -761,43 +877,67 @@ function GenerateForm() {
           {/* Step 2 标题·关键词·五点·描述（与步骤 3、4 同款框） */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-900">2. 标题·关键词·五点·描述</h3>
-              <button
-                type="button"
-                onClick={handleRegenerateListing}
-                disabled={step === 'generating' || !analyzeResult?.productSummary}
-                title="在现有分析基础上，只重新生成本步的标题、五点、描述"
-                className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
-              >
-                {step === 'generating' ? <span className="animate-pulse">正在重新生成…</span> : '重新生成'}
-              </button>
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-gray-900">2. 标题·关键词·五点·描述</h3>
+                {genVariants.length > 0 && (
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                    {[listingResult, ...genVariants].map((_, i) => (
+                      <button key={i} type="button" onClick={() => setGenActiveTab(i)}
+                        className={`px-2 py-0.5 transition whitespace-nowrap ${genActiveTab === i ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                      >{i === 0 ? '原版' : `变体 ${String.fromCharCode(64 + i)}`}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleGenerateVariants} disabled={genVariantsLoading || step === 'generating'}
+                  className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+                >{genVariantsLoading ? '生成变体中…' : genVariants.length > 0 ? '重新生成变体' : 'A/B 变体'}</button>
+                <span className="text-gray-300">|</span>
+                <button type="button" onClick={handleRegenerateListing} disabled={step === 'generating' || !analyzeResult?.productSummary}
+                  title="在现有分析基础上，只重新生成本步的标题、五点、描述"
+                  className="text-xs text-gray-500 hover:text-gray-900 disabled:opacity-50"
+                >{step === 'generating' ? <span className="animate-pulse">正在重新生成…</span> : '重新生成'}</button>
+              </div>
             </div>
             {step === 'generating' && (
               <div className="mb-3 p-3 rounded-lg bg-gray-100 border border-gray-200">
                 <p className="text-sm font-medium text-gray-800 animate-pulse">正在重新生成标题·关键词·五点·描述，请稍候…</p>
               </div>
             )}
-            <div className="space-y-4">
-          <CopyBlock label="标题" text={listingResult.title} onCopy={copyToClipboard} markdown />
-          <CopyBlock label="后台关键词" text={listingResult.searchTerms} onCopy={copyToClipboard} />
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
-            {(listingResult.bullets || []).map((b, i) => (
-              <div key={i} className="flex gap-2 mb-2">
-                <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
-                <div className="flex-1 flex items-start gap-2">
-                  <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
-                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
-                      {(b || '—').replace(/\n/g, '\n\n')}
-                    </ReactMarkdown>
+            {(() => {
+              const allVer = [listingResult, ...genVariants]
+              const cur = allVer[genActiveTab] || listingResult
+              return (
+                <div className="space-y-4">
+                  {genVariants.length > 0 && cur.style && (
+                    <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="font-medium text-gray-700">{genActiveTab === 0 ? '原始版本' : cur.style}</span>
+                      {cur.styleDescription && genActiveTab > 0 && <span className="ml-1.5">— {cur.styleDescription}</span>}
+                    </p>
+                  )}
+                  <CopyBlock label="标题" text={cur.title} onCopy={copyToClipboard} markdown />
+                  <CopyBlock label="后台关键词" text={cur.searchTerms} onCopy={copyToClipboard} />
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
+                    {(cur.bullets || []).map((b, i) => (
+                      <div key={i} className="flex gap-2 mb-2">
+                        <span className="text-xs text-gray-400 shrink-0">{i + 1}.</span>
+                        <div className="flex-1 flex items-start gap-2">
+                          <div className="text-sm text-gray-800 flex-1 [&_strong]:font-semibold [&_p]:inline">
+                            <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{ p: ({ children }) => <span>{children}</span> }}>
+                              {(b || '—').replace(/\n/g, '\n\n')}
+                            </ReactMarkdown>
+                          </div>
+                          <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                  <CopyBlock label="产品描述" text={cur.description} onCopy={copyToClipboard} markdown />
                 </div>
-              </div>
-            ))}
-          </div>
-          <CopyBlock label="产品描述" text={listingResult.description} onCopy={copyToClipboard} markdown />
-            </div>
+              )
+            })()}
           </div>
 
           {/* Step 3 产品图 */}
@@ -1420,6 +1560,388 @@ function GenerateForm() {
   )
 }
 
+// ── eBay / 速卖通 通用优化表单 ──────────────────────────────────────────────────
+function PlatformOptimizeForm({ platform }) {
+  const { getToken } = useAuth()
+  const isEbay = platform === 'ebay'
+  const titleLimit = isEbay ? 80 : 128
+  const attrLabel = isEbay ? 'Item Specifics' : '产品属性'
+  const attrField = isEbay ? 'itemSpecifics' : 'productAttributes'
+  const platformLabel = isEbay ? 'eBay' : '速卖通'
+  const marketsForPlatform = isEbay ? ebayMarkets : aliexpressMarkets
+  const langOptions = isEbay
+    ? [{ v: 'en', l: 'English' }, { v: 'zh', l: '中文' }, { v: 'de', l: 'Deutsch' }, { v: 'fr', l: 'Français' }, { v: 'ja', l: '日本語' }, { v: 'es', l: 'Español' }]
+    : [{ v: 'en', l: 'English' }, { v: 'zh', l: '中文' }, { v: 'ru', l: 'Русский' }, { v: 'pt', l: 'Português' }, { v: 'es', l: 'Español' }, { v: 'fr', l: 'Français' }, { v: 'de', l: 'Deutsch' }, { v: 'ko', l: '한국어' }, { v: 'ja', l: '日本語' }]
+
+  const [title, setTitle] = useState('')
+  const [attrs, setAttrs] = useState('')
+  const [description, setDescription] = useState('')
+  const [market, setMarket] = useState(isEbay ? 'us' : 'global')
+  const [lang, setLang] = useState('en')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+  const [diagLang, setDiagLang] = useState('original')
+  const [smartPasteText, setSmartPasteText] = useState('')
+  const [smartPasteLoading, setSmartPasteLoading] = useState(false)
+  const [smartPasteMode, setSmartPasteMode] = useState(false)
+
+  const canSubmit = title.trim() || description.trim()
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}) }
+
+  const handleSmartPaste = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    if (!smartPasteText.trim() || smartPasteText.trim().length < 20) { setError('粘贴内容太短，请复制完整的 Listing 页面内容'); return }
+    setSmartPasteLoading(true); setError('')
+    try {
+      const res = await fetch('/api/ai-assistant/smart-paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: smartPasteText, platform }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '识别失败')
+      if (data.title) setTitle(data.title)
+      if (data.description) setDescription(data.description)
+      const specsArr = isEbay ? data.itemSpecifics : data.productAttributes
+      if (Array.isArray(specsArr) && specsArr.length > 0) {
+        setAttrs(specsArr.map(s => `${s.name}: ${s.value}`).join('\n'))
+      }
+      setSmartPasteMode(false)
+      setSmartPasteText('')
+    } catch (e) { setError(e.message || '智能识别失败') }
+    finally { setSmartPasteLoading(false) }
+  }
+
+  const copyAll = (opt) => {
+    const parts = [`标题：${opt.title || ''}`]
+    if (opt[attrField]?.length) parts.push(`\n${attrLabel}：\n${opt[attrField].map(s => `${s.name}: ${s.value}`).join('\n')}`)
+    if (opt.description) parts.push(`\n描述：\n${opt.description}`)
+    copyToClipboard(parts.join('\n'))
+  }
+
+  const handleOptimize = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    setLoading(true); setError(''); setResult(null); setDiagLang('original')
+    try {
+      const body = { title: title.trim(), description: description.trim(), market, lang }
+      if (attrs.trim()) {
+        const parsed = attrs.trim().split('\n').map(line => {
+          const idx = line.indexOf(':')
+          if (idx < 0) return null
+          return { name: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() }
+        }).filter(Boolean)
+        body[attrField] = parsed
+      }
+      const res = await fetch(`/api/ai-assistant/${platform}/optimize-listing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '优化失败')
+      setResult(data)
+    } catch (e) { setError(e.message || '优化失败') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* 方法论卡 */}
+      {!result && (
+        <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-5 space-y-3">
+          <h3 className="text-base font-bold text-gray-900">{platformLabel} Listing 深度优化</h3>
+          <div className="grid grid-cols-2 gap-3">
+            {isEbay ? (<>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">Cassini 搜索引擎</p>
+                <p className="text-xs text-gray-500 mt-0.5">标题前 3-4 词权重最高，Item Specifics 决定筛选可见性</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">Item Specifics</p>
+                <p className="text-xs text-gray-500 mt-0.5">缺失关键属性 = 在筛选搜索中不可见，必须覆盖 15+ 属性</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">80 字符标题</p>
+                <p className="text-xs text-gray-500 mt-0.5">无后台搜索词，所有关键词必须在标题和属性中</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">GPSR 合规</p>
+                <p className="text-xs text-gray-500 mt-0.5">EU 市场需 GPSR 合规信息，制造商信息必须填写</p>
+              </div>
+            </>) : (<>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">标题权重 32.7%</p>
+                <p className="text-xs text-gray-500 mt-0.5">速卖通标题占搜索排名第一权重，前 60 字符最关键</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">关键词去重</p>
+                <p className="text-xs text-gray-500 mt-0.5">关键词重复会被惩罚 15-40% 排名下降，每词只出现一次</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">产品属性</p>
+                <p className="text-xs text-gray-500 mt-0.5">直接影响类目筛选和搜索可见性，需覆盖 15+ 属性</p>
+              </div>
+              <div className="rounded-lg bg-white border border-gray-100 p-3">
+                <p className="text-xs font-semibold text-gray-800">CE/UKCA 合规</p>
+                <p className="text-xs text-gray-500 mt-0.5">EU 需 CE 认证、UK 需 UKCA 认证，缺失可能被下架</p>
+              </div>
+            </>)}
+          </div>
+          <p className="text-xs text-gray-500">粘贴现有 Listing → AI 诊断评分 → 输出优化版本 · 支持跨语言转换 · 不扣积分</p>
+        </div>
+      )}
+
+      {/* 智能粘贴 */}
+      {!result && (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <button type="button" onClick={() => setSmartPasteMode(m => !m)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="text-sm font-medium text-gray-800">智能粘贴</span>
+              <span className="text-xs text-gray-400">打开 {platformLabel} 商品页 → 全选复制 → 粘贴到这里 → AI 自动识别填充</span>
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition ${smartPasteMode ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {smartPasteMode && (
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
+              <textarea value={smartPasteText} onChange={e => setSmartPasteText(e.target.value)} rows={8}
+                placeholder={`在 ${platformLabel} 商品页面上按 Ctrl+A 全选 → Ctrl+C 复制 → 粘贴到这里\n\nAI 会自动识别出标题、${attrLabel}、产品描述等字段`}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-gray-50 resize-none"
+                disabled={smartPasteLoading} />
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={handleSmartPaste}
+                  disabled={smartPasteLoading || !smartPasteText.trim()}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${smartPasteText.trim() && !smartPasteLoading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                  {smartPasteLoading ? '正在识别…' : '智能识别并填充'}
+                </button>
+                <button type="button" onClick={() => { setSmartPasteMode(false); setSmartPasteText('') }}
+                  className="text-xs text-gray-500 hover:text-gray-900">取消</button>
+                {smartPasteLoading && <span className="text-xs text-gray-400 animate-pulse">AI 正在从粘贴内容中提取 Listing 字段…</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 输入表单 */}
+      {!result && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">标题 <span className="text-xs text-gray-400">（≤{titleLimit} 字符）</span></label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder={`粘贴你的 ${platformLabel} 标题`} disabled={loading}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{attrLabel} <span className="text-xs text-gray-400">（每行一个，格式：名称: 值）</span></label>
+            <textarea value={attrs} onChange={e => setAttrs(e.target.value)} rows={6}
+              placeholder={isEbay ? 'Brand: MyBrand\nMaterial: Stainless Steel\nColor: Black\nType: Water Bottle\n...' : 'Brand: MyBrand\n材质: 不锈钢\n颜色: 黑色\n类型: 保温杯\n...'}
+              disabled={loading}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none font-mono" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">产品描述</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={6} placeholder="粘贴你的产品描述" disabled={loading}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">目标市场</label>
+              <select value={market} onChange={e => setMarket(e.target.value)} disabled={loading}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                {marketsForPlatform.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">目标语言 <span className="text-xs text-gray-400 font-normal">优化后 Listing 以此语言输出</span></label>
+              <select value={lang} onChange={e => setLang(e.target.value)} disabled={loading}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+                {langOptions.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+              </select>
+            </div>
+          </div>
+          <button disabled={!canSubmit || loading} onClick={handleOptimize}
+            className={`w-full py-3 rounded-xl text-sm font-semibold transition ${canSubmit && !loading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+            {loading ? '正在优化…' : `开始优化 ${platformLabel} Listing`}
+          </button>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && (
+        <div className="space-y-6">
+          {/* 产品分析 */}
+          {result.analysis && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-2">
+              <h3 className="text-base font-bold text-gray-900">产品分析</h3>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <p><span className="text-gray-500">品类：</span>{result.analysis.productCategory || '—'}</p>
+                <p><span className="text-gray-500">品牌：</span>{result.analysis.brand || '—'}</p>
+              </div>
+              {result.analysis.topKeywords?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">搜索关键词</p>
+                  <div className="flex flex-wrap gap-1">{result.analysis.topKeywords.map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs">{k}</span>)}</div>
+                </div>
+              )}
+              {result.analysis.buyerQuestions?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">买家常问</p>
+                  <ul className="text-xs text-gray-600 space-y-0.5">{result.analysis.buyerQuestions.map((q, i) => <li key={i}>• {q}</li>)}</ul>
+                </div>
+              )}
+              {(result.analysis.missingSpecifics || result.analysis.missingAttributes)?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-orange-600 mb-1">缺失的{attrLabel}</p>
+                  <div className="flex flex-wrap gap-1">{(result.analysis.missingSpecifics || result.analysis.missingAttributes).map((s, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 text-xs">{s}</span>)}</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 诊断报告 */}
+          {result.diagnosis && (() => {
+            const diag = diagLang === 'zh' && result.diagnosisZh ? result.diagnosisZh : result.diagnosis
+            const hasZh = !!result.diagnosisZh
+            const inputLangLabel = result.inputLanguage || '原文'
+            return (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="text-base font-bold text-gray-900">诊断报告</h3>
+                  {hasZh && (
+                    <div className="flex rounded-lg border border-gray-200 p-0.5 text-xs">
+                      <button onClick={() => setDiagLang('original')} className={`px-2.5 py-1 rounded-md transition ${diagLang !== 'zh' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'}`}>{inputLangLabel}</button>
+                      <button onClick={() => setDiagLang('zh')} className={`px-2.5 py-1 rounded-md transition ${diagLang === 'zh' ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900'}`}>中文</button>
+                    </div>
+                  )}
+                </div>
+
+                {diag.overallScore != null && <ScoreBadge score={diag.overallScore} />}
+                {diag.summary && <p className="text-sm text-gray-700">{diag.summary}</p>}
+
+                {/* 分项 */}
+                {Array.isArray(diag.issues) && diag.issues.length > 0 && (
+                  <div className="space-y-3">
+                    {diag.issues.map((issue, i) => (
+                      <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-700">{issue.area}</span>
+                          {issue.score != null && <ScoreBadge score={issue.score} small />}
+                        </div>
+                        <p className="text-xs text-gray-600">{issue.problem}</p>
+                        {issue.suggestion && <p className="text-xs text-green-700">→ {issue.suggestion}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 合规自检 */}
+                {Array.isArray(diag.complianceFlags) && diag.complianceFlags.length > 0 && (() => {
+                  const isStructured = typeof diag.complianceFlags[0] === 'object'
+                  if (!isStructured) {
+                    return (
+                      <div className="rounded-lg border border-red-100 bg-red-50/50 p-3">
+                        <p className="text-sm font-medium text-red-700 mb-1.5">合规风险</p>
+                        <ul className="space-y-1">
+                          {diag.complianceFlags.map((flag, i) => (
+                            <li key={i} className="text-xs text-red-600 flex gap-1.5">
+                              <span className="shrink-0">⚠</span>
+                              <span>{typeof flag === 'string' ? flag : JSON.stringify(flag)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  }
+                  const errors = diag.complianceFlags.filter(f => f.level === 'error')
+                  const warnings = diag.complianceFlags.filter(f => f.level === 'warning')
+                  const infos = diag.complianceFlags.filter(f => f.level === 'info')
+                  const groups = [
+                    { items: errors, label: '必须修改', border: 'border-red-200', bg: 'bg-red-50/60', badge: 'bg-red-100 text-red-700', text: 'text-red-700', icon: '✕' },
+                    { items: warnings, label: '建议修改', border: 'border-yellow-200', bg: 'bg-yellow-50/60', badge: 'bg-yellow-100 text-yellow-700', text: 'text-yellow-700', icon: '⚠' },
+                    { items: infos, label: '优化建议', border: 'border-gray-200', bg: 'bg-gray-50/60', badge: 'bg-gray-100 text-gray-600', text: 'text-gray-600', icon: 'ⓘ' },
+                  ]
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-gray-900">合规自检 <span className="text-xs font-normal text-gray-500 ml-1">共 {diag.complianceFlags.length} 项</span></p>
+                      {groups.map(({ items, label, border, bg, badge, text, icon }) => items.length > 0 && (
+                        <div key={label} className={`rounded-lg border ${border} ${bg} p-3 space-y-2`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${badge}`}>{icon} {label}</span>
+                            <span className="text-xs text-gray-400">{items.length} 项</span>
+                          </div>
+                          {items.map((f, i) => (
+                            <div key={i} className="text-xs space-y-0.5 pl-1">
+                              <div className={`font-medium ${text}`}>
+                                {f.location && <span className="text-gray-500 font-normal mr-1">[{f.location}]</span>}
+                                {f.category && <span className="mr-1">{f.category}：</span>}
+                                {f.text}
+                              </div>
+                              {f.suggestion && <p className="text-gray-500 pl-2">→ {f.suggestion}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            )
+          })()}
+
+          {/* 优化后版本 */}
+          {result.optimized && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-base font-bold text-gray-900">优化后版本</h3>
+                <button type="button" onClick={() => copyAll(result.optimized)} className="text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1">一键复制全部</button>
+              </div>
+              <CopyBlock label={`标题 (${(result.optimized.title || '').length}/${titleLimit} 字符)`} text={result.optimized.title} onCopy={copyToClipboard} />
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">{attrLabel}</label>
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  {(result.optimized[attrField] || []).length === 0 ? <p className="text-sm text-gray-500">无</p> : (
+                    <div className="space-y-1.5">
+                      {(result.optimized[attrField] || []).map((spec, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className="font-medium text-gray-700 shrink-0">{spec.name}:</span>
+                          <span className="text-gray-800">{spec.value}</span>
+                          <button type="button" onClick={() => copyToClipboard(`${spec.name}: ${spec.value}`)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <CopyBlock label="产品描述" text={result.optimized.description} onCopy={copyToClipboard} markdown />
+            </div>
+          )}
+
+          {/* 操作按钮 */}
+          <div className="flex items-center justify-center gap-4">
+            <button onClick={handleOptimize} disabled={loading}
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50">
+              {loading ? '优化中…' : '重新优化'}
+            </button>
+            <button onClick={() => { setResult(null); setDiagLang('original') }}
+              className="px-6 py-2.5 rounded-xl text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
+              修改输入
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── eBay / 速卖通 通用生成表单（共用结构，通过 platform 参数区分） ──────────────
 function PlatformGenerateForm({ platform }) {
   const { user, getToken } = useAuth()
@@ -1583,6 +2105,36 @@ function PlatformGenerateForm({ platform }) {
             <p className="text-xs font-medium text-gray-500 mt-3">产品摘要</p>
             <p className="text-sm text-gray-800 whitespace-pre-wrap">{analyzeResult?.productSummary || '—'}</p>
           </div>
+          {/* 产品洞察 */}
+          {(analyzeResult?.topKeywords?.length > 0 || analyzeResult?.buyerQuestions?.length > 0 || analyzeResult?.buyerPersonas?.length > 0 || analyzeResult?.keyAttributes?.length > 0) && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50/30 p-4 space-y-3">
+              <p className="text-xs font-bold text-gray-800">产品洞察（以下数据将驱动 Listing 生成）</p>
+              {analyzeResult.topKeywords?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">搜索关键词 · {isEbay ? 'Cassini' : '速卖通搜索'}</p>
+                  <div className="flex flex-wrap gap-1">{analyzeResult.topKeywords.map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs border border-blue-100">{k}</span>)}</div>
+                </div>
+              )}
+              {analyzeResult.buyerQuestions?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">买家常见问题</p>
+                  <ul className="text-xs text-gray-600 space-y-0.5">{analyzeResult.buyerQuestions.map((q, i) => <li key={i}>• {q}</li>)}</ul>
+                </div>
+              )}
+              {analyzeResult.buyerPersonas?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">买家画像</p>
+                  <ul className="text-xs text-gray-600 space-y-0.5">{analyzeResult.buyerPersonas.map((p, i) => <li key={i}>• {p}</li>)}</ul>
+                </div>
+              )}
+              {analyzeResult.keyAttributes?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">关键规格</p>
+                  <div className="flex flex-wrap gap-1">{analyzeResult.keyAttributes.map((a, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs">{a}</span>)}</div>
+                </div>
+              )}
+            </div>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={handleConfirmAndGenerate} disabled={step === 'generating'} className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed">{step === 'generating' ? `正在生成标题·${attrLabel}·描述…` : '确认分析结果'}</button>
@@ -1794,14 +2346,207 @@ function CopyBlock({ label, text, onCopy, markdown }) {
 }
 
 // ── 优化 Listing 表单 ─────────────────────────────────────────────────────────
+
+function ScoreBadge({ score }) {
+  const color = score >= 8 ? 'bg-green-100 text-green-700' : score >= 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{score}/10</span>
+}
+
 function OptimizeForm() {
+  const { getToken } = useAuth()
   const [form, setForm] = useState(initOptimize)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const canSubmit = form.title.trim() && form.bullets.trim()
 
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+  const [diagLang, setDiagLang] = useState('original')
+  const [variants, setVariants] = useState([])
+  const [variantsLoading, setVariantsLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
+  const [smartPasteText, setSmartPasteText] = useState('')
+  const [smartPasteLoading, setSmartPasteLoading] = useState(false)
+  const [smartPasteMode, setSmartPasteMode] = useState(false)
+
+  const handleSmartPaste = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    if (!smartPasteText.trim() || smartPasteText.trim().length < 20) { setError('粘贴内容太短，请复制完整的 Listing 页面内容'); return }
+    setSmartPasteLoading(true); setError('')
+    try {
+      const res = await fetch('/api/ai-assistant/smart-paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: smartPasteText, platform: 'amazon' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '识别失败')
+      setForm(f => ({
+        ...f,
+        title: data.title || f.title,
+        bullets: data.bullets?.length ? data.bullets.join('\n') : f.bullets,
+        description: data.description || f.description,
+        searchTerms: f.searchTerms,
+      }))
+      setSmartPasteMode(false)
+      setSmartPasteText('')
+    } catch (e) { setError(e.message || '智能识别失败') }
+    finally { setSmartPasteLoading(false) }
+  }
+
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}) }
+
+  const handleGenerateVariants = async () => {
+    const token = getToken()
+    if (!token || !result?.optimized) return
+    setVariantsLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/ai-assistant/amazon/generate-variants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          currentListing: result.optimized,
+          analysis: result.analysis || null,
+          market: form.market,
+          lang: form.lang,
+          variantCount: 2,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '变体生成失败')
+      setVariants(data.variants || [])
+      setActiveTab(0)
+    } catch (e) {
+      setError(e.message || '变体生成失败')
+    } finally {
+      setVariantsLoading(false)
+    }
+  }
+
+  const handleOptimize = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    setLoading(true)
+    setError('')
+    setResult(null)
+    setDiagLang('original')
+    setVariants([])
+    setActiveTab(0)
+    try {
+      const res = await fetch('/api/ai-assistant/amazon/optimize-listing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: form.title,
+          bullets: form.bullets,
+          description: form.description,
+          searchTerms: form.searchTerms || '',
+          market: form.market,
+          lang: form.lang,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '优化失败')
+      setResult(data)
+    } catch (e) {
+      setError(e.message || '优化失败，请稍后重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const copyAllOptimized = () => {
+    if (!result?.optimized) return
+    const o = result.optimized
+    const lines = [
+      `标题：\n${o.title}`,
+      `\n五点描述：\n${(o.bullets || []).map((b, i) => `${i + 1}. ${b}`).join('\n')}`,
+      o.description ? `\n产品描述：\n${o.description}` : '',
+      o.searchTerms ? `\n后台关键词：\n${o.searchTerms}` : '',
+    ].filter(Boolean).join('\n')
+    copyToClipboard(lines)
+  }
+
   return (
     <div className="space-y-5">
-      {/* 现有标题 */}
+      {/* 方法论说明 */}
+      {!result && (
+        <div className="rounded-xl bg-gradient-to-br from-gray-50 to-gray-100/50 border border-gray-200 p-5 space-y-3">
+          <h3 className="text-sm font-bold text-gray-900">四大算法驱动的深度优化</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0">A9</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-800">传统搜索优化</p>
+                <p className="text-xs text-gray-500">提取高频搜索词，前置核心关键词，优化搜索排名</p>
+              </div>
+            </div>
+            <div className="flex gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0 leading-none">Co</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-800">语义搜索适配</p>
+                <p className="text-xs text-gray-500">场景化自然语言，匹配买家意图，提升语义相关性</p>
+              </div>
+            </div>
+            <div className="flex gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0 leading-none">Ru</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-800">AI 助手问答优化</p>
+                <p className="text-xs text-gray-500">预判买家问题，用具体参数回答，被 Rufus 优先推荐</p>
+              </div>
+            </div>
+            <div className="flex gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gray-900 text-white flex items-center justify-center text-xs font-bold shrink-0 leading-none">GE</div>
+              <div>
+                <p className="text-xs font-semibold text-gray-800">结构化内容强化</p>
+                <p className="text-xs text-gray-500">精确规格数据、市场适配单位，提升 AI 引擎可读性</p>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 pt-1 border-t border-gray-200">粘贴现有 Listing → AI 先分析产品关键词、买家画像与规格 → 逐项诊断评分 → 输出优化版本 · 支持跨语言转换 · 不扣积分</p>
+        </div>
+      )}
+
+      {/* 智能粘贴 */}
+      {!result && (
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+          <button type="button" onClick={() => setSmartPasteMode(m => !m)}
+            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span className="text-sm font-medium text-gray-800">智能粘贴</span>
+              <span className="text-xs text-gray-400">打开 Listing 页面 → 全选复制 → 粘贴到这里 → AI 自动识别填充</span>
+            </div>
+            <svg className={`w-4 h-4 text-gray-400 transition ${smartPasteMode ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {smartPasteMode && (
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
+              <textarea value={smartPasteText} onChange={e => setSmartPasteText(e.target.value)} rows={8}
+                placeholder="在亚马逊商品页面上按 Ctrl+A 全选 → Ctrl+C 复制 → 粘贴到这里&#10;&#10;AI 会自动识别出标题、五点描述、产品描述等字段"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-gray-50 resize-none"
+                disabled={smartPasteLoading} />
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={handleSmartPaste}
+                  disabled={smartPasteLoading || !smartPasteText.trim()}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${smartPasteText.trim() && !smartPasteLoading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                  {smartPasteLoading ? '正在识别…' : '智能识别并填充'}
+                </button>
+                <button type="button" onClick={() => { setSmartPasteMode(false); setSmartPasteText('') }}
+                  className="text-xs text-gray-500 hover:text-gray-900">取消</button>
+                {smartPasteLoading && <span className="text-xs text-gray-400 animate-pulse">AI 正在从粘贴内容中提取 Listing 字段…</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 输入区 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           现有标题 <span className="text-red-500">*</span>
@@ -1811,10 +2556,10 @@ function OptimizeForm() {
           onChange={e => set('title', e.target.value)}
           placeholder="粘贴你现有的 Listing 标题"
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+          disabled={loading}
         />
       </div>
 
-      {/* 五点描述 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           五点描述（Bullet Points）<span className="text-red-500">*</span>
@@ -1825,10 +2570,10 @@ function OptimizeForm() {
           rows={5}
           placeholder="粘贴你现有的五点描述，每条占一行"
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none"
+          disabled={loading}
         />
       </div>
 
-      {/* 详情描述 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           详情描述（Product Description）
@@ -1840,10 +2585,24 @@ function OptimizeForm() {
           rows={4}
           placeholder="粘贴你现有的详情描述（可选）"
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none"
+          disabled={loading}
         />
       </div>
 
-      {/* 目标市场 + 输出语言 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          后台关键词（Search Terms）
+          <span className="text-gray-400 font-normal text-xs ml-1">可选</span>
+        </label>
+        <input
+          value={form.searchTerms || ''}
+          onChange={e => set('searchTerms', e.target.value)}
+          placeholder="粘贴你现有的后台关键词（可选）"
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+          disabled={loading}
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">目标市场</label>
@@ -1851,44 +2610,756 @@ function OptimizeForm() {
             value={form.market}
             onChange={e => set('market', e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+            disabled={loading}
           >
             {markets.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">输出语言</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">目标语言</label>
           <select
             value={form.lang}
             onChange={e => set('lang', e.target.value)}
             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white"
+            disabled={loading}
           >
-            <option value="zh">中文</option>
             <option value="en">English</option>
+            <option value="zh">中文</option>
             <option value="de">Deutsch</option>
             <option value="fr">Français</option>
             <option value="ja">日本語</option>
             <option value="es">Español</option>
           </select>
+          <p className="text-xs text-gray-400 mt-1">优化后的 Listing 将以此语言输出，支持跨语言转换</p>
         </div>
       </div>
 
       {/* 优化按钮 */}
       <div className="pt-2">
         <button
-          disabled={!canSubmit}
+          disabled={!canSubmit || loading}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition ${
-            canSubmit
+            canSubmit && !loading
               ? 'bg-gray-900 text-white hover:bg-gray-700'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
           }`}
-          onClick={() => alert('AI 优化功能即将上线，敬请期待！')}
+          onClick={handleOptimize}
         >
-          优化 Listing
+          {loading ? '正在分析并优化…' : '诊断并优化 Listing'}
         </button>
-        {!canSubmit && (
+        {!canSubmit && !loading && (
           <p className="text-xs text-gray-400 mt-2 text-center">请填写标题和五点描述</p>
         )}
       </div>
+
+      {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
+
+      {/* ── 结果区 ── */}
+      {result && (
+        <div className="mt-8 space-y-8">
+          {/* 产品洞察 */}
+          {result.analysis && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-5 space-y-4">
+              <h3 className="text-base font-bold text-gray-900">产品洞察</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-xs font-medium text-gray-500">品类</span>
+                  <p className="text-gray-800">{result.analysis.productCategory || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500">品牌</span>
+                  <p className="text-gray-800">{result.analysis.brand || '—'}</p>
+                </div>
+              </div>
+              {Array.isArray(result.analysis.topKeywords) && result.analysis.topKeywords.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1.5 block">高频搜索词（优化依据）</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.analysis.topKeywords.map((kw, i) => (
+                      <span key={i} className="inline-block px-2 py-0.5 rounded-md bg-blue-100 text-blue-700 text-xs">{kw}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {Array.isArray(result.analysis.buyerQuestions) && result.analysis.buyerQuestions.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1.5 block">买家常见问题（Rufus 优化依据）</span>
+                  <ul className="space-y-1">
+                    {result.analysis.buyerQuestions.map((q, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex gap-1.5">
+                        <span className="text-blue-400 shrink-0">Q{i + 1}.</span>
+                        <span>{q}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(result.analysis.buyerPersonas) && result.analysis.buyerPersonas.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1.5 block">目标买家画像（Cosmo 优化依据）</span>
+                  <ul className="space-y-1">
+                    {result.analysis.buyerPersonas.map((p, i) => (
+                      <li key={i} className="text-xs text-gray-700 flex gap-1.5">
+                        <span className="text-blue-400 shrink-0">•</span>
+                        <span>{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {Array.isArray(result.analysis.keySpecs) && result.analysis.keySpecs.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium text-gray-500 mb-1.5 block">关键规格（GEO 优化依据）</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.analysis.keySpecs.map((s, i) => (
+                      <span key={i} className="inline-block px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 诊断报告 */}
+          {result.diagnosis && (() => {
+            const diag = diagLang === 'zh' && result.diagnosisZh ? result.diagnosisZh : result.diagnosis
+            const hasZh = !!result.diagnosisZh
+            const inputLangLabel = result.inputLanguage || '原文'
+            return (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base font-bold text-gray-900">诊断报告</h3>
+                    {hasZh && (
+                      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setDiagLang('original')}
+                          className={`px-2.5 py-1 transition ${diagLang === 'original' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                        >
+                          {inputLangLabel}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDiagLang('zh')}
+                          className={`px-2.5 py-1 transition ${diagLang === 'zh' ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                        >
+                          中文
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">综合评分</span>
+                    {diag.overallScore != null && <ScoreBadge score={diag.overallScore} />}
+                  </div>
+                </div>
+                {diag.summary && (
+                  <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">{diag.summary}</p>
+                )}
+
+                {/* 各项评分 */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: '标题', score: diag.titleScore, issues: diag.titleIssues },
+                    { label: '五点描述', score: diag.bulletsScore, issues: diag.bulletsIssues },
+                    { label: '产品描述', score: diag.descriptionScore, issues: diag.descriptionIssues },
+                    { label: '后台关键词', score: diag.searchTermsScore, issues: diag.searchTermsIssues },
+                  ].map(({ label, score, issues }) => (
+                    <div key={label} className="rounded-lg border border-gray-100 p-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm font-medium text-gray-700">{label}</span>
+                        {score != null && <ScoreBadge score={score} />}
+                      </div>
+                      {Array.isArray(issues) && issues.length > 0 && (
+                        <ul className="space-y-1">
+                          {issues.map((issue, i) => (
+                            <li key={i} className="text-xs text-gray-500 flex gap-1.5">
+                              <span className="text-red-400 shrink-0">•</span>
+                              <span>{issue}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* 合规自检 */}
+                {Array.isArray(diag.complianceFlags) && diag.complianceFlags.length > 0 && (() => {
+                  const isStructured = typeof diag.complianceFlags[0] === 'object'
+                  if (!isStructured) {
+                    return (
+                      <div className="rounded-lg border border-red-100 bg-red-50/50 p-3">
+                        <p className="text-sm font-medium text-red-700 mb-1.5">合规风险</p>
+                        <ul className="space-y-1">
+                          {diag.complianceFlags.map((flag, i) => (
+                            <li key={i} className="text-xs text-red-600 flex gap-1.5">
+                              <span className="shrink-0">⚠</span>
+                              <span>{typeof flag === 'string' ? flag : JSON.stringify(flag)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  }
+                  const errors = diag.complianceFlags.filter(f => f.level === 'error')
+                  const warnings = diag.complianceFlags.filter(f => f.level === 'warning')
+                  const infos = diag.complianceFlags.filter(f => f.level === 'info')
+                  const groups = [
+                    { items: errors, label: '必须修改', border: 'border-red-200', bg: 'bg-red-50/60', badge: 'bg-red-100 text-red-700', text: 'text-red-700', icon: '✕' },
+                    { items: warnings, label: '建议修改', border: 'border-yellow-200', bg: 'bg-yellow-50/60', badge: 'bg-yellow-100 text-yellow-700', text: 'text-yellow-700', icon: '⚠' },
+                    { items: infos, label: '优化建议', border: 'border-gray-200', bg: 'bg-gray-50/60', badge: 'bg-gray-100 text-gray-600', text: 'text-gray-600', icon: 'ⓘ' },
+                  ]
+                  return (
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium text-gray-900">合规自检 <span className="text-xs font-normal text-gray-500 ml-1">共 {diag.complianceFlags.length} 项</span></p>
+                      {groups.map(({ items, label, border, bg, badge, text, icon }) => items.length > 0 && (
+                        <div key={label} className={`rounded-lg border ${border} ${bg} p-3 space-y-2`}>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${badge}`}>{icon} {label}</span>
+                            <span className="text-xs text-gray-400">{items.length} 项</span>
+                          </div>
+                          {items.map((f, i) => (
+                            <div key={i} className="text-xs space-y-0.5 pl-1">
+                              <div className={`font-medium ${text}`}>
+                                {f.location && <span className="text-gray-500 font-normal mr-1">[{f.location}]</span>}
+                                {f.category && <span className="mr-1">{f.category}：</span>}
+                                {f.text}
+                              </div>
+                              {f.suggestion && <p className="text-gray-500 pl-2">→ {f.suggestion}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            )
+          })()}
+
+          {/* 优化后版本 + A/B 变体 */}
+          {result.optimized && (() => {
+            const allVersions = [
+              { ...result.optimized, style: '优化版本', styleDescription: '基于诊断结果的深度优化' },
+              ...variants,
+            ]
+            const current = allVersions[activeTab] || allVersions[0]
+            const copyAll = (v) => {
+              const lines = [
+                `标题：\n${v.title}`,
+                `\n五点描述：\n${(v.bullets || []).map((b, i) => `${i + 1}. ${b}`).join('\n')}`,
+                v.description ? `\n产品描述：\n${v.description}` : '',
+                v.searchTerms ? `\n后台关键词：\n${v.searchTerms}` : '',
+              ].filter(Boolean).join('\n')
+              copyToClipboard(lines)
+            }
+            return (
+              <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base font-bold text-gray-900">{variants.length > 0 ? '文案版本' : '优化后版本'}</h3>
+                    {variants.length > 0 && (
+                      <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                        {allVersions.map((v, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setActiveTab(i)}
+                            className={`px-2.5 py-1 transition whitespace-nowrap ${activeTab === i ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                          >
+                            {i === 0 ? '优化版' : `变体 ${String.fromCharCode(65 + i)}`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => copyAll(current)} className="text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1">一键复制全部</button>
+                </div>
+
+                {current.style && variants.length > 0 && (
+                  <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                    <span className="font-medium text-gray-700">{current.style}</span>
+                    {current.styleDescription && <span className="ml-1.5">— {current.styleDescription}</span>}
+                  </p>
+                )}
+
+                <CopyBlock label={`标题 (${(current.title || '').length}/200 字符)`} text={current.title} onCopy={copyToClipboard} />
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">五点描述</label>
+                  <ol className="space-y-2">
+                    {(current.bullets || []).map((b, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-800">
+                        <span className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 mt-0.5">{i + 1}</span>
+                        <p className="flex-1 whitespace-pre-wrap break-words">{b}</p>
+                        <button type="button" onClick={() => copyToClipboard(b)} className="text-xs text-gray-500 hover:text-gray-900 shrink-0">复制</button>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <CopyBlock label="产品描述" text={current.description} onCopy={copyToClipboard} markdown />
+                <CopyBlock label="后台关键词" text={current.searchTerms} onCopy={copyToClipboard} />
+              </div>
+            )
+          })()}
+
+          {/* A/B 变体按钮 + 重新优化 */}
+          <div className="flex items-center justify-center gap-4">
+            {result.optimized && (
+              <button
+                type="button"
+                onClick={handleGenerateVariants}
+                disabled={variantsLoading || loading}
+                className={`text-sm px-4 py-2 rounded-xl font-medium transition ${
+                  variantsLoading ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {variantsLoading ? '正在生成变体…' : variants.length > 0 ? '重新生成变体' : '生成 A/B 变体'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleOptimize}
+              disabled={loading}
+              className="text-sm text-gray-500 hover:text-gray-900 underline"
+            >
+              {loading ? '优化中…' : '重新优化'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 竞品对比表单 ──────────────────────────────────────────────────────────────
+function CompetitorForm() {
+  const { getToken } = useAuth()
+  const [myListing, setMyListing] = useState({ title: '', bullets: '', description: '' })
+  const [competitors, setCompetitors] = useState([{ title: '', bullets: '', description: '' }])
+  const [market, setMarket] = useState('us')
+  const [lang, setLang] = useState('zh')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+  const [smartPasteTarget, setSmartPasteTarget] = useState(null)
+  const [smartPasteText, setSmartPasteText] = useState('')
+  const [smartPasteLoading, setSmartPasteLoading] = useState(false)
+
+  const canSubmit = myListing.title.trim() && competitors[0]?.title?.trim()
+
+  const handleSmartPaste = async () => {
+    const token = getToken()
+    if (!token || !smartPasteText.trim() || smartPasteText.trim().length < 20) return
+    setSmartPasteLoading(true); setError('')
+    try {
+      const res = await fetch('/api/ai-assistant/smart-paste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: smartPasteText, platform: 'amazon' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '识别失败')
+      const filled = {
+        title: data.title || '',
+        bullets: data.bullets?.length ? data.bullets.join('\n') : '',
+        description: data.description || '',
+      }
+      if (smartPasteTarget === 'my') {
+        setMyListing(p => ({ ...p, ...filled }))
+      } else if (typeof smartPasteTarget === 'number') {
+        setCompetitors(prev => prev.map((c, i) => i === smartPasteTarget ? { ...c, ...filled } : c))
+      }
+      setSmartPasteTarget(null); setSmartPasteText('')
+    } catch (e) { setError(e.message || '智能识别失败') }
+    finally { setSmartPasteLoading(false) }
+  }
+
+  const handleCompare = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    setLoading(true); setError(''); setResult(null)
+    try {
+      const res = await fetch('/api/ai-assistant/amazon/competitor-compare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ myListing, competitors: competitors.filter(c => c.title.trim()), market, lang }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '分析失败')
+      setResult(data)
+    } catch (e) { setError(e.message || '分析失败') }
+    finally { setLoading(false) }
+  }
+
+  const addCompetitor = () => { if (competitors.length < 3) setCompetitors(prev => [...prev, { title: '', bullets: '', description: '' }]) }
+  const updateCompetitor = (idx, field, val) => setCompetitors(prev => prev.map((c, i) => i === idx ? { ...c, [field]: val } : c))
+
+  const SmartPasteInline = ({ target, label }) => (
+    <div className="mt-2">
+      {smartPasteTarget === target ? (
+        <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
+          <textarea value={smartPasteText} onChange={e => setSmartPasteText(e.target.value)} rows={5}
+            placeholder={`在亚马逊商品页面上按 Ctrl+A 全选 → Ctrl+C 复制 → 粘贴到这里`}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none"
+            disabled={smartPasteLoading} />
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={handleSmartPaste} disabled={smartPasteLoading || !smartPasteText.trim()}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${smartPasteText.trim() && !smartPasteLoading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+              {smartPasteLoading ? '识别中…' : '智能识别'}
+            </button>
+            <button type="button" onClick={() => { setSmartPasteTarget(null); setSmartPasteText('') }} className="text-xs text-gray-500 hover:text-gray-900">取消</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => { setSmartPasteTarget(target); setSmartPasteText('') }}
+          className="text-xs text-gray-400 hover:text-gray-700 flex items-center gap-1" disabled={loading}>
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+          智能粘贴{label}
+        </button>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      {/* 我的 Listing */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+        <h4 className="text-sm font-semibold text-gray-900">我的 Listing</h4>
+        <SmartPasteInline target="my" label="" />
+        <input value={myListing.title} onChange={e => setMyListing(p => ({ ...p, title: e.target.value }))} placeholder="粘贴你的标题 *" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+        <textarea value={myListing.bullets} onChange={e => setMyListing(p => ({ ...p, bullets: e.target.value }))} rows={4} placeholder="粘贴你的五点描述（可选）" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+        <textarea value={myListing.description} onChange={e => setMyListing(p => ({ ...p, description: e.target.value }))} rows={3} placeholder="粘贴你的描述（可选）" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+      </div>
+
+      {/* 竞品 */}
+      {competitors.map((c, idx) => (
+        <div key={idx} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+          <h4 className="text-sm font-semibold text-gray-900">竞品 {idx + 1}</h4>
+          <SmartPasteInline target={idx} label={` · 竞品 ${idx + 1}`} />
+          <input value={c.title} onChange={e => updateCompetitor(idx, 'title', e.target.value)} placeholder="粘贴竞品标题 *" disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+          <textarea value={c.bullets} onChange={e => updateCompetitor(idx, 'bullets', e.target.value)} rows={4} placeholder="粘贴竞品五点描述（可选）" disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+        </div>
+      ))}
+      {competitors.length < 3 && (
+        <button type="button" onClick={addCompetitor} className="text-xs text-gray-500 hover:text-gray-900">+ 添加竞品（最多 3 个）</button>
+      )}
+
+      {/* 设置 */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">目标市场</label>
+          <select value={market} onChange={e => setMarket(e.target.value)} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+            {markets.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">输出语言</label>
+          <select value={lang} onChange={e => setLang(e.target.value)} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+            <option value="zh">中文</option><option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <button disabled={!canSubmit || loading} onClick={handleCompare}
+        className={`w-full py-3 rounded-xl text-sm font-semibold transition ${canSubmit && !loading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+        {loading ? '正在分析竞品…' : '开始对比分析'}
+      </button>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
+      {/* 结果 */}
+      {result && (
+        <div className="mt-6 space-y-6">
+          {/* 关键词差异 */}
+          {result.keywordGap && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <h3 className="text-base font-bold text-gray-900">关键词差异</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs font-medium text-green-600 mb-1.5">我的优势词</p>
+                  <div className="flex flex-wrap gap-1">{(result.keywordGap.myAdvantage || []).map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs">{k}</span>)}</div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-orange-600 mb-1.5">待补充词</p>
+                  <div className="flex flex-wrap gap-1">{(result.keywordGap.myOpportunity || []).map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 text-xs">{k}</span>)}</div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">共有词</p>
+                  <div className="flex flex-wrap gap-1">{(result.keywordGap.shared || []).map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 text-xs">{k}</span>)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 卖点矩阵 */}
+          {Array.isArray(result.sellingPointMatrix) && result.sellingPointMatrix.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <h3 className="text-base font-bold text-gray-900">卖点矩阵</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead><tr className="border-b border-gray-200">
+                    <th className="text-left py-2 pr-3 font-medium text-gray-500">卖点</th>
+                    <th className="py-2 px-2 font-medium text-gray-500">我</th>
+                    {competitors.filter(c => c.title.trim()).map((_, i) => <th key={i} className="py-2 px-2 font-medium text-gray-500">竞品{i + 1}</th>)}
+                  </tr></thead>
+                  <tbody>{result.sellingPointMatrix.map((row, i) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      <td className="py-1.5 pr-3 text-gray-700">{row.feature}</td>
+                      <td className="py-1.5 px-2 text-center">{row.mine ? <span className="text-green-500">✓</span> : <span className="text-gray-300">—</span>}</td>
+                      {(row.competitors || []).map((v, j) => <td key={j} className="py-1.5 px-2 text-center">{v ? <span className="text-blue-500">✓</span> : <span className="text-gray-300">—</span>}</td>)}
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 标题 & 五点分析 */}
+          {(result.titleAnalysis || result.bulletAnalysis) && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+              <h3 className="text-base font-bold text-gray-900">策略分析</h3>
+              {result.titleAnalysis && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-gray-700">标题</p>
+                  <p className="text-xs text-green-600">优势：{result.titleAnalysis.myStrength}</p>
+                  <p className="text-xs text-orange-600">不足：{result.titleAnalysis.myWeakness}</p>
+                  <p className="text-xs text-gray-600">建议：{result.titleAnalysis.bestPractice}</p>
+                </div>
+              )}
+              {result.bulletAnalysis && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-gray-700">五点描述</p>
+                  <p className="text-xs text-green-600">优势：{result.bulletAnalysis.myStrength}</p>
+                  {(result.bulletAnalysis.gaps || []).length > 0 && <p className="text-xs text-orange-600">缺口：{result.bulletAnalysis.gaps.join('；')}</p>}
+                  {(result.bulletAnalysis.competitorTactics || []).length > 0 && <p className="text-xs text-gray-600">可借鉴：{result.bulletAnalysis.competitorTactics.join('；')}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 行动计划 */}
+          {Array.isArray(result.actionPlan) && result.actionPlan.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <h3 className="text-base font-bold text-gray-900">行动计划</h3>
+              <ol className="space-y-2">
+                {result.actionPlan.map((a, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-gray-900 text-white flex items-center justify-center text-xs mt-0.5">{a.priority || i + 1}</span>
+                    <div>
+                      <p className="text-sm text-gray-800 font-medium">{a.action}</p>
+                      <p className="text-xs text-gray-500">{a.reason}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 关键词研究表单 ────────────────────────────────────────────────────────────
+function KeywordResearchForm() {
+  const { getToken } = useAuth()
+  const [productName, setProductName] = useState('')
+  const [category, setCategory] = useState('')
+  const [market, setMarket] = useState('us')
+  const [lang, setLang] = useState('zh')
+  const [existingKeywords, setExistingKeywords] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text).catch(() => {}) }
+
+  const handleResearch = async () => {
+    const token = getToken()
+    if (!token) { setError('请先登录'); return }
+    if (!productName.trim()) return
+    setLoading(true); setError(''); setResult(null)
+    try {
+      const res = await fetch('/api/ai-assistant/amazon/keyword-research', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ productName, category, market, lang, existingKeywords }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '研究失败')
+      setResult(data)
+    } catch (e) { setError(e.message || '研究失败') }
+    finally { setLoading(false) }
+  }
+
+  const copyAllKeywords = () => {
+    if (!result) return
+    const parts = []
+    if (result.coreTerms?.length) parts.push(`核心词：${result.coreTerms.map(t => t.term || t).join(', ')}`)
+    if (result.longTailGroups?.length) {
+      result.longTailGroups.forEach(g => { parts.push(`\n${g.group}：${(g.keywords || []).join(', ')}`) })
+    }
+    if (result.backendSuggestions?.length) parts.push(`\n后台关键词建议：${result.backendSuggestions.join(' ')}`)
+    copyToClipboard(parts.join('\n'))
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">产品名称 <span className="text-red-500">*</span></label>
+        <input value={productName} onChange={e => setProductName(e.target.value)} placeholder="如：不锈钢保温杯、瑜伽垫、蓝牙耳机" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">产品类目 <span className="text-gray-400 font-normal text-xs ml-1">可选</span></label>
+        <input value={category} onChange={e => setCategory(e.target.value)} placeholder="如：Kitchen > Water Bottles" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">已有关键词 <span className="text-gray-400 font-normal text-xs ml-1">可选，AI 会做差异分析</span></label>
+        <textarea value={existingKeywords} onChange={e => setExistingKeywords(e.target.value)} rows={2} placeholder="粘贴你目前使用的关键词（可选）" disabled={loading}
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">目标市场</label>
+          <select value={market} onChange={e => setMarket(e.target.value)} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+            {markets.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">输出语言</label>
+          <select value={lang} onChange={e => setLang(e.target.value)} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white">
+            <option value="zh">中文</option><option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <button disabled={!productName.trim() || loading} onClick={handleResearch}
+        className={`w-full py-3 rounded-xl text-sm font-semibold transition ${productName.trim() && !loading ? 'bg-gray-900 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+        {loading ? '正在研究关键词…' : '开始关键词研究'}
+      </button>
+
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
+      {result && (
+        <div className="mt-6 space-y-6">
+          {/* 核心词 */}
+          {result.coreTerms?.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-gray-900">核心搜索词</h3>
+                <button type="button" onClick={copyAllKeywords} className="text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1">复制全部关键词</button>
+              </div>
+              <div className="space-y-2">
+                {result.coreTerms.map((t, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-sm font-semibold">{t.term || t}</span>
+                    {t.reasoning && <span className="text-xs text-gray-500">{t.reasoning}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 长尾词分组 */}
+          {result.longTailGroups?.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
+              <h3 className="text-base font-bold text-gray-900">长尾关键词</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {result.longTailGroups.map((g, i) => (
+                  <div key={i} className="rounded-lg border border-gray-100 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-gray-700">{g.icon || ''} {g.group}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(g.keywords || []).map((kw, j) => (
+                        <button key={j} type="button" onClick={() => copyToClipboard(kw)}
+                          className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs hover:bg-blue-100 transition" title="点击复制">{kw}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 后台关键词建议 */}
+          {result.backendSuggestions?.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-gray-900">后台关键词建议</h3>
+                <button type="button" onClick={() => copyToClipboard(result.backendSuggestions.join(' '))} className="text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1">复制</button>
+              </div>
+              <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 break-words">{result.backendSuggestions.join(' ')}</p>
+              <p className="text-xs text-gray-400">以上关键词不与标题/五点重复，可直接粘贴到亚马逊后台 Search Terms</p>
+            </div>
+          )}
+
+          {/* 标题策略 */}
+          {result.titleStrategy && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <h3 className="text-base font-bold text-gray-900">标题排布建议</h3>
+              {result.titleStrategy.priorityKeywords?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">前 80 字符优先词</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.titleStrategy.priorityKeywords.map((kw, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs font-medium">{kw}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {result.titleStrategy.templateSuggestion && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">推荐结构</p>
+                  <p className="text-sm text-gray-800 bg-gray-50 rounded-lg p-2 font-mono">{result.titleStrategy.templateSuggestion}</p>
+                </div>
+              )}
+              {result.titleStrategy.coverageNotes && <p className="text-xs text-gray-500">{result.titleStrategy.coverageNotes}</p>}
+            </div>
+          )}
+
+          {/* 趋势 */}
+          {result.trends && <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">{result.trends}</p>}
+
+          {/* 差异分析 */}
+          {result.gapAnalysis && (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-3">
+              <h3 className="text-base font-bold text-gray-900">现有关键词差异分析</h3>
+              {result.gapAnalysis.missing?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-orange-600 mb-1">建议补充</p>
+                  <div className="flex flex-wrap gap-1">{result.gapAnalysis.missing.map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 text-xs">{k}</span>)}</div>
+                </div>
+              )}
+              {result.gapAnalysis.redundant?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">可精简</p>
+                  <div className="flex flex-wrap gap-1">{result.gapAnalysis.redundant.map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 text-xs line-through">{k}</span>)}</div>
+                </div>
+              )}
+              {result.gapAnalysis.wellCovered?.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-green-600 mb-1">覆盖良好</p>
+                  <div className="flex flex-wrap gap-1">{result.gapAnalysis.wellCovered.map((k, i) => <span key={i} className="px-2 py-0.5 rounded-md bg-green-50 text-green-700 text-xs">{k}</span>)}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -2041,7 +3512,10 @@ export default function AiAssistant() {
                   <div className="max-w-2xl">
                     {platformId === 'amazon' && selectedFeature === 'generate' && <GenerateForm />}
                     {platformId === 'amazon' && selectedFeature === 'optimize' && <OptimizeForm />}
+                    {platformId === 'amazon' && selectedFeature === 'competitor' && <CompetitorForm />}
+                    {platformId === 'amazon' && selectedFeature === 'keywords' && <KeywordResearchForm />}
                     {(platformId === 'ebay' || platformId === 'aliexpress') && selectedFeature === 'generate' && <PlatformGenerateForm key={platformId} platform={platformId} />}
+                    {(platformId === 'ebay' || platformId === 'aliexpress') && selectedFeature === 'optimize' && <PlatformOptimizeForm key={`${platformId}-optimize`} platform={platformId} />}
                   </div>
                 </div>
               )}
