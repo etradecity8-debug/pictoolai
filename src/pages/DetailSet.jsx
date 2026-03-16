@@ -150,7 +150,6 @@ export default function DetailSet() {
   const navigate = useNavigate()
   const { user, getToken, refreshUser } = useAuth()
   const [step, setStep] = useState(1)
-  const [savingToGallery, setSavingToGallery] = useState(null)
   const [productImages, setProductImages] = useState([])
   const [productName, setProductName] = useState('')
   const [sellingPoint1, setSellingPoint1] = useState('')
@@ -834,66 +833,6 @@ export default function DetailSet() {
                             </svg>
                             保存到本地
                           </button>
-                          {!user && (
-                            <button
-                              type="button"
-                              disabled={savingToGallery === img.id}
-                              onClick={async () => {
-                                const token = getToken()
-                                if (!token) {
-                                  setConfirmModal({
-                                    open: true,
-                                    message: '请先登录后再保存到仓库。登录后可在工作台 → 仓库中查看。',
-                                    confirmLabel: '去登录',
-                                    onConfirm: () => {
-                                      setConfirmModal((m) => ({ ...m, open: false }))
-                                      navigate('/login')
-                                    },
-                                  })
-                                  return
-                                }
-                                setSavingToGallery(img.id)
-                                try {
-                                  const res = await fetch('/api/gallery', {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      Authorization: `Bearer ${token}`,
-                                    },
-                                    body: JSON.stringify({ image: img.url, title: img.title }),
-                                  })
-                                  const data = await res.json().catch(() => ({}))
-                                  setSavingToGallery(null)
-                                  if (!res.ok) {
-                                    setConfirmModal({
-                                      open: true,
-                                      message: data.error || '保存失败，请稍后重试',
-                                      onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
-                                    })
-                                    return
-                                  }
-                                  setConfirmModal({
-                                    open: true,
-                                    message: '已保存到仓库，可在工作台 → 仓库中查看',
-                                    onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
-                                  })
-                                } catch {
-                                  setSavingToGallery(null)
-                                  setConfirmModal({
-                                    open: true,
-                                    message: '保存失败，请稍后重试',
-                                    onConfirm: () => setConfirmModal((m) => ({ ...m, open: false })),
-                                  })
-                                }
-                              }}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                            >
-                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                              </svg>
-                              {savingToGallery === img.id ? '保存中…' : '保存到仓库'}
-                            </button>
-                          )}
                         </div>
                       )}
                     </div>

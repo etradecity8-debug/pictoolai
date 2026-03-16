@@ -42,7 +42,7 @@
 | 风格复刻 | AI美工 → 风格复刻 | 上传参考设计图（最多 14 张）+ 产品素材图 → 两阶段（分析风格 → 生图），`POST /api/style-clone`，路由 `/ai-designer/style-clone` |
 | 亚马逊 A+ | A+ 页面 | 4 步：填写信息 → 确认文案 → 生成 4 张图 → 查看结果，`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate` |
 | 亚马逊 Listing | 电商AI运营助手 → 亚马逊 | Step1 分析 → Step2 标题/五点/描述/关键词 → Step3 主图 → Step4 A+ 文案与图，详见 `ECOMMERCE-AI-ASSISTANT.md` |
-| 仓库 | 侧栏「仓库」 | 按日期分组，多选、批量保存到本地、批量删除；SQLite + `server/gallery/` |
+| 仓库 | 侧栏「仓库」 | 生图成功即**自动入仓**；图片旁仅「保存到本地」便于快速存图（全站一致）。按日期分组，多选、批量保存到本地、批量删除；SQLite + `server/gallery/` |
 
 ---
 

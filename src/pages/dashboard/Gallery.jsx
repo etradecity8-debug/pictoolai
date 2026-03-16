@@ -44,6 +44,7 @@ export default function Gallery() {
   const [error, setError] = useState('')
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
+  const [loadErrors, setLoadErrors] = useState({}) // 某 id 拉图失败时为 true，用于显示「加载失败」与重试
   const blobUrlsRef = useRef({})
 
   const fetchList = useCallback(() => {
@@ -75,6 +76,11 @@ export default function Gallery() {
   useEffect(() => {
     const token = getToken()
     if (!token || items.length === 0) return
+    setLoadErrors((prev) => {
+      const next = { ...prev }
+      items.forEach((i) => delete next[i.id])
+      return next
+    })
     const controller = new AbortController()
     blobUrlsRef.current = {}
     const absoluteUpdates = {}
@@ -85,13 +91,19 @@ export default function Gallery() {
         return
       }
       fetch(item.url, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal })
-        .then((r) => r.blob())
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.blob()
+        })
         .then((blob) => {
           const url = URL.createObjectURL(blob)
           blobUrlsRef.current[item.id] = url
           setBlobUrls((prev) => ({ ...prev, [item.id]: url }))
         })
-        .catch(() => {})
+        .catch((e) => {
+          console.error('[仓库] 拉图失败', item.id, item.url, e?.message || e)
+          setLoadErrors((prev) => ({ ...prev, [item.id]: true }))
+        })
     })
     if (Object.keys(absoluteUpdates).length) setBlobUrls((prev) => ({ ...prev, ...absoluteUpdates }))
     return () => {
@@ -100,6 +112,33 @@ export default function Gallery() {
       blobUrlsRef.current = {}
     }
   }, [items, getToken])
+
+  const retryLoad = useCallback(
+    (item) => {
+      const token = getToken()
+      if (!token || typeof item.url !== 'string' || item.url.startsWith('http')) return
+      setLoadErrors((prev) => {
+        const next = { ...prev }
+        delete next[item.id]
+        return next
+      })
+      fetch(item.url, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.blob()
+        })
+        .then((blob) => {
+          const url = URL.createObjectURL(blob)
+          blobUrlsRef.current[item.id] = url
+          setBlobUrls((prev) => ({ ...prev, [item.id]: url }))
+        })
+        .catch((e) => {
+          console.error('[仓库] 重试拉图失败', item.id, e?.message || e)
+          setLoadErrors((prev) => ({ ...prev, [item.id]: true }))
+        })
+    },
+    [getToken]
+  )
 
   const removeFromGallery = (id) => {
     const token = getToken()
@@ -258,7 +297,7 @@ export default function Gallery() {
       {items.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-gray-300 bg-gray-50/50 py-16 text-center">
           <p className="text-gray-500">暂无已保存的图片</p>
-          <p className="mt-1 text-sm text-gray-400">在全品类组图生成完成后，图片将自动保存到仓库</p>
+          <p className="mt-1 text-sm text-gray-400">生图成功后，图片将自动保存到仓库</p>
         </div>
       ) : (
         <>
@@ -327,6 +366,17 @@ export default function Gallery() {
                               className="w-full h-full object-contain"
                             />
                           </button>
+                        ) : loadErrors[item.id] ? (
+                          <div className="w-full aspect-square bg-gray-200 flex flex-col items-center justify-center gap-2 text-gray-500 text-sm p-2">
+                            <span>加载失败</span>
+                            <button
+                              type="button"
+                              onClick={() => retryLoad(item)}
+                              className="text-primary hover:underline"
+                            >
+                              点击重试
+                            </button>
+                          </div>
                         ) : (
                           <div className="w-full aspect-square bg-gray-200 flex items-center justify-center text-gray-400 text-sm">
                             加载中…
