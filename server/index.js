@@ -1008,12 +1008,15 @@ app.post('/api/image-edit', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription, expansionRatio, materialPrompt } = req.body
+    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription, expansionRatio, materialPrompt, surface, targetWeight, targetHeight } = req.body
     // recolor / smart-expansion / product-refinement 用内置 prompt，其他模式需要 prompt
     const isRecolor = mode === 'recolor'
     const isSmartExpansion = mode === 'smart-expansion'
     const isProductRefinement = mode === 'product-refinement'
-    if (!isRecolor && !isSmartExpansion && !isProductRefinement && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    const isClothing3D = mode === 'clothing-3d'
+    const isClothingFlatlay = mode === 'clothing-flatlay'
+    const isBodyShape = mode === 'body-shape'
+    if (!isRecolor && !isSmartExpansion && !isProductRefinement && !isClothing3D && !isClothingFlatlay && !isBodyShape && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
     if (isRecolor && (!targetColor || typeof targetColor !== 'string')) return res.status(400).json({ error: '请选择目标颜色' })
     if (isRecolor && (!textDescription || typeof textDescription !== 'string' || !textDescription.trim())) return res.status(400).json({ error: '请描述要换色的物体' })
     if (isSmartExpansion && (!expansionRatio || ![1.1, 1.2, 1.5, 2].includes(Number(expansionRatio)))) return res.status(400).json({ error: '请选择扩图比例' })
@@ -1024,7 +1027,7 @@ app.post('/api/image-edit', async (req, res) => {
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
     // 局部重绘 / 局部消除 / 一键换色 / 智能扩图 / 提升质感：从输入图推断比例与清晰度，保留原图
-    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement'
+    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape'
     let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
     if (preserveFromInput) {
       try {
@@ -1046,12 +1049,12 @@ app.post('/api/image-edit', async (req, res) => {
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
         modelId = isProductRefinement
           ? getImageModelId(productRefinementModel)
-          : (isSmartExpansion || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
+          : (isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
       } catch (e) {
         aspectRatioVal = '1:1'
         resolvedClarity = '1K 标准'
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
-        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : (isSmartExpansion ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
+        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : ((isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
       }
       imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
     } else {
@@ -1147,12 +1150,115 @@ OUTPUT: Ultra-high detail, extreme realism, withstands 4K magnification. CRITICA
       const materialTransform = `CRITICAL: The subject MUST appear as clean, premium ${userMaterial}. REPLACE the current surface entirely — remove any rust, dirt, grime, wear, or aging from the input. The result must look like a factory-new product with pristine ${userMaterial} finish.`
       refinementPrompt = `${refinementPrompt} ${materialTransform}${plasticBoost} Apply macro-photography style and material-appropriate lighting. Ensure the texture matches ${userMaterial} seamlessly. CRITICAL: Do NOT alter the background or framing — preserve the input's exact composition, crop, and proportion.`
     }
+    const clothing3DPrompt = `You are a top e-commerce fashion product photographer. Transform this flat-lay garment image into a realistic 3D clothing product photo.
+
+[DESIGN PRESERVATION — HIGHEST PRIORITY]
+Strictly preserve the garment's EXACT original design: colors, prints, patterns, stripes, logos, graphics, text, embroidery, stitching details. Nothing may be altered, simplified, or omitted. Warp these elements naturally to follow the 3D body contours.
+
+[3D FORM]
+Make the garment look as if worn on an invisible person (ghost mannequin effect):
+- Shoulders must show realistic rounded contours with natural volume
+- Chest/torso must display three-dimensional depth and body shape
+- Sleeves must be round, open, and naturally inflated — NOT flat or pressed
+- Collar/neckline must hold its natural shape as if on a real neck
+- The garment should NOT look flat or laid out — it must have clear volume and weight
+- Match the SAME viewing angle as the input image (typically front view)
+
+[FABRIC REALISM]
+Add natural, subtle fabric behavior matching the material type:
+- Soft fabrics (cotton, jersey): gentle draping, small natural creases at fold points
+- Stiff fabrics (denim, canvas): structured form with minimal creasing
+- Knit fabrics: visible stretch texture following the body shape
+- Do NOT over-wrinkle; keep it clean and commercial
+
+[LIGHTING & SHADOW]
+Professional e-commerce studio lighting:
+- Soft, even main light from slightly above
+- Gentle fill light to reduce harsh shadows
+- Subtle rim/edge light to separate garment from background and enhance 3D depth
+- Natural shadow underneath and at fold areas to reinforce volume
+
+[BACKGROUND]
+Clean, pure light gray background (#F0F0F0 to #E8E8E8). No gradients, no patterns, no floor reflections.${prompt ? `
+
+[ADDITIONAL INSTRUCTIONS]
+${prompt.trim()}` : ''}
+
+[OUTPUT]
+Photorealistic, commercial-quality e-commerce product photo. No visible mannequin, body, or skin. No added text, watermarks, or logos. The garment floats in perfect 3D form.`
+
+    const surfaceLabel = typeof surface === 'string' ? surface.trim() : ''
+    const clothingFlatlayPrompt = `You are a professional fashion flat-lay photographer specializing in Knolling-style product photography.
+
+[TASK]
+Lay this garment flat on ${surfaceLabel || 'a clean wooden table'} and create a premium flat-lay (top-down / bird's-eye view) product photo with carefully arranged accessories.
+
+[GARMENT PRESERVATION — HIGHEST PRIORITY]
+- Strictly preserve the garment's EXACT original design: colors, prints, patterns, stripes, logos, graphics, text, embroidery, buttons, zippers — NOTHING may be altered, simplified, or omitted
+- Keep the garment's original laying orientation and shape — do NOT rotate, flip, or reshape it
+- The garment must be neatly spread out flat, centered in the frame, with no bunching or excessive wrinkling
+
+[SURFACE & BACKGROUND]
+- Surface: ${surfaceLabel || 'natural wooden table'}
+- The surface must look realistic with authentic texture (wood grain, fabric weave, marble veining, etc.)
+- The garment rests naturally on this surface — show realistic contact shadows
+- Create a cozy, minimal, premium atmosphere
+
+[ACCESSORIES — KNOLLING STYLE]
+- Place a small number of complementary accessories around the garment (3-5 items max)
+- Choose accessories that match the garment's style: e.g. sunglasses, watch, wallet, jewelry, shoes, hat, bag, perfume bottle, phone, coffee cup, plant sprig, book
+- KNOLLING RULES: each item placed at clean parallel/perpendicular angles, evenly spaced, maintaining clear distance from the garment
+- Each accessory type appears ONLY ONCE — no duplicates
+- Accessories should complement, not overpower — the garment remains the clear hero
+
+[PHOTOGRAPHY]
+- Camera angle: perfectly top-down (flat lay / bird's-eye view), 90° overhead
+- No perspective distortion — everything should appear flat and parallel to the camera sensor
+- Even, soft, diffused lighting — NO harsh shadows, NO dramatic lighting effects
+- High-end commercial quality, clean and minimal composition${prompt ? `
+
+[ADDITIONAL INSTRUCTIONS]
+${prompt.trim()}` : ''}
+
+[OUTPUT]
+Photorealistic, editorial-quality flat-lay photo. Premium feel, comfortable and minimal aesthetic. No text, watermarks, or logos added. No hands or body parts visible.`
+
+    const weightKg = Number(targetWeight) || 0
+    const heightCm = Number(targetHeight) || 170
+    const bmi = weightKg > 0 ? (weightKg / ((heightCm / 100) ** 2)).toFixed(1) : 0
+    let bodyDesc = ''
+    if (weightKg > 0) {
+      if (bmi < 18.5) bodyDesc = `VERY SLIM body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Make the person visibly thin: narrow shoulders, slender arms, thin legs, flat stomach, slim waist, angular jawline, visible collarbones.`
+      else if (bmi < 22) bodyDesc = `SLIM ATHLETIC body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Lean and toned: moderate shoulders, slim arms, defined waist, slim legs, slightly angular face.`
+      else if (bmi < 25) bodyDesc = `AVERAGE body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Normal healthy build: proportionate shoulders, normal arm thickness, moderate waist, oval face.`
+      else if (bmi < 28) bodyDesc = `CURVY/SLIGHTLY OVERWEIGHT body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Noticeably wider: broader shoulders and hips, thicker arms, soft belly, fuller thighs, rounder face with softer jawline.`
+      else if (bmi < 33) bodyDesc = `PLUS-SIZE/OVERWEIGHT body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Significantly wider body: wide shoulders and hips, thick upper arms, prominent belly and midsection, thick thighs, round full face, possible double chin.`
+      else bodyDesc = `OBESE/VERY HEAVY body — ${weightKg}kg/${heightCm}cm (BMI ${bmi}). Very large body: very wide frame, very thick arms and legs, large protruding belly, wide hips, very round face with double chin, skin folds at elbows and neck.`
+    }
+    const bodyShapePrompt = `Edit this photo. Make the person's body ${bodyDesc}
+
+ABSOLUTE RULES — NEVER BREAK THESE:
+1. THE CLOTHING MUST BE 100% IDENTICAL. Same exact dress/shirt/pants, same exact color, same exact pattern, same exact print, same exact fabric. Do NOT change, replace, or redesign the clothing in ANY way. This is the #1 most important rule.
+2. The body MUST visibly change to match the target weight. If the target is heavy, the person must look significantly larger. If the target is slim, the person must look significantly thinner. The change must be OBVIOUS, not subtle.
+3. Keep the exact same background, location, lighting, and atmosphere.
+4. Keep the exact same pose and camera angle.
+5. Keep the same face identity, hairstyle, hair color, and skin tone. Only adjust face fullness to match the body weight.
+6. Keep the same shoes, accessories, and props.${prompt ? `\n7. ${prompt.trim()}` : ''}
+
+The result must look like a real photograph. No distortion artifacts.`
+
     const finalPrompt = isRecolor
       ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
       : isSmartExpansion
       ? expansionPrompt
       : isProductRefinement
       ? refinementPrompt
+      : isClothing3D
+      ? clothing3DPrompt
+      : isClothingFlatlay
+      ? clothingFlatlayPrompt
+      : isBodyShape
+      ? bodyShapePrompt
       : prompt.trim()
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),

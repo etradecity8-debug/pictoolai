@@ -7,6 +7,9 @@ import LocalErase from './ai-designer/LocalErase'
 import OneClickRecolor from './ai-designer/OneClickRecolor'
 import SmartExpansion from './ai-designer/SmartExpansion'
 import ProductRefinement from './ai-designer/ProductRefinement'
+import Clothing3D from './ai-designer/Clothing3D'
+import ClothingFlatlay from './ai-designer/ClothingFlatlay'
+import BodyShape from './ai-designer/BodyShape'
 import StyleClone from './StyleClone'
 import ImageEdit from './ImageEdit'
 
@@ -17,7 +20,7 @@ const iconClass = 'w-4 h-4 shrink-0'
 const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'composition', 'hi-fidelity', 'bring-to-life', 'character-360', 'text-replace', 'text-translate']
 
 const AVAILABLE_IDS = new Set([
-  'local-redraw', 'local-erase', 'one-click-recolor', 'smart-expansion', 'product-refinement',
+  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'smart-expansion', 'product-refinement',
   'style-clone',
   ...IMAGE_EDIT_MODE_IDS,
 ])
@@ -31,7 +34,10 @@ const SIDEBAR_STRUCTURE = [
       { id: 'local-redraw', label: '局部重绘', icon: 'brush' },
       { id: 'local-erase', label: '局部消除', icon: 'eraser' },
       { id: 'one-click-recolor', label: '一键换色', icon: 'recolor' },
-      { id: 'image-crop', label: '图片裁剪', badge: 'NEW', icon: 'crop', available: false },
+      { id: 'clothing-3d', label: '服装3D', badge: 'NEW', icon: 'tshirt' },
+      { id: 'clothing-flatlay', label: '服装平铺', badge: 'NEW', icon: 'flatlay' },
+      { id: 'body-shape', label: '调整身材', badge: 'NEW', icon: 'body' },
+      { id: 'image-crop', label: '图片裁剪', icon: 'crop', available: false },
     ],
   },
   {
@@ -119,6 +125,12 @@ function ItemIcon({ name }) {
     ? 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4l6-6m2 5l3 3m-3 3l-6 6m0-6l6 6'
     : name === 'recolor'
     ? 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+    : name === 'tshirt'
+    ? 'M6.5 3.5L2 7l3 2v10.5h14V9l3-2-4.5-3.5L15 5h-1a2 2 0 01-4 0H9L6.5 3.5z'
+    : name === 'flatlay'
+    ? 'M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm3 3h10M7 12h10M7 16h6'
+    : name === 'body'
+    ? 'M12 2a3 3 0 100 6 3 3 0 000-6zm-4 8a4 4 0 014-4h0a4 4 0 014 4v1a1 1 0 01-1 1h-2l-1 9h-2l-1-9H9a1 1 0 01-1-1v-1z'
     : name === 'crop'
     ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
     : name === 'zoom'
@@ -267,6 +279,12 @@ export default function AiDesigner() {
             <LocalErase />
           ) : pathTool === 'one-click-recolor' ? (
             <OneClickRecolor />
+          ) : pathTool === 'clothing-3d' ? (
+            <Clothing3D />
+          ) : pathTool === 'clothing-flatlay' ? (
+            <ClothingFlatlay />
+          ) : pathTool === 'body-shape' ? (
+            <BodyShape />
           ) : pathTool === 'smart-expansion' ? (
             <SmartExpansion />
           ) : pathTool === 'product-refinement' ? (

@@ -78,12 +78,27 @@
 
 ---
 
+## 今日完成（2026-03-16，续）
+
+### AI 美工 · 三个服装新功能
+
+- **服装3D**（`/ai-designer/clothing-3d`）：上传平铺服装图，一键生成隐形人台立体 3D 展示效果。保持原图视角，肩膀圆润、袖子张开、纯浅灰背景。使用 Nano Banana 2 模型。示例图 `demo-clothing3d-before/after.png`。
+- **服装平铺**（`/ai-designer/clothing-flatlay`）：上传服装图，选择放置表面（木质桌面/毛绒布/白色床单/亚麻布/大理石/水泥/草地/自定义），自动生成 Knolling 风格平铺图（俯视+配饰）。示例图 `demo-flatlay-before/after.png`。
+- **调整身材**（`/ai-designer/body-shape`）：上传模特穿搭图，通过体重滑块（35-150kg）+身高滑块（140-200cm）调整模特身材。6 个快速预设、BMI 实时计算。后端根据 BMI 自动生成 6 级身材描述，服装保持 100% 不变。示例图 `demo-bodyshape-before/after.png`。
+
+### 竞品对比升级 + Listing 输出清洁
+
+- **竞品对比**：从最多 3 个扩展到**最多 5 个**竞品，输入区改为 **Tab 切换**形式（可增删），节省界面空间。
+- **全平台 Listing 输出清除 Markdown**：后端新增 `stripMarkdown` 函数，自动清除 `**粗体**`、`_斜体_` 等 Markdown 格式。覆盖亚马逊/eBay/速卖通的 generate-listing、optimize-listing、generate-variants 所有输出。
+
+---
+
 ## 今日完成（2026-03-16）
 
 ### 亚马逊 Listing 四大新功能
 - **A/B 文案变体**：优化/生成 Listing 结果区新增「生成 A/B 变体」按钮，后端 `POST /api/ai-assistant/amazon/generate-variants` 根据不同策略角度（功能参数型、场景情感型等）生成 2-3 套变体，前端 Tab 切换对比。不扣积分。
 - **合规自检增强**：`optimize-listing` prompt 中合规扫描从 6 类扩展到 9 大类（标题格式、五点格式、描述规则、促销用语、IP/品牌、医疗声明、农药/杀菌、环保声明、其他），每项带 error/warning/info 三级严重度。前端按严重程度分组渲染（红/黄/灰），显示位置、类别、问题文本和修改建议。
-- **竞品对比**：新增功能卡片 + `POST /api/ai-assistant/amazon/competitor-compare` 接口 + `CompetitorForm` 组件。输入自己和 1-3 个竞品 Listing，输出关键词差异（优势词/待补充/共有词）、卖点矩阵表格、标题和五点策略分析、行动计划。不扣积分。
+- **竞品对比**：新增功能卡片 + `POST /api/ai-assistant/amazon/competitor-compare` 接口 + `CompetitorForm` 组件。输入自己和 1-5 个竞品 Listing（Tab 切换输入，可增删），输出关键词差异（优势词/待补充/共有词）、卖点矩阵表格、标题和五点策略分析、行动计划。不扣积分。
 - **关键词研究**：新增功能卡片 + `POST /api/ai-assistant/amazon/keyword-research` 接口 + `KeywordResearchForm` 组件。输入产品名称，输出核心搜索词、5 类长尾词分组、后台关键词建议、标题排布建议、趋势分析、差异分析（可选）。不扣积分。
 
 ### eBay / 速卖通模块升级

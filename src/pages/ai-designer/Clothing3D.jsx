@@ -1,0 +1,309 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import ImageLightbox from '../../components/ImageLightbox'
+import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
+import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
+import GeneratingOverlay from '../../components/GeneratingOverlay'
+
+function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let w = img.width, h = img.height
+      if (w > maxSize || h > maxSize) {
+        if (w >= h) { h = Math.round((h * maxSize) / w); w = maxSize }
+        else { w = Math.round((w * maxSize) / h); h = maxSize }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      try { resolve(canvas.toDataURL('image/jpeg', quality)) }
+      catch (e) { reject(e) }
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片加载失败')) }
+    img.src = url
+  })
+}
+
+function GalleryThumb({ url, title, token, onClick }) {
+  const [blobUrl, setBlobUrl] = useState(null)
+  useEffect(() => {
+    if (!url) return
+    let revoked = false
+    const isAbsolute = typeof url === 'string' && url.startsWith('http')
+    const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
+    fetch(url, { headers })
+      .then((r) => r.ok ? r.blob() : Promise.reject())
+      .then((blob) => { if (!revoked) setBlobUrl(URL.createObjectURL(blob)) })
+      .catch(() => {})
+    return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl) }
+  }, [url, token])
+  return (
+    <button type="button" onClick={onClick}
+      className="group relative aspect-square overflow-hidden rounded-xl border-2 border-transparent hover:border-gray-800 transition">
+      {blobUrl ? (
+        <img src={blobUrl} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200" />
+      ) : (
+        <div className="h-full w-full bg-gray-100 animate-pulse" />
+      )}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 opacity-0 group-hover:opacity-100 transition">
+        <p className="text-[10px] text-white truncate">{title}</p>
+      </div>
+    </button>
+  )
+}
+
+export default function Clothing3D() {
+  const { getToken, refreshUser } = useAuth()
+  const [image, setImage] = useState(null)
+  const [extraPrompt, setExtraPrompt] = useState('')
+  const [result, setResult] = useState(null)
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState('')
+  const [lightbox, setLightbox] = useState({ open: false, src: null })
+  const [galleryPicker, setGalleryPicker] = useState({ open: false })
+  const [galleryItems, setGalleryItems] = useState([])
+  const [galleryLoading, setGalleryLoading] = useState(false)
+  const [imageDims, setImageDims] = useState({ w: 0, h: 0 })
+
+  useEffect(() => {
+    if (!image?.dataUrl) { setImageDims({ w: 0, h: 0 }); return }
+    const img = new Image()
+    img.onload = () => setImageDims({ w: img.naturalWidth, h: img.naturalHeight })
+    img.onerror = () => setImageDims({ w: 0, h: 0 })
+    img.src = image.dataUrl
+  }, [image?.dataUrl])
+
+  const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
+
+  const openGallery = async () => {
+    setGalleryPicker({ open: true })
+    if (galleryItems.length > 0) return
+    setGalleryLoading(true)
+    try {
+      const token = getToken()
+      if (!token) { setGalleryLoading(false); return }
+      const res = await fetch('/api/gallery', { headers: { Authorization: `Bearer ${token}` } })
+      const data = await res.json().catch(() => ({}))
+      setGalleryItems(data.items || [])
+    } catch (_) {}
+    setGalleryLoading(false)
+  }
+
+  const pickFromGallery = async (item) => {
+    setGalleryPicker({ open: false })
+    try {
+      const token = getToken()
+      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
+      const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
+      const res = await fetch(item.url, { headers })
+      const blob = await res.blob()
+      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
+      const dataUrl = URL.createObjectURL(file)
+      setImage({ file, dataUrl })
+      setResult(null)
+      setError('')
+    } catch (_) {}
+  }
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !file.type.startsWith('image/')) return
+    const dataUrl = URL.createObjectURL(file)
+    setImage({ file, dataUrl })
+    setResult(null)
+    setError('')
+  }
+
+  const handleGenerate = async () => {
+    if (!image) { setError('请先上传服装图片'); return }
+    setError('')
+    setGenerating(true)
+    setResult(null)
+    try {
+      const compressed = await fileToCompressedDataUrl(image.file)
+      const headers = { 'Content-Type': 'application/json' }
+      const token = getToken()
+      if (token) headers.Authorization = `Bearer ${token}`
+      const res = await fetch('/api/image-edit', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          mode: 'clothing-3d',
+          prompt: extraPrompt.trim() || '',
+          images: [compressed],
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || '生成失败')
+      setResult(data.image)
+      if (refreshUser) refreshUser()
+    } catch (e) {
+      setError(e.message || '生成失败，请稍后重试')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleSaveResult = async () => {
+    if (!result) return
+    try {
+      const res = await fetch(result)
+      const blob = await res.blob()
+      await saveBlobWithPicker(blob, '服装3D效果.png')
+    } catch (e) {
+      setError('保存失败')
+    }
+  }
+
+  return (
+    <div className="relative space-y-4 min-h-[240px]">
+      <GeneratingOverlay open={generating} message="3D 转换中..." />
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-gray-900">服装 3D</h1>
+        <p className="mt-1.5 text-base text-gray-600">
+          上传平铺服装图片，一键生成立体 3D 展示效果
+        </p>
+      </div>
+
+      {/* 示例对比 */}
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">原图</p>
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-56 h-56">
+            <img src="/demo-clothing3d-before.png" alt="原图" className="w-full h-full object-cover" />
+          </div>
+        </div>
+        <div className="flex items-center text-primary">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </div>
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">3D 效果</p>
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-56 h-56">
+            <img src="/demo-clothing3d-after.png" alt="3D效果" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+
+      {/* 上传按钮 */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        <label className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium cursor-pointer hover:bg-primary/90 transition">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          上传服装图片
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        </label>
+        {getToken() && (
+          <button type="button" onClick={openGallery}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-primary text-primary text-sm font-medium hover:bg-primary/5 transition">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            从作品库选择
+          </button>
+        )}
+      </div>
+
+      {/* 图库选择弹窗 */}
+      {galleryPicker.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-semibold">从作品库选择</h3>
+              <button type="button" onClick={() => setGalleryPicker({ open: false })} className="text-gray-500 hover:text-gray-700">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              {galleryLoading ? (
+                <p className="text-gray-500">加载中...</p>
+              ) : galleryItems.length === 0 ? (
+                <p className="text-gray-500">图库为空</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-3">
+                  {galleryItems.map((item) => (
+                    <GalleryThumb key={item.id} url={item.url} title={item.title} token={getToken()} onClick={() => pickFromGallery(item)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 预览 & 设置 */}
+      {image && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto space-y-3">
+          <div className="flex items-center gap-4">
+            <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50 shrink-0">
+              <img src={image.dataUrl} alt="原图" className="max-h-[200px] max-w-[280px] object-contain" />
+            </div>
+            <div className="flex-1 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">补充说明（可选）</label>
+                <input type="text" value={extraPrompt} onChange={(e) => setExtraPrompt(e.target.value)}
+                  placeholder="例如：展示侧面角度、增加立体褶皱感"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                <span className="text-xs text-gray-500">本次预计消耗</span>
+                <span className="flex items-center gap-1 text-sm font-semibold text-gray-800">
+                  <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3 3.25a.75.75 0 001.1 0l3-3.25a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
+                  </svg>
+                  {estimatedPoints} 积分
+                </span>
+              </div>
+            </div>
+          </div>
+          <button type="button" onClick={handleGenerate} disabled={generating}
+            className="w-full max-w-xs mx-auto block py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition">
+            {generating ? '转换中...' : '开始 3D 转换'}
+          </button>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+
+      {/* 结果对比 */}
+      {result && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">3D 效果对比</h3>
+          <div className="flex items-start gap-3 flex-wrap">
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[11px] text-gray-400">原图</span>
+              <div className="rounded-lg overflow-hidden border border-gray-200">
+                <img src={image?.dataUrl} alt="原图" className="max-h-[200px] w-auto object-contain" />
+              </div>
+            </div>
+            <div className="flex items-center pt-16 text-gray-400">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[11px] text-gray-400">3D 效果</span>
+              <button type="button" onClick={() => setLightbox({ open: true, src: result })}
+                className="rounded-lg overflow-hidden border border-gray-200 hover:border-gray-400 transition">
+                <img src={result} alt="3D结果" className="max-h-[200px] w-auto object-contain" />
+              </button>
+            </div>
+            <div className="flex items-center pt-16">
+              <button type="button" onClick={handleSaveResult}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 transition">
+                保存到本地
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ImageLightbox open={lightbox.open} src={lightbox.src} alt="3D效果" onClose={() => setLightbox({ open: false, src: null })} />
+    </div>
+  )
+}

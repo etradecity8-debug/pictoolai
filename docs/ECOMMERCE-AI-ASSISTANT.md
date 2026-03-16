@@ -146,7 +146,8 @@
 - **文件**：`src/pages/AiAssistant.jsx`。
 - **流程**：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。
 - **保存与历史**：表 `amazon_listing_snapshots`；侧栏「Listing 历史」入口（`/dashboard/listings`）。
-- **导出 CSV**：实现见 `src/lib/exportAmazonListingCsv.js`。
+- **导出 CSV / JSON**：实现见 `src/lib/exportListingCsv.js`（统一导出，支持亚马逊/eBay/速卖通）。
+- **输出纯文本**：后端 `stripMarkdown` 函数自动清除 AI 返回的 `**粗体**`、`_斜体_` 等 Markdown 格式，确保五点描述和产品描述可直接粘贴到平台后台。
 
 ### 后端接口
 
@@ -301,7 +302,7 @@ CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, N
 
 ## 功能概述
 
-粘贴自己的 Listing 和 1-3 个竞品 Listing，AI 对比关键词覆盖、卖点差异、标题/五点策略，输出行动计划。**不扣积分**。
+粘贴自己的 Listing 和 1-5 个竞品 Listing（Tab 切换输入，可增删），AI 对比关键词覆盖、卖点差异、标题/五点策略，输出行动计划。**不扣积分**。
 
 支持**智能粘贴**：「我的 Listing」和每个竞品块均可使用智能粘贴，一次性粘贴整页内容自动拆分。
 

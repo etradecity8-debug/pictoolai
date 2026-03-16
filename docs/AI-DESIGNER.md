@@ -1,6 +1,6 @@
 # AI 美工完整说明
 
-本文档说明 AI 美工（`/ai-designer`）下**全部功能**：图片编辑（局部重绘、局部消除、一键换色）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换）、**风格复刻**、官方示例（7 种修改图片模式）。
+本文档说明 AI 美工（`/ai-designer`）下**全部功能**：图片编辑（局部重绘、局部消除、一键换色、**服装3D**、**服装平铺**、**调整身材**）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换）、**风格复刻**、官方示例（7 种修改图片模式）。
 
 **路由**：`/ai-designer`、`/ai-designer/:toolId`。侧边栏分为：图片编辑、质量提升、图像修复、抠图工具、**文字修改**（文字替换、语言转换）、**风格复刻**、官方示例。
 
@@ -62,6 +62,76 @@
 - **接口**：`POST /api/image-edit`，`mode: 'recolor'`，`textDescription`，`targetColor`（hex），`images: [dataUrl]`
 - **逻辑**：从输入图推断比例与清晰度；prompt 由 `textDescription` + `targetColor` 构建。
 - **示例图**：`public/recolor-demo-original.png`、`recolor-demo-edited.png`
+
+---
+
+# 第三·A 部分：服装3D
+
+上传平铺/2D 服装图片，一键生成立体 3D 展示效果（隐形人台 / ghost mannequin 效果）。
+
+- **文件**：`src/pages/ai-designer/Clothing3D.jsx`
+- **路由**：`/ai-designer/clothing-3d`
+- **接口**：`POST /api/image-edit`，`mode: 'clothing-3d'`，`images: [dataUrl]`，可选 `prompt`（补充说明）
+- **模型**：Nano Banana 2（自动选择，保留原图比例与清晰度）
+- **prompt 要点**：
+  - 设计保留为最高优先级：颜色、印花、Logo、刺绣等不可更改
+  - 保持原图视角（通常正视图），肩膀圆润、袖子圆润张开、领口自然撑开
+  - 按面料类型（棉/牛仔/针织）给出不同褶皱指导
+  - 专业电商摄影棚灯光（主光+补光+边缘光）
+  - 纯浅灰背景，无渐变
+- **示例图**：`public/demo-clothing3d-before.png`、`demo-clothing3d-after.png`
+
+---
+
+# 第三·B 部分：服装平铺
+
+上传服装图片，自动生成带配饰的精美平铺展示图（Flat lay / Knolling 风格）。
+
+- **文件**：`src/pages/ai-designer/ClothingFlatlay.jsx`
+- **路由**：`/ai-designer/clothing-flatlay`
+- **接口**：`POST /api/image-edit`，`mode: 'clothing-flatlay'`，`images: [dataUrl]`，`surface`（放置表面描述），可选 `prompt`
+- **模型**：Nano Banana 2
+- **放置表面预设**（前端 7 个 + 自定义）：
+
+| 预设 | 英文 prompt |
+|-----|------------|
+| 木质桌面 | warm natural wooden table with visible wood grain texture |
+| 毛绒布面 | soft fluffy plush fabric in off-white/cream |
+| 白色床单 | crisp white cotton bedsheet with subtle wrinkles |
+| 亚麻布面 | natural beige linen fabric with visible weave |
+| 大理石台面 | polished white marble with subtle gray veining |
+| 水泥地面 | smooth light gray concrete floor |
+| 草地 | lush green grass lawn, outdoor picnic style |
+| 自定义 | 用户自由输入 |
+
+- **prompt 要点**：
+  - 服装设计完全保留（最高优先级）
+  - 俯视角度（90° 鸟瞰）
+  - Knolling 风格配饰 3-5 件，平行/垂直摆放，每种仅一次
+  - 真实表面质感 + 舒适简约氛围
+  - 均匀柔和打光，无强烈光影
+- **示例图**：`public/demo-flatlay-before.png`、`demo-flatlay-after.png`
+
+---
+
+# 第三·C 部分：调整身材
+
+上传模特穿搭图，调整模特体重/身材，展示同一服装在不同身材上的效果。
+
+- **文件**：`src/pages/ai-designer/BodyShape.jsx`
+- **路由**：`/ai-designer/body-shape`
+- **接口**：`POST /api/image-edit`，`mode: 'body-shape'`，`images: [dataUrl]`，`targetWeight`（kg），`targetHeight`（cm），可选 `prompt`
+- **模型**：Nano Banana 2
+- **前端交互**：
+  - 6 个快速预设：纤瘦(45kg) / 偏瘦(55kg) / 标准(65kg) / 微胖(80kg) / 丰满(95kg) / 大码(115kg)
+  - 体重滑块 35-150kg，身高滑块 140-200cm
+  - BMI 实时计算与颜色标注（偏瘦/正常/偏胖/肥胖）
+- **prompt 要点**：
+  - 后端根据 BMI 自动生成身材描述（BMI<18.5 纤瘦 → BMI>33 极度肥胖，6 级）
+  - 服装 100% 不变是第一优先级
+  - 身材变化必须明显（OBVIOUS），不能仅是微调
+  - 保持原始姿势、背景、打光、发型、肤色不变
+- **示例图**：`public/demo-bodyshape-before.png`、`demo-bodyshape-after.png`
 
 ---
 
