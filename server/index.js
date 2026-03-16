@@ -264,6 +264,8 @@ function fixNewlinesInJsonStrings(str) {
 }
 
 // 从模型回复中尝试提取 JSON（支持 ```json ... ``` 包裹；取到最后一个 ``` 避免内容里的 ``` 截断）
+const stripMarkdown = (s) => String(s || '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1').replace(/_{1,2}([^_]+)_{1,2}/g, '$1').trim()
+
 function extractAnalyzeJson(text, logError) {
   if (!text || typeof text !== 'string') return null
   const trimmed = text.trim()
@@ -1845,9 +1847,9 @@ Output ONLY valid JSON (no markdown fences). ALL text in ${langLabel}:
     while (Buffer.byteLength(searchTerms, 'utf8') > 250 && searchTerms.length > 0) {
       searchTerms = searchTerms.slice(0, -1)
     }
-    const bullets = Array.isArray(out.bullets) ? out.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+    const bullets = Array.isArray(out.bullets) ? out.bullets.slice(0, 5).map(b => stripMarkdown(b).slice(0, 500)) : []
     while (bullets.length < 5) bullets.push('')
-    const description = String(out.description || '').slice(0, 2000)
+    const description = stripMarkdown(String(out.description || '')).slice(0, 2000)
     console.log('[Amazon Listing] 生成完成 | title length:', title.length)
     return res.json({ title, searchTerms, bullets, description })
   } catch (e) {
@@ -2076,9 +2078,9 @@ Remember: "diagnosis" language MUST match "inputLanguage". "diagnosisZh" is ALWA
     while (Buffer.byteLength(optimizedSearchTerms, 'utf8') > 250 && optimizedSearchTerms.length > 0) {
       optimizedSearchTerms = optimizedSearchTerms.slice(0, -1)
     }
-    const optimizedBullets = Array.isArray(out.optimized.bullets) ? out.optimized.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+    const optimizedBullets = Array.isArray(out.optimized.bullets) ? out.optimized.bullets.slice(0, 5).map(b => stripMarkdown(b).slice(0, 500)) : []
     while (optimizedBullets.length < 5) optimizedBullets.push('')
-    const optimizedDescription = String(out.optimized.description || '').slice(0, 2000)
+    const optimizedDescription = stripMarkdown(String(out.optimized.description || '')).slice(0, 2000)
 
     console.log('[Amazon Listing] 优化完成 | overall score:', out.diagnosis.overallScore, '| inputLang:', out.inputLanguage, '| keywords:', (out.analysis?.topKeywords || []).length)
     return res.json({
@@ -2170,14 +2172,14 @@ Output ONLY valid JSON (no markdown fences). ALL text in ${langLabel}:
       const title = String(v.title || '').replace(forbiddenTitleChars, '').replace(/\s+/g, ' ').trim().slice(0, 200)
       let searchTerms = String(v.searchTerms || '').trim()
       while (Buffer.byteLength(searchTerms, 'utf8') > 250 && searchTerms.length > 0) searchTerms = searchTerms.slice(0, -1)
-      const bullets = Array.isArray(v.bullets) ? v.bullets.slice(0, 5).map(b => String(b).slice(0, 500)) : []
+      const bullets = Array.isArray(v.bullets) ? v.bullets.slice(0, 5).map(b => stripMarkdown(b).slice(0, 500)) : []
       while (bullets.length < 5) bullets.push('')
       return {
         style: v.style || '',
         styleDescription: v.styleDescription || '',
         title,
         bullets,
-        description: String(v.description || '').slice(0, 2000),
+        description: stripMarkdown(String(v.description || '')).slice(0, 2000),
         searchTerms,
       }
     })
@@ -2266,7 +2268,7 @@ app.post('/api/ai-assistant/amazon/competitor-compare', requireAuth, async (req,
     const langLabel = { zh: '中文', en: 'English', de: 'Deutsch', fr: 'Français', ja: '日本語', es: 'Español' }[lang] || 'English'
     const marketLabel = (market || 'us').toUpperCase()
 
-    const competitorBlocks = competitors.slice(0, 3).map((c, i) => `
+    const competitorBlocks = competitors.slice(0, 5).map((c, i) => `
 COMPETITOR ${i + 1}:
 Title: ${c.title || ''}
 Bullets:
@@ -2852,7 +2854,7 @@ Output ONLY valid JSON (no markdown):
     if (!out || !out.title) return res.status(500).json({ error: 'Listing 生成解析失败，请重试' })
     const title = String(out.title || '').replace(/\s+/g, ' ').trim().slice(0, 80)
     const itemSpecifics = Array.isArray(out.itemSpecifics) ? out.itemSpecifics.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
-    const description = String(out.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    const description = stripMarkdown(String(out.description || '').replace(/<[^>]*>/g, '')).slice(0, 5000)
     console.log('[eBay Listing] 生成完成 | title length:', title.length, '| itemSpecifics:', itemSpecifics.length)
     return res.json({ title, itemSpecifics, description })
   } catch (e) {
@@ -3122,7 +3124,7 @@ Output ONLY valid JSON (no markdown fences):
 
     const optimizedTitle = String(out.optimized.title || '').replace(/\s+/g, ' ').trim().slice(0, 80)
     const optimizedSpecs = Array.isArray(out.optimized.itemSpecifics) ? out.optimized.itemSpecifics.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
-    const optimizedDesc = String(out.optimized.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    const optimizedDesc = stripMarkdown(String(out.optimized.description || '').replace(/<[^>]*>/g, '')).slice(0, 5000)
 
     console.log('[eBay Listing] 优化完成 | score:', out.diagnosis?.overallScore, '| compliance:', (out.diagnosis?.complianceFlags || []).length)
     return res.json({
@@ -3269,7 +3271,7 @@ Output ONLY valid JSON (no markdown):
     if (!out || !out.title) return res.status(500).json({ error: 'Listing 生成解析失败，请重试' })
     const title = String(out.title || '').replace(/\s+/g, ' ').trim().slice(0, 128)
     const productAttributes = Array.isArray(out.productAttributes) ? out.productAttributes.slice(0, 30).map(s => ({ name: String(s.name || ''), value: String(s.value || '') })) : []
-    const description = String(out.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    const description = stripMarkdown(String(out.description || '').replace(/<[^>]*>/g, '')).slice(0, 5000)
     console.log('[AliExpress Listing] 生成完成 | title length:', title.length, '| attrs:', productAttributes.length)
     return res.json({ title, productAttributes, description })
   } catch (e) {
@@ -3549,7 +3551,7 @@ Output ONLY valid JSON (no markdown fences):
 
     const optimizedTitle = String(out.optimized.title || '').replace(/\s+/g, ' ').trim().slice(0, 128)
     const optimizedAttrs = Array.isArray(out.optimized.productAttributes) ? out.optimized.productAttributes.slice(0, 30).map(a => ({ name: String(a.name || ''), value: String(a.value || '') })) : []
-    const optimizedDesc = String(out.optimized.description || '').replace(/<[^>]*>/g, '').slice(0, 5000)
+    const optimizedDesc = stripMarkdown(String(out.optimized.description || '').replace(/<[^>]*>/g, '')).slice(0, 5000)
 
     console.log('[AliExpress Listing] 优化完成 | score:', out.diagnosis?.overallScore, '| compliance:', (out.diagnosis?.complianceFlags || []).length)
     return res.json({

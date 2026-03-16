@@ -2940,6 +2940,7 @@ function CompetitorForm() {
   const { getToken } = useAuth()
   const [myListing, setMyListing] = useState({ title: '', bullets: '', description: '' })
   const [competitors, setCompetitors] = useState([{ title: '', bullets: '', description: '' }])
+  const [activeCompTab, setActiveCompTab] = useState(0)
   const [market, setMarket] = useState('us')
   const [lang, setLang] = useState('zh')
   const [loading, setLoading] = useState(false)
@@ -2995,7 +2996,17 @@ function CompetitorForm() {
     finally { setLoading(false) }
   }
 
-  const addCompetitor = () => { if (competitors.length < 3) setCompetitors(prev => [...prev, { title: '', bullets: '', description: '' }]) }
+  const addCompetitor = () => {
+    if (competitors.length < 5) {
+      setCompetitors(prev => [...prev, { title: '', bullets: '', description: '' }])
+      setActiveCompTab(competitors.length)
+    }
+  }
+  const removeCompetitor = (idx) => {
+    if (competitors.length <= 1) return
+    setCompetitors(prev => prev.filter((_, i) => i !== idx))
+    setActiveCompTab(t => t >= idx ? Math.max(0, t - 1) : t)
+  }
   const updateCompetitor = (idx, field, val) => setCompetitors(prev => prev.map((c, i) => i === idx ? { ...c, [field]: val } : c))
 
   const SmartPasteInline = ({ target, label }) => (
@@ -3038,20 +3049,39 @@ function CompetitorForm() {
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
       </div>
 
-      {/* 竞品 */}
-      {competitors.map((c, idx) => (
-        <div key={idx} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
-          <h4 className="text-sm font-semibold text-gray-900">竞品 {idx + 1}</h4>
-          <SmartPasteInline target={idx} label={` · 竞品 ${idx + 1}`} />
-          <input value={c.title} onChange={e => updateCompetitor(idx, 'title', e.target.value)} placeholder="粘贴竞品标题 *" disabled={loading}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
-          <textarea value={c.bullets} onChange={e => updateCompetitor(idx, 'bullets', e.target.value)} rows={4} placeholder="粘贴竞品五点描述（可选）" disabled={loading}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+      {/* 竞品 Tab */}
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="flex items-center border-b border-gray-200 bg-gray-50 px-1 pt-1 gap-0.5 overflow-x-auto">
+          {competitors.map((c, idx) => (
+            <button key={idx} type="button" onClick={() => setActiveCompTab(idx)}
+              className={`relative group flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-lg transition whitespace-nowrap ${activeCompTab === idx ? 'bg-white text-gray-900 border-b-2 border-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}>
+              <span>竞品 {idx + 1}</span>
+              {c.title.trim() && <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />}
+              {competitors.length > 1 && (
+                <span onClick={e => { e.stopPropagation(); removeCompetitor(idx) }}
+                  className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px]">✕</span>
+              )}
+            </button>
+          ))}
+          {competitors.length < 5 && (
+            <button type="button" onClick={addCompetitor} disabled={loading}
+              className="px-2.5 py-2 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-t-lg transition whitespace-nowrap">+ 添加</button>
+          )}
         </div>
-      ))}
-      {competitors.length < 3 && (
-        <button type="button" onClick={addCompetitor} className="text-xs text-gray-500 hover:text-gray-900">+ 添加竞品（最多 3 个）</button>
-      )}
+        <div className="p-4 space-y-3">
+          <SmartPasteInline target={activeCompTab} label={` · 竞品 ${activeCompTab + 1}`} />
+          <input value={competitors[activeCompTab]?.title || ''} onChange={e => updateCompetitor(activeCompTab, 'title', e.target.value)}
+            placeholder={`粘贴竞品 ${activeCompTab + 1} 标题 *`} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white" />
+          <textarea value={competitors[activeCompTab]?.bullets || ''} onChange={e => updateCompetitor(activeCompTab, 'bullets', e.target.value)}
+            rows={4} placeholder={`粘贴竞品 ${activeCompTab + 1} 五点描述（可选）`} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+          <textarea value={competitors[activeCompTab]?.description || ''} onChange={e => updateCompetitor(activeCompTab, 'description', e.target.value)}
+            rows={3} placeholder={`粘贴竞品 ${activeCompTab + 1} 描述（可选）`} disabled={loading}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white resize-none" />
+          <p className="text-[11px] text-gray-400">已填 {competitors.filter(c => c.title.trim()).length}/{competitors.length} 个竞品 · 至少填写 1 个竞品标题即可分析</p>
+        </div>
+      </div>
 
       {/* 设置 */}
       <div className="grid grid-cols-2 gap-4">
