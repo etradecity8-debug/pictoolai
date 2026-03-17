@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
+import GalleryThumb from '../../components/GalleryThumb'
+import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
@@ -25,34 +27,6 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片加载失败')) }
     img.src = url
   })
-}
-
-function GalleryThumb({ url, title, token, onClick }) {
-  const [blobUrl, setBlobUrl] = useState(null)
-  useEffect(() => {
-    if (!url) return
-    let revoked = false
-    const isAbsolute = typeof url === 'string' && url.startsWith('http')
-    const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
-    fetch(url, { headers })
-      .then((r) => r.ok ? r.blob() : Promise.reject())
-      .then((blob) => { if (!revoked) setBlobUrl(URL.createObjectURL(blob)) })
-      .catch(() => {})
-    return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl) }
-  }, [url, token])
-  return (
-    <button type="button" onClick={onClick}
-      className="group relative aspect-square overflow-hidden rounded-xl border-2 border-transparent hover:border-gray-800 transition">
-      {blobUrl ? (
-        <img src={blobUrl} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200" />
-      ) : (
-        <div className="h-full w-full bg-gray-100 animate-pulse" />
-      )}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 opacity-0 group-hover:opacity-100 transition">
-        <p className="text-[10px] text-white truncate">{title}</p>
-      </div>
-    </button>
-  )
 }
 
 const STYLE_PRESETS = [
@@ -90,6 +64,9 @@ export default function SceneGeneration() {
   const [galleryItems, setGalleryItems] = useState([])
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [imageDims, setImageDims] = useState({ w: 0, h: 0 })
+  const [model, setModel] = useState('Nano Banana 2')
+  const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
+  const [clarity, setClarity] = useState('1K 标准')
 
   useEffect(() => {
     if (!image?.dataUrl) { setImageDims({ w: 0, h: 0 }); return }
@@ -164,6 +141,9 @@ export default function SceneGeneration() {
           productName: productName.trim(),
           sceneDescription: sceneDescription.trim(),
           styleDescription: styleText,
+          model,
+          aspectRatio,
+          clarity,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -293,10 +273,14 @@ export default function SceneGeneration() {
             )}
           </div>
 
-          {estimatedPoints > 0 && (
-            <p className="text-xs text-gray-500 text-center">预估消耗 <span className="font-bold text-primary">{estimatedPoints}</span> 积分</p>
-          )}
-
+          <OutputSettings
+            model={model}
+            aspectRatio={aspectRatio}
+            clarity={clarity}
+            onModelChange={setModel}
+            onAspectRatioChange={setAspectRatio}
+            onClarityChange={setClarity}
+          />
           <button type="button" onClick={handleGenerate} disabled={generating}
             className="w-full py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition">
             {generating ? '生成中...' : '生成场景'}

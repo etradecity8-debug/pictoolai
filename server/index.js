@@ -1016,16 +1016,22 @@ app.post('/api/image-edit', async (req, res) => {
     const parsedImages = images.map((img) => parseDataUrl(img)).filter(Boolean)
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
-    // 局部重绘 / 局部消除 / 一键换色 / 智能扩图 / 提升质感：从输入图推断比例与清晰度，保留原图
-    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape' || mode === 'scene-generation'
+    // 若前端传入输出设置（model + aspectRatio + clarity），则统一使用请求参数；否则对「保留原图」类模式从输入图推断
+    const preserveFromInputModes = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape' || mode === 'scene-generation'
+    const useRequestOutput = typeof aspectRatio === 'string' && aspectRatio.trim() && typeof clarity === 'string' && clarity.trim()
     let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
-    if (preserveFromInput) {
+    if (useRequestOutput) {
+      modelId = getImageModelId(modelName || 'Nano Banana 2')
+      const { clarity: c } = normalizeClarityForModel(modelName || 'Nano Banana 2', clarity || '1K 标准')
+      resolvedClarity = c
+      imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
+      aspectRatioVal = String(ASPECT_RATIO_MAP[aspectRatio] || '1:1')
+    } else if (preserveFromInputModes) {
       try {
         const buf = Buffer.from(parsedImages[0].data, 'base64')
         const dim = imageSize(buf)
         let w = dim?.width || 0, h = dim?.height || 0
         aspectRatioVal = getAspectRatioFromDimensions(w, h)
-        // 智能扩图：按扩图比例放大目标尺寸以选择清晰度；1.5x/2x 至少用 2K 确保输出明显更大
         if (isSmartExpansion) {
           const ratio = Number(expansionRatio) || 1.5
           w = Math.round(w * ratio)
@@ -1035,7 +1041,6 @@ app.post('/api/image-edit', async (req, res) => {
         } else {
           resolvedClarity = getClarityFromDimensions(w, h)
         }
-        // 大图用 3.1 支持 2K/4K，小图用 2.5；智能扩图用 Nano Banana 2；提升质感由用户选择 Pro 或 2
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
         modelId = isProductRefinement
           ? getImageModelId(productRefinementModel)
@@ -1058,11 +1063,9 @@ app.post('/api/image-edit', async (req, res) => {
     const imageConfig = is25Image
       ? { aspectRatio: aspectRatioVal }
       : { aspectRatio: aspectRatioVal, imageSize: String(imageSizeVal) }
-    const modelDisplayName = preserveFromInput
-      ? (modelId.includes('pro') ? 'Nano Banana Pro' : modelId.includes('3.1') ? 'Nano Banana 2' : 'Nano Banana')
-      : (modelName || 'Nano Banana 2')
+    const modelDisplayName = useRequestOutput ? (modelName || 'Nano Banana 2') : (preserveFromInputModes ? (modelId.includes('pro') ? 'Nano Banana Pro' : modelId.includes('3.1') ? 'Nano Banana 2' : 'Nano Banana') : (modelName || 'Nano Banana 2'))
 
-    console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, preserveFromInput ? '(保留原图比例/清晰度)' : '', 'imageConfig:', JSON.stringify(imageConfig))
+    console.log('[后端 API] 修改图片 mode:', mode, '模型:', modelId, useRequestOutput ? '(使用前端输出设置)' : preserveFromInputModes ? '(保留原图比例/清晰度)' : '', 'imageConfig:', JSON.stringify(imageConfig))
 
     const ai = new GoogleGenAI({ apiKey })
     const isHeavy = modelId.includes('pro') || modelId.includes('3.1')

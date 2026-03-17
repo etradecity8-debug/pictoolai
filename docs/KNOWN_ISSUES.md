@@ -65,7 +65,24 @@
 - **业务逻辑**：全站统一——生图成功即自动入仓，图片旁仅「保存到本地」。仓库页对 COS 绝对 URL 直接 img src 展示（不 fetch，避免 CORS）；对相对路径用 Token fetch 转 blob 展示。下载/批量下载统一走 `/api/gallery/image/:id`（带 Token，从本地文件读取）。
 - **拉图失败处理**：相对路径 fetch 失败时，仓库页显示「加载失败」+「点击重试」（而非永远「加载中」），控制台打日志 `[仓库] 拉图失败`，便于排查（常见原因：Token 过期 → 重新登录）。
 
-## 今日完成（2025-03-10）
+---
+
+## 今日完成（2026-03-17）
+
+### 1. 从图库选择图加载优化
+
+- **问题**：「从作品库选择」弹窗里缩略图加载慢（尤其未配 COS 时每张都请求服务器）。
+- **实现**：抽公共组件 `src/components/GalleryThumb.jsx`。当 `item.url` 为**绝对 URL（COS 签名）**时**直接用 `<img src={url} />`**，不 fetch，与仓库页一致、加载更快；为相对路径时仍带 Token fetch 转 blob 展示。
+- **使用处**：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 `docs/COS-CDN.md` 前端约定。
+
+### 2. AI 美工输出设置统一（与官方示例一致）
+
+- **需求**：官方示例中客人需选择模型、清晰度、比例后按客户要求出图；AI 美工其他模块原先无输出设置或仅部分有，现统一为与官方示例一致。
+- **实现**：前端新增可复用组件 `src/components/OutputSettings.jsx`（模型、输出尺寸比例、清晰度 + 本次预计消耗积分）。局部重绘、局部消除、一键换色、智能扩图、提升质感、服装3D、服装平铺、调整身材、生成场景均接入该组件并在请求中传入 `model`、`aspectRatio`、`clarity`。积分预估使用 `src/lib/pointsEstimate.js` 的 `getPointsEstimate(model, clarity)`（与 `server/points.js` 一致）。后端 `/api/image-edit` 当请求体带 `aspectRatio` 与 `clarity`（非空字符串）时优先使用请求参数（`useRequestOutput`），不再按原图自动推断；未传时对「保留原图」类模式仍从输入图推断，兼容旧行为。
+
+---
+
+## 今日完成（2026-03-10）
 
 ### AI 美工 · 一键换色
 - **路由**：`/ai-designer`、`/ai-designer/:toolId`，侧边栏含「图片编辑」下局部重绘、局部消除、**一键换色**。

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
+import GalleryThumb from '../../components/GalleryThumb'
+import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
@@ -36,37 +38,6 @@ function isValidHex(s) {
   return /^#?[0-9A-Fa-f]{6}$/.test(s)
 }
 
-function GalleryThumb({ url, title, token, onClick }) {
-  const [blobUrl, setBlobUrl] = useState(null)
-  useEffect(() => {
-    if (!url) return
-    let revoked = false
-    const isAbsolute = typeof url === 'string' && url.startsWith('http')
-    const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
-    fetch(url, { headers })
-      .then((r) => r.ok ? r.blob() : Promise.reject())
-      .then((blob) => { if (!revoked) setBlobUrl(URL.createObjectURL(blob)) })
-      .catch(() => {})
-    return () => { revoked = true; if (blobUrl) URL.revokeObjectURL(blobUrl) }
-  }, [url, token])
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group relative aspect-square overflow-hidden rounded-xl border-2 border-transparent hover:border-gray-800 transition"
-    >
-      {blobUrl ? (
-        <img src={blobUrl} alt={title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-200" />
-      ) : (
-        <div className="h-full w-full bg-gray-100 animate-pulse" />
-      )}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5 opacity-0 group-hover:opacity-100 transition">
-        <p className="text-[10px] text-white truncate">{title}</p>
-      </div>
-    </button>
-  )
-}
-
 export default function OneClickRecolor() {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
@@ -82,6 +53,9 @@ export default function OneClickRecolor() {
   const [galleryItems, setGalleryItems] = useState([])
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [imageDims, setImageDims] = useState({ w: 0, h: 0 })
+  const [model, setModel] = useState('Nano Banana 2')
+  const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
+  const [clarity, setClarity] = useState('1K 标准')
 
   useEffect(() => {
     if (!image?.dataUrl) { setImageDims({ w: 0, h: 0 }); return }
@@ -90,9 +64,6 @@ export default function OneClickRecolor() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
-
-  const pointsPerImage = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
-  const totalEstimatedPoints = selectedColors.length * pointsPerImage
 
   const openGallery = async () => {
     setGalleryPicker({ open: true })
@@ -215,6 +186,9 @@ export default function OneClickRecolor() {
             targetColor: col.hex,
             colorName: col.name,
             images: [dataUrl],
+            model,
+            aspectRatio,
+            clarity,
           }),
         })
         const data = await res.json().catch(() => ({}))
@@ -396,21 +370,17 @@ export default function OneClickRecolor() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
-            <span className="text-xs text-gray-500">本次预计消耗</span>
-            <span className="flex items-center gap-1 text-sm font-semibold text-gray-800">
-              <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3 3.25a.75.75 0 001.1 0l3-3.25a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
-              </svg>
-              {selectedColors.length > 0 ? totalEstimatedPoints : 0} 积分
-              {selectedColors.length > 0 && (
-                <span className="text-gray-500 font-normal">
-                  （{selectedColors.length} 张 × {pointsPerImage}）
-                </span>
-              )}
-            </span>
-          </div>
-
+          <OutputSettings
+            model={model}
+            aspectRatio={aspectRatio}
+            clarity={clarity}
+            onModelChange={setModel}
+            onAspectRatioChange={setAspectRatio}
+            onClarityChange={setClarity}
+          />
+          {selectedColors.length > 0 && (
+            <p className="text-xs text-gray-500 text-center">共 {selectedColors.length} 张，每张按上方输出设置扣费</p>
+          )}
           <button
             type="button"
             onClick={handleGenerate}

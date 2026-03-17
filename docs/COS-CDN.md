@@ -103,7 +103,7 @@ pm2 restart pictoolai-server
 
 - **仓库列表**（`GET /api/gallery`）：返回的 `item.url` 可能是 `https://...`（COS）或 `/api/gallery/image/:id`（本地）。
 - **仓库页展示**（`Gallery.jsx`）：`item.url` 为绝对 URL 时直接用作 img src；为相对路径时用 Token fetch 转 blob 再展示。下载/批量下载统一走 `GET /api/gallery/image/:id`（带 Token），由后端从本地文件返回，不依赖 COS CORS。
-- **其他用仓库图片的页面**（ImageEdit、StyleClone、LocalErase、LocalRedraw、OneClickRecolor、SmartExpansion、ProductRefinement 等）：若 `item.url` 以 `http` 开头则请求时不带 Authorization，否则带 Token；展示时同样避免对 COS URL 做 fetch 造成跨域（若用 img 直接 src 则无问题）。
+- **其他用仓库图片的页面**（ImageEdit、StyleClone、LocalErase、LocalRedraw、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 等）：统一使用 `src/components/GalleryThumb.jsx`。`item.url` 为绝对 URL（COS）时**直接用 img src**，不 fetch，缩略图加载更快；为相对路径时带 Token fetch 转 blob 再展示。
 
 **删除与清理**：
 

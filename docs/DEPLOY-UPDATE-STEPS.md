@@ -1,0 +1,73 @@
+# 本次更新：推送到服务器（一步步执行）
+
+本次改动包含：从图库选择图加载优化（GalleryThumb）、AI 美工输出设置统一（OutputSettings）。前端与后端都有变更，需要**本机提交推送**后再在**服务器拉取、构建、重启**。
+
+---
+
+## 第一步：本机提交并推送（在项目根目录执行）
+
+在终端里进入项目目录（例如 `nano banana for business`），然后依次执行：
+
+```bash
+# 1. 查看有哪些文件被修改
+git status
+
+# 2. 把所有修改加入暂存区
+git add .
+
+# 3. 提交（说明写简短即可）
+git commit -m "feat: 图库选图加载优化(GalleryThumb)+AI美工输出设置统一(OutputSettings)"
+
+# 4. 推送到 GitHub（或你使用的远程仓库）
+git push
+```
+
+如果 `git push` 提示要输入用户名/密码，密码处填你在 GitHub 的 **Personal Access Token**（不是登录密码）。
+
+---
+
+## 第二步：服务器上拉取并更新
+
+用 SSH 登录到你的服务器（美国硅谷那台，例如 `ssh ubuntu@43.162.87.60`），然后**按顺序**执行下面每一条命令：
+
+```bash
+# 1. 进入项目目录
+cd ~/app
+
+# 2. 从 GitHub 拉取最新代码
+git pull
+
+# 3. 安装前端依赖（若有新增）、构建前端（本次有前端改动，必须执行）
+npm install
+npm run build
+
+# 4. 进入后端目录，安装后端依赖（若有新增）
+cd server
+npm install
+
+# 5. 重启后端（让新代码生效）
+pm2 restart pictoolai-server
+```
+
+**说明**：
+
+- 若你当时 PM2 起的名字不是 `pictoolai-server`，把最后一条里的 `pictoolai-server` 改成你的进程名（用 `pm2 list` 可看）。
+- 若服务器上项目不在 `~/app`，把 `cd ~/app` 改成你的实际路径。
+
+---
+
+## 第三步：验证
+
+1. 浏览器打开你的站点（如 https://pictoolai.studio 或 http://43.162.87.60）。
+2. 登录后进入 **AI美工** → 任选一个功能（如局部重绘）：
+   - 应能看到「输出设置」折叠区（模型、输出尺寸比例、清晰度、预计消耗积分）。
+3. 点「从作品库选择」：
+   - 若已配置 COS，缩略图应比之前加载更快；未配 COS 时仍为相对路径，可能稍慢属正常。
+
+若页面打不开或接口报错，可在服务器执行：
+
+```bash
+pm2 logs pictoolai-server
+```
+
+看最后几行是否有报错。

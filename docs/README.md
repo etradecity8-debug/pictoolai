@@ -49,7 +49,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [AI-DESIGNER.md](./AI-DESIGNER.md) | 局部重绘、局部消除、一键换色、智能扩图、提升质感、风格复刻、官方示例 9 种 |
+| [AI-DESIGNER.md](./AI-DESIGNER.md) | 局部重绘、局部消除、一键换色、智能扩图、提升质感、风格复刻、官方示例 7 种 |
 
 ---
 
@@ -58,6 +58,7 @@
 | 文档 | 说明 |
 |------|------|
 | [DEPLOY.md](./DEPLOY.md) | VPS 部署步骤（含附录：Gemini 地区限制） |
+| [DEPLOY-UPDATE-STEPS.md](./DEPLOY-UPDATE-STEPS.md) | 本次更新：本机 git 提交推送 + 服务器拉取构建重启（一步步执行） |
 | [COS-CDN.md](./COS-CDN.md) | 仓库图片国内加速：腾讯云 COS + 临时签名 URL；实现说明、全代码影响、测试步骤 |
 
 ---
