@@ -787,20 +787,7 @@ app.get('/api/points/balance', requireAuth, (req, res) => {
   }
 })
 
-// 积分：充值（测试用，登录后可给自己充值）
-app.post('/api/points/credit', requireAuth, (req, res) => {
-  try {
-    const amount = Math.max(0, parseInt(req.body?.amount, 10) || 0)
-    if (amount <= 0) return res.status(400).json({ error: '请填写有效充值数量' })
-    addBalance(req.user.email, amount)
-    addTransaction(req.user.email, amount, '充值')
-    const balance = getBalance(req.user.email)
-    return res.json({ balance })
-  } catch (e) {
-    console.error(e)
-    return res.status(500).json({ error: '充值失败' })
-  }
-})
+// 积分充值仅限管理员，见 /api/admin/users/:email/grant
 
 // 积分：扣取明细
 app.get('/api/points/transactions', requireAuth, (req, res) => {
@@ -1008,7 +995,7 @@ app.post('/api/image-edit', async (req, res) => {
   const apiKey = getGeminiApiKey()
   if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
   try {
-    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription, expansionRatio, materialPrompt, surface, targetWeight, targetHeight } = req.body
+    const { mode, prompt, images, model: modelName, aspectRatio, clarity, targetColor, colorName, textDescription, expansionRatio, materialPrompt, surface, targetWeight, targetHeight, productName, sceneDescription, styleDescription } = req.body
     // recolor / smart-expansion / product-refinement 用内置 prompt，其他模式需要 prompt
     const isRecolor = mode === 'recolor'
     const isSmartExpansion = mode === 'smart-expansion'
@@ -1016,7 +1003,10 @@ app.post('/api/image-edit', async (req, res) => {
     const isClothing3D = mode === 'clothing-3d'
     const isClothingFlatlay = mode === 'clothing-flatlay'
     const isBodyShape = mode === 'body-shape'
-    if (!isRecolor && !isSmartExpansion && !isProductRefinement && !isClothing3D && !isClothingFlatlay && !isBodyShape && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    const isSceneGeneration = mode === 'scene-generation'
+    if (!isRecolor && !isSmartExpansion && !isProductRefinement && !isClothing3D && !isClothingFlatlay && !isBodyShape && !isSceneGeneration && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    if (isSceneGeneration && (!productName || typeof productName !== 'string' || !productName.trim())) return res.status(400).json({ error: '请输入产品名称' })
+    if (isSceneGeneration && (!sceneDescription || typeof sceneDescription !== 'string' || !sceneDescription.trim())) return res.status(400).json({ error: '请描述场景' })
     if (isRecolor && (!targetColor || typeof targetColor !== 'string')) return res.status(400).json({ error: '请选择目标颜色' })
     if (isRecolor && (!textDescription || typeof textDescription !== 'string' || !textDescription.trim())) return res.status(400).json({ error: '请描述要换色的物体' })
     if (isSmartExpansion && (!expansionRatio || ![1.1, 1.2, 1.5, 2].includes(Number(expansionRatio)))) return res.status(400).json({ error: '请选择扩图比例' })
@@ -1027,7 +1017,7 @@ app.post('/api/image-edit', async (req, res) => {
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
     // 局部重绘 / 局部消除 / 一键换色 / 智能扩图 / 提升质感：从输入图推断比例与清晰度，保留原图
-    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape'
+    const preserveFromInput = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape' || mode === 'scene-generation'
     let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
     if (preserveFromInput) {
       try {
@@ -1049,12 +1039,12 @@ app.post('/api/image-edit', async (req, res) => {
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
         modelId = isProductRefinement
           ? getImageModelId(productRefinementModel)
-          : (isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
+          : (isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
       } catch (e) {
         aspectRatioVal = '1:1'
         resolvedClarity = '1K 标准'
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
-        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : ((isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
+        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : ((isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
       }
       imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
     } else {
@@ -1247,6 +1237,37 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 
 The result must look like a real photograph. No distortion artifacts.`
 
+    const sceneProductName = (productName || '').trim()
+    const sceneDesc = (sceneDescription || '').trim()
+    const sceneStyle = (styleDescription || '').trim()
+    const sceneGenerationPrompt = `You are a world-class commercial photographer specializing in e-commerce lifestyle imagery.
+
+[TASK]
+Place the provided product (${sceneProductName}) into a realistic scene: ${sceneDesc}.
+
+[PRODUCT PRESERVATION — HIGHEST PRIORITY]
+- The product must remain EXACTLY as it appears in the input image: same shape, same color, same texture, same proportions, same design details, same logos or prints
+- Do NOT modify, simplify, redesign, or stylize the product in ANY way
+- The product must be naturally and logically integrated into the scene (correct scale, perspective, contact shadows, reflections)
+
+[SCENE CONSTRUCTION]
+- Build the scene around the product so it looks like the product was photographed IN that environment
+- Ensure correct spatial relationships: the product must rest on or interact with surfaces naturally (a chair must sit on a floor, a cup must rest on a table, etc.)
+- Add contextual elements and props that enhance the scene (furniture, decor, people interacting with the product, etc.)
+- If people are included, they must interact with the product naturally and realistically
+- Lighting must be physically consistent: shadows, reflections, and highlights should match across the entire scene
+
+[STYLE & ATMOSPHERE]
+${sceneStyle ? `The overall visual style and mood: ${sceneStyle}.` : 'Create a warm, inviting, and commercially appealing atmosphere.'}
+The image should be suitable for cross-border e-commerce product marketing — aspirational yet authentic.
+
+[TECHNICAL QUALITY]
+- Photorealistic output, indistinguishable from a real photograph
+- Professional commercial photography quality with balanced composition
+- Natural depth of field appropriate for the scene
+- No text, watermarks, or logos added to the image
+- No artifacts, distortions, or uncanny valley effects`
+
     const finalPrompt = isRecolor
       ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
       : isSmartExpansion
@@ -1259,6 +1280,8 @@ The result must look like a real photograph. No distortion artifacts.`
       ? clothingFlatlayPrompt
       : isBodyShape
       ? bodyShapePrompt
+      : isSceneGeneration
+      ? sceneGenerationPrompt
       : prompt.trim()
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
@@ -1319,7 +1342,7 @@ The result must look like a real photograph. No distortion artifacts.`
           'smart-expansion': '智能扩图', 'product-refinement': '提升质感',
           'style-transfer': '风格迁移', composition: '高级合成', 'hi-fidelity': '高保真细节',
           'bring-to-life': '让草图变生动', 'character-360': '角色一致性',
-          'text-replace': '文字替换', 'text-translate': '文字翻译',
+          'text-replace': '文字替换', 'text-translate': '文字翻译', 'scene-generation': '生成场景',
         }[mode] || mode
         try {
           saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)

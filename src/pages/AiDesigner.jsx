@@ -10,6 +10,7 @@ import ProductRefinement from './ai-designer/ProductRefinement'
 import Clothing3D from './ai-designer/Clothing3D'
 import ClothingFlatlay from './ai-designer/ClothingFlatlay'
 import BodyShape from './ai-designer/BodyShape'
+import SceneGeneration from './ai-designer/SceneGeneration'
 import StyleClone from './StyleClone'
 import ImageEdit from './ImageEdit'
 
@@ -20,7 +21,7 @@ const iconClass = 'w-4 h-4 shrink-0'
 const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'composition', 'hi-fidelity', 'bring-to-life', 'character-360', 'text-replace', 'text-translate']
 
 const AVAILABLE_IDS = new Set([
-  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'smart-expansion', 'product-refinement',
+  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'scene-generation', 'smart-expansion', 'product-refinement',
   'style-clone',
   ...IMAGE_EDIT_MODE_IDS,
 ])
@@ -37,6 +38,7 @@ const SIDEBAR_STRUCTURE = [
       { id: 'clothing-3d', label: '服装3D', badge: 'NEW', icon: 'tshirt' },
       { id: 'clothing-flatlay', label: '服装平铺', badge: 'NEW', icon: 'flatlay' },
       { id: 'body-shape', label: '调整身材', badge: 'NEW', icon: 'body' },
+      { id: 'scene-generation', label: '生成场景', badge: 'NEW', icon: 'scene' },
       { id: 'image-crop', label: '图片裁剪', icon: 'crop', available: false },
     ],
   },
@@ -131,6 +133,8 @@ function ItemIcon({ name }) {
     ? 'M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm3 3h10M7 12h10M7 16h6'
     : name === 'body'
     ? 'M12 2a3 3 0 100 6 3 3 0 000-6zm-4 8a4 4 0 014-4h0a4 4 0 014 4v1a1 1 0 01-1 1h-2l-1 9h-2l-1-9H9a1 1 0 01-1-1v-1z'
+    : name === 'scene'
+    ? 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M9 22V12h6v10'
     : name === 'crop'
     ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
     : name === 'zoom'
@@ -285,6 +289,8 @@ export default function AiDesigner() {
             <ClothingFlatlay />
           ) : pathTool === 'body-shape' ? (
             <BodyShape />
+          ) : pathTool === 'scene-generation' ? (
+            <SceneGeneration />
           ) : pathTool === 'smart-expansion' ? (
             <SmartExpansion />
           ) : pathTool === 'product-refinement' ? (
