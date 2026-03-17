@@ -6,8 +6,6 @@ export default function Points() {
   const [balance, setBalance] = useState(null)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [creditLoading, setCreditLoading] = useState(false)
-
   const fetchData = useCallback(() => {
     const token = getToken()
     if (!token) {
@@ -35,25 +33,6 @@ export default function Points() {
     fetchData()
   }, [fetchData])
 
-  const handleCreditTest = () => {
-    const token = getToken()
-    if (!token) return
-    setCreditLoading(true)
-    fetch('/api/points/credit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ amount: 1200 }),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
-        setBalance(data.balance ?? 0)
-        refreshUser()
-        fetchData()
-      })
-      .catch(() => {})
-      .finally(() => setCreditLoading(false))
-  }
-
   if (loading) {
     return (
       <div>
@@ -68,19 +47,11 @@ export default function Points() {
       <h1 className="text-2xl font-bold text-gray-900">积分明细</h1>
       <p className="mt-2 text-gray-500">当前剩余积分与扣取记录</p>
 
-      <div className="mt-6 flex flex-wrap items-center gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white px-6 py-4 min-w-[180px]">
+      <div className="mt-6">
+        <div className="rounded-xl border border-gray-200 bg-white px-6 py-4 min-w-[180px] inline-block">
           <p className="text-sm text-gray-500">剩余积分</p>
           <p className="mt-1 text-2xl font-bold text-gray-900">{balance ?? 0}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleCreditTest}
-          disabled={creditLoading}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-60"
-        >
-          {creditLoading ? '充值中…' : '充值 1200 积分（测试）'}
-        </button>
       </div>
 
       <section className="mt-8">
