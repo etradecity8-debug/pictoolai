@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   return new Promise((resolve, reject) => {
@@ -38,7 +39,7 @@ const WEIGHT_PRESETS = [
   { label: '大码', kg: 115, desc: '~115kg' },
 ]
 
-export default function BodyShape() {
+export default function BodyShape({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [targetWeight, setTargetWeight] = useState(65)
@@ -63,6 +64,17 @@ export default function BodyShape() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
   const bmi = (targetWeight / ((targetHeight / 100) ** 2)).toFixed(1)

@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 const MODEL_OPTIONS = [
   {
@@ -122,7 +123,7 @@ const MATERIAL_TABS = [
   },
 ]
 
-export default function ProductRefinement() {
+export default function ProductRefinement({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [model, setModel] = useState('Nano Banana Pro')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
@@ -147,6 +148,17 @@ export default function ProductRefinement() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 

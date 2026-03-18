@@ -1,7 +1,65 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { saveBlobWithPicker, saveBlobsToFolder } from '../../lib/saveFileWithPicker'
 import ImageLightbox from '../../components/ImageLightbox'
+
+/** 仓库「用AI编辑」可选功能（与 AI 美工侧栏一二级结构一致），选择后跳转并带入当前图片 */
+const GALLERY_EDIT_GROUPS = [
+  {
+    label: '图片编辑',
+    items: [
+      { id: 'local-redraw', label: '局部重绘' },
+      { id: 'local-erase', label: '局部消除' },
+      { id: 'one-click-recolor', label: '一键换色' },
+      { id: 'clothing-3d', label: '服装3D' },
+      { id: 'clothing-flatlay', label: '服装平铺' },
+      { id: 'body-shape', label: '调整身材' },
+      { id: 'scene-generation', label: '生成场景' },
+      { id: 'add-person-object', label: '添加人/物' },
+    ],
+  },
+  {
+    label: '质量提升',
+    items: [
+      { id: 'smart-expansion', label: '智能扩图' },
+      { id: 'product-refinement', label: '提升质感' },
+    ],
+  },
+  {
+    label: '文字修改',
+    items: [
+      { id: 'text-replace', label: '文字替换' },
+      { id: 'text-translate', label: '语言转换' },
+      { id: 'text-remove', label: '文字去除' },
+    ],
+  },
+  {
+    label: '风格变迁',
+    items: [
+      { id: 'style-clone', label: '风格复刻' },
+      { id: 'style-change', label: '风格改变' },
+    ],
+  },
+  {
+    label: '水印添加/去除',
+    items: [
+      { id: 'watermark-add', label: '添加水印' },
+    ],
+  },
+  {
+    label: '官方示例',
+    items: [
+      { id: 'add-remove', label: '添加/移除元素' },
+      { id: 'inpainting', label: '局部重绘(语义)' },
+      { id: 'style-transfer', label: '风格迁移' },
+      { id: 'composition', label: '高级合成' },
+      { id: 'hi-fidelity', label: '高保真细节保留' },
+      { id: 'bring-to-life', label: '让草图变生动' },
+      { id: 'character-360', label: '角色一致性360°' },
+    ],
+  },
+]
 
 /** 按 savedAt 时间戳得到日期键 YYYY-MM-DD */
 function dateKey(ts) {
@@ -37,6 +95,7 @@ function groupByDate(items) {
 }
 
 export default function Gallery() {
+  const navigate = useNavigate()
   const { getToken } = useAuth()
   const [items, setItems] = useState([])
   const [blobUrls, setBlobUrls] = useState({})
@@ -44,6 +103,7 @@ export default function Gallery() {
   const [error, setError] = useState('')
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
+  const [editModalItem, setEditModalItem] = useState(null) // 点击「用AI编辑」时暂存的图片项
   const [loadErrors, setLoadErrors] = useState({}) // 某 id 拉图失败时为 true，用于显示「加载失败」与重试
   const blobUrlsRef = useRef({})
 
@@ -394,25 +454,34 @@ export default function Gallery() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {blobUrls[item.id] && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                try {
-                                  const token = getToken()
-                                  if (!token) return
-                                  const res = await fetch(`/api/gallery/image/${item.id}`, {
-                                    headers: { Authorization: `Bearer ${token}` },
-                                  })
-                                  if (!res.ok) return
-                                  const blob = await res.blob()
-                                  const name = (item.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
-                                  await saveBlobWithPicker(blob, name)
-                                } catch (_) {}
-                              }}
-                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                            >
-                              下载
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setEditModalItem(item)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/5 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10"
+                              >
+                                用AI编辑
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const token = getToken()
+                                    if (!token) return
+                                    const res = await fetch(`/api/gallery/image/${item.id}`, {
+                                      headers: { Authorization: `Bearer ${token}` },
+                                    })
+                                    if (!res.ok) return
+                                    const blob = await res.blob()
+                                    const name = (item.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
+                                    await saveBlobWithPicker(blob, name)
+                                  } catch (_) {}
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                              >
+                                下载
+                              </button>
+                            </>
                           )}
                           <button
                             type="button"
@@ -437,6 +506,62 @@ export default function Gallery() {
         alt={lightbox.alt}
         onClose={() => setLightbox((p) => ({ ...p, open: false }))}
       />
+
+      {/* 用AI编辑：选择功能后跳转到对应 AI 美工页面并带入当前图片 */}
+      {editModalItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setEditModalItem(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">用 AI 美工编辑</h3>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                onClick={() => setEditModalItem(null)}
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-3">选择要使用的功能，该图片将自动加载到对应编辑界面</p>
+            <div className="overflow-y-auto flex-1 space-y-4">
+              {GALLERY_EDIT_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 pl-0.5">
+                    {group.label}
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2">
+                    {group.items.map((tool) => (
+                      <button
+                        key={tool.id}
+                        type="button"
+                        onClick={() => {
+                          navigate(`/ai-designer/${tool.id}`, {
+                            state: {
+                              fromGallery: true,
+                              imageUrl: editModalItem.url,
+                              imageId: editModalItem.id,
+                              imageTitle: editModalItem.title || '图片',
+                            },
+                          })
+                          setEditModalItem(null)
+                        }}
+                        className="text-left px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:border-primary hover:bg-primary/5 hover:text-primary transition"
+                      >
+                        {tool.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

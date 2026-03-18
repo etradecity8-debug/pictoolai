@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)' // 紫色半透明，与设计稿一致
 
@@ -31,7 +32,7 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
-export default function LocalRedraw() {
+export default function LocalRedraw({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null) // { file, dataUrl }
   const [prompt, setPrompt] = useState('')
@@ -61,6 +62,18 @@ export default function LocalRedraw() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+        clearMask()
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 

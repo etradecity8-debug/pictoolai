@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 // 色卡：常用颜色（hex + 名称），用户从中选 1-9 种，或使用自定义取色
 const COLOR_PALETTE = [
@@ -38,7 +39,7 @@ function isValidHex(s) {
   return /^#?[0-9A-Fa-f]{6}$/.test(s)
 }
 
-export default function OneClickRecolor() {
+export default function OneClickRecolor({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [textDesc, setTextDesc] = useState('') // 如：鼠标、裙子、头发
@@ -64,6 +65,17 @@ export default function OneClickRecolor() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResults([])
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const openGallery = async () => {
     setGalleryPicker({ open: true })

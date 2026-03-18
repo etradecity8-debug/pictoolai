@@ -1004,7 +1004,8 @@ app.post('/api/image-edit', async (req, res) => {
     const isClothingFlatlay = mode === 'clothing-flatlay'
     const isBodyShape = mode === 'body-shape'
     const isSceneGeneration = mode === 'scene-generation'
-    if (!isRecolor && !isSmartExpansion && !isProductRefinement && !isClothing3D && !isClothingFlatlay && !isBodyShape && !isSceneGeneration && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
+    const isWatermarkRemove = mode === 'watermark-remove'
+    if (!isRecolor && !isSmartExpansion && !isProductRefinement && !isClothing3D && !isClothingFlatlay && !isBodyShape && !isSceneGeneration && !isWatermarkRemove && (!prompt || !prompt.trim())) return res.status(400).json({ error: '请填写修改指令' })
     if (isSceneGeneration && (!productName || typeof productName !== 'string' || !productName.trim())) return res.status(400).json({ error: '请输入产品名称' })
     if (isSceneGeneration && (!sceneDescription || typeof sceneDescription !== 'string' || !sceneDescription.trim())) return res.status(400).json({ error: '请描述场景' })
     if (isRecolor && (!targetColor || typeof targetColor !== 'string')) return res.status(400).json({ error: '请选择目标颜色' })
@@ -1017,7 +1018,7 @@ app.post('/api/image-edit', async (req, res) => {
     if (parsedImages.length === 0) return res.status(400).json({ error: '图片格式无效，请重新上传' })
 
     // 若前端传入输出设置（model + aspectRatio + clarity），则统一使用请求参数；否则对「保留原图」类模式从输入图推断
-    const preserveFromInputModes = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape' || mode === 'scene-generation'
+    const preserveFromInputModes = mode === 'inpainting' || mode === 'add-remove' || mode === 'recolor' || mode === 'smart-expansion' || mode === 'product-refinement' || mode === 'clothing-3d' || mode === 'clothing-flatlay' || mode === 'body-shape' || mode === 'scene-generation' || mode === 'watermark-remove'
     const useRequestOutput = typeof aspectRatio === 'string' && aspectRatio.trim() && typeof clarity === 'string' && clarity.trim()
     let aspectRatioVal, resolvedClarity, modelId, imageSizeVal
     if (useRequestOutput) {
@@ -1044,12 +1045,12 @@ app.post('/api/image-edit', async (req, res) => {
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
         modelId = isProductRefinement
           ? getImageModelId(productRefinementModel)
-          : (isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
+          : (isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration || isWatermarkRemove || Math.max(w, h) > 1024) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana')
       } catch (e) {
         aspectRatioVal = '1:1'
         resolvedClarity = '1K 标准'
         const productRefinementModel = (modelName === 'Nano Banana Pro' || modelName === 'Nano Banana 2') ? modelName : 'Nano Banana Pro'
-        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : ((isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
+        modelId = isProductRefinement ? getImageModelId(productRefinementModel) : ((isSmartExpansion || isClothing3D || isClothingFlatlay || isBodyShape || isSceneGeneration || isWatermarkRemove) ? getImageModelId('Nano Banana 2') : getImageModelId('Nano Banana'))
       }
       imageSizeVal = CLARITY_TO_SIZE[resolvedClarity] || '1K'
     } else {
@@ -1271,6 +1272,17 @@ The image should be suitable for cross-border e-commerce product marketing — a
 - No text, watermarks, or logos added to the image
 - No artifacts, distortions, or uncanny valley effects`
 
+    const watermarkRemovePrompt = `You are an expert at image inpainting and content-aware fill. The user has provided this image for editing and requests that overlay elements be removed.
+
+[TASK]
+Restore the image by inpainting over any visible overlay elements: text, logos, stamps, or semi-transparent regions that obscure the underlying photo. Treat this as a restoration task: fill those areas so they match the surrounding background, texture, and lighting seamlessly. The output should look like a single, coherent photograph with no visible overlays or patches.
+
+[RULES]
+1. Identify regions that clearly look like added overlays (repeating text, corner logos, stamps, translucent branding).
+2. Inpaint those regions only: use the surrounding pixels to guide natural, photorealistic fill. Match texture, color, and lighting.
+3. Leave the rest of the image unchanged: same composition, subject, and style.
+4. Output must be photorealistic with no visible seams or artifacts. Preserve the exact aspect ratio and resolution of the input.`
+
     const finalPrompt = isRecolor
       ? `Recolor the ${desc} in this image to ${targetColor.trim()} (${colorLabel}). CRITICAL: Keep the exact same shape, structure, texture, and material of the ${desc} — ONLY change its color. The rest of the image must stay completely unchanged. Output a photorealistic result. Do not add any text or logos.`
       : isSmartExpansion
@@ -1285,6 +1297,8 @@ The image should be suitable for cross-border e-commerce product marketing — a
       ? bodyShapePrompt
       : isSceneGeneration
       ? sceneGenerationPrompt
+      : isWatermarkRemove
+      ? watermarkRemovePrompt
       : prompt.trim()
     const contents = [
       ...parsedImages.map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
@@ -1346,6 +1360,7 @@ The image should be suitable for cross-border e-commerce product marketing — a
           'style-transfer': '风格迁移', composition: '高级合成', 'hi-fidelity': '高保真细节',
           'bring-to-life': '让草图变生动', 'character-360': '角色一致性',
           'text-replace': '文字替换', 'text-translate': '文字翻译', 'scene-generation': '生成场景',
+          'watermark-remove': '去除水印',
         }[mode] || mode
         try {
           saveImageToGallery(email, imgId, `修改图片·${modeLabel}`, resultDataUrl, pointsUsed, modelDisplayName || null, resolvedClarity || null)

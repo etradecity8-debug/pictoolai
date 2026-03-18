@@ -12,7 +12,10 @@ import ClothingFlatlay from './ai-designer/ClothingFlatlay'
 import BodyShape from './ai-designer/BodyShape'
 import SceneGeneration from './ai-designer/SceneGeneration'
 import StyleClone from './StyleClone'
+import StyleChange from './ai-designer/StyleChange'
 import ImageEdit from './ImageEdit'
+import AddWatermark from './ai-designer/AddWatermark'
+import AddPersonObject from './ai-designer/AddPersonObject'
 
 const iconClass = 'w-4 h-4 shrink-0'
 
@@ -21,8 +24,12 @@ const iconClass = 'w-4 h-4 shrink-0'
 const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'composition', 'hi-fidelity', 'bring-to-life', 'character-360', 'text-replace', 'text-translate']
 
 const AVAILABLE_IDS = new Set([
-  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'scene-generation', 'smart-expansion', 'product-refinement',
+  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'scene-generation', 'add-person-object', 'smart-expansion', 'product-refinement',
   'style-clone',
+  'watermark-remove', // 灰掉入口，占位用
+  'watermark-add',
+  'style-change',
+  'text-remove',
   ...IMAGE_EDIT_MODE_IDS,
 ])
 
@@ -39,6 +46,7 @@ const SIDEBAR_STRUCTURE = [
       { id: 'clothing-flatlay', label: '服装平铺', badge: 'NEW', icon: 'flatlay' },
       { id: 'body-shape', label: '调整身材', badge: 'NEW', icon: 'body' },
       { id: 'scene-generation', label: '生成场景', badge: 'NEW', icon: 'scene' },
+      { id: 'add-person-object', label: '添加人/物', badge: 'NEW', icon: 'person-add' },
       { id: 'image-crop', label: '图片裁剪', icon: 'crop', available: false },
     ],
   },
@@ -74,13 +82,23 @@ const SIDEBAR_STRUCTURE = [
     items: [
       { id: 'text-replace', label: '文字替换', icon: 'text-replace' },
       { id: 'text-translate', label: '语言转换', icon: 'text-translate' },
+      { id: 'text-remove', label: '文字去除', icon: 'eraser' },
     ],
   },
   {
     id: 'style-clone',
-    label: '风格复刻',
+    label: '风格变迁',
     items: [
       { id: 'style-clone', label: '风格复刻', icon: 'style-clone' },
+      { id: 'style-change', label: '风格改变', icon: 'style-change' },
+    ],
+  },
+  {
+    id: 'watermark-tools',
+    label: '水印添加/去除',
+    items: [
+      { id: 'watermark-add', label: '添加水印', icon: 'watermark-add' },
+      { id: 'watermark-remove', label: '去除水印', icon: 'watermark', available: false },
     ],
   },
   {
@@ -117,6 +135,10 @@ function ItemIcon({ name }) {
     ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
     : name === 'text-translate'
     ? 'M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129'
+    : name === 'watermark'
+    ? 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4l6-6m2 5l3 3m-3 3l-6 6m0-6l6 6'
+    : name === 'watermark-add'
+    ? 'M12 4v16m8-8H4'
     : name === 'edit'
     ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
     : name === 'spark'
@@ -133,6 +155,8 @@ function ItemIcon({ name }) {
     ? 'M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm3 3h10M7 12h10M7 16h6'
     : name === 'body'
     ? 'M12 2a3 3 0 100 6 3 3 0 000-6zm-4 8a4 4 0 014-4h0a4 4 0 014 4v1a1 1 0 01-1 1h-2l-1 9h-2l-1-9H9a1 1 0 01-1-1v-1z'
+    : name === 'person-add'
+    ? 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'
     : name === 'scene'
     ? 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M9 22V12h6v10'
     : name === 'crop'
@@ -153,6 +177,8 @@ function ItemIcon({ name }) {
     ? 'M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243 0z'
     : name === 'style-clone'
     ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
+    : name === 'style-change'
+    ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
     : 'M4 6h16M4 10h16M4 14h16M4 18h16'
   return (
     <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,6 +190,10 @@ function ItemIcon({ name }) {
 export default function AiDesigner() {
   const location = useLocation()
   const pathTool = location.pathname.replace(/^\/ai-designer\/?/, '') || null
+  const galleryImage =
+    location.state?.fromGallery && location.state?.imageUrl
+      ? { url: location.state.imageUrl, id: location.state.imageId, title: location.state.imageTitle }
+      : null
   const [expanded, setExpanded] = useState(() => {
     const open = new Set()
     const tool = location.pathname.replace(/^\/ai-designer\/?/, '') || null
@@ -276,25 +306,33 @@ export default function AiDesigner() {
 
         <main className="flex-1 min-w-0 p-6">
           {IMAGE_EDIT_MODE_IDS.includes(pathTool) ? (
-            <ImageEdit initialMode={pathTool} hideModeSelector />
+            <ImageEdit initialMode={pathTool} hideModeSelector initialImageFromGallery={galleryImage} />
           ) : pathTool === 'local-redraw' ? (
-            <LocalRedraw />
+            <LocalRedraw initialImageFromGallery={galleryImage} />
           ) : pathTool === 'local-erase' ? (
-            <LocalErase />
+            <LocalErase initialImageFromGallery={galleryImage} />
+          ) : pathTool === 'text-remove' ? (
+            <LocalErase variant="text-remove" initialImageFromGallery={galleryImage} />
           ) : pathTool === 'one-click-recolor' ? (
-            <OneClickRecolor />
+            <OneClickRecolor initialImageFromGallery={galleryImage} />
           ) : pathTool === 'clothing-3d' ? (
-            <Clothing3D />
+            <Clothing3D initialImageFromGallery={galleryImage} />
           ) : pathTool === 'clothing-flatlay' ? (
-            <ClothingFlatlay />
+            <ClothingFlatlay initialImageFromGallery={galleryImage} />
           ) : pathTool === 'body-shape' ? (
-            <BodyShape />
+            <BodyShape initialImageFromGallery={galleryImage} />
           ) : pathTool === 'scene-generation' ? (
-            <SceneGeneration />
+            <SceneGeneration initialImageFromGallery={galleryImage} />
+          ) : pathTool === 'add-person-object' ? (
+            <AddPersonObject initialImageFromGallery={galleryImage} />
           ) : pathTool === 'smart-expansion' ? (
-            <SmartExpansion />
+            <SmartExpansion initialImageFromGallery={galleryImage} />
           ) : pathTool === 'product-refinement' ? (
-            <ProductRefinement />
+            <ProductRefinement initialImageFromGallery={galleryImage} />
+          ) : pathTool === 'watermark-add' ? (
+            <AddWatermark initialImageFromGallery={galleryImage} />
+          ) : pathTool === 'style-change' ? (
+            <StyleChange initialImageFromGallery={galleryImage} />
           ) : pathTool === 'style-clone' ? (
             <StyleClone />
           ) : pathTool && !AVAILABLE_IDS.has(pathTool) ? (

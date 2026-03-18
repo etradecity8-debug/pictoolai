@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   return new Promise((resolve, reject) => {
@@ -49,7 +50,7 @@ const SCENE_EXAMPLES = [
   '产品放在卧室床头柜上，柔和的灯光和舒适的床品',
 ]
 
-export default function SceneGeneration() {
+export default function SceneGeneration({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [productName, setProductName] = useState('')
@@ -75,6 +76,17 @@ export default function SceneGeneration() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 

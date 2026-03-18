@@ -5,6 +5,7 @@ import GalleryThumb from '../components/GalleryThumb'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
+import { loadImageFromGalleryUrl } from '../lib/loadGalleryImage'
 
 // 各模式的示例展示配置
 // demo: { before, after, prompt, beforeLabel, afterLabel } — 有真实图片时填入
@@ -72,6 +73,13 @@ const MODE_DEMOS = {
     after: '/demo-text-translate-after.png',
     afterLabel: '翻译后',
     prompt: '', // 只显示箭头，不显示文字
+  },
+  'watermark-remove': {
+    before: '/demo-watermark-remove-before.png',
+    beforeLabel: '原图',
+    after: '/demo-watermark-remove-after.png',
+    afterLabel: '去水印后',
+    prompt: '',
   },
 }
 
@@ -194,6 +202,19 @@ const MODES = [
     imageCount: 1,
     imageLabels: ['含文字的图片'],
     promptPlaceholder: '（可选）补充要求，例如：品牌名保留英文不翻译',
+  },
+  {
+    id: 'watermark-remove',
+    label: '去除水印',
+    icon: (
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4l6-6m2 5l3 3m-3 3l-6 6m0-6l6 6" />
+      </svg>
+    ),
+    desc: '一键抹除图片水印，智能填补背景，保持画面自然。',
+    imageCount: 1,
+    imageLabels: ['带水印的图片'],
+    promptPlaceholder: '（可选）补充说明水印位置或样式',
   },
 ]
 
@@ -617,7 +638,7 @@ function ImageTextSelector({ imageSrc, onExtract, onCancel }) {
 
 const VALID_MODE_IDS = new Set(MODES.map((m) => m.id))
 
-export default function ImageEdit({ initialMode, hideModeSelector = false }) {
+export default function ImageEdit({ initialMode, hideModeSelector = false, initialImageFromGallery }) {
   const { getToken, refreshUser = null } = useAuth()
   const resolvedInitial = VALID_MODE_IDS.has(initialMode) ? initialMode : MODES[0].id
   const [selectedMode, setSelectedMode] = useState(resolvedInitial)
@@ -671,6 +692,17 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
     }
   }, [initialMode, hideModeSelector])
 
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImages([{ file, dataUrl, slot: 0 }])
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
+
   const handleModeChange = (id) => {
     setSelectedMode(id)
     setImages([])
@@ -710,6 +742,10 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
       const base = `Update all text in this image to be in ${targetLang}. Translate each text element naturally as a complete phrase, not word by word.${fontInstruction} Do not change any other elements of the image.`
       const extra = prompt.trim() ? ` ${prompt.trim()}` : ''
       return base + extra
+    }
+    if (selectedMode === 'watermark-remove') {
+      // 后端使用内置 prompt，可选补充说明
+      return prompt.trim() || 'Remove all watermarks and overlays.'
     }
     return prompt.trim()
   }
@@ -828,6 +864,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
     if (!hasImages) return false
     if (selectedMode === 'text-replace') return textOriginal.trim() && textReplacement.trim()
     if (selectedMode === 'text-translate') return !!targetLang
+    if (selectedMode === 'watermark-remove') return true
     return !!prompt.trim()
   })()
 
@@ -859,8 +896,15 @@ export default function ImageEdit({ initialMode, hideModeSelector = false }) {
                 ? '替换图片中的指定文字，保持原有字体样式、大小、颜色与排版不变'
                 : selectedMode === 'text-translate'
                 ? '将图中文字翻译为目标语言，保持字体样式与排版不变'
+                : selectedMode === 'watermark-remove'
+                ? '一键抹除图片水印，智能填补背景，保持画面自然'
                 : '上传图片并描述你的需求，AI 一键生成'}
             </p>
+            {selectedMode === 'watermark-remove' && (
+              <p className="mt-2 text-xs text-amber-700/90 bg-amber-50 border border-amber-200/80 rounded-lg px-3 py-2 max-w-xl mx-auto">
+                部分图片可能因模型策略被拒绝处理，请确保您有权修改该图片。若被拒绝可重试或联系客服。
+              </p>
+            )}
           </div>
         ) : (
           <>

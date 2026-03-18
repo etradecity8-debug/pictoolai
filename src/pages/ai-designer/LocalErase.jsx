@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)'
 
@@ -31,7 +32,12 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
-export default function LocalErase() {
+const ERASE_PROMPT = `This image has a purple/violet semi-transparent overlay indicating the region to REMOVE. Erase and remove the content in that purple/marked region completely. Fill that area naturally so it blends seamlessly with the surrounding background. Do not change any other part of the image.`
+
+const TEXT_REMOVE_PROMPT = `This image has a purple/violet semi-transparent overlay indicating the region that contains TEXT to REMOVE. Remove all text, letters, numbers, and typography in that marked region. Fill the area seamlessly so it matches the surrounding background with no visible text or remnants. Do not change any other part of the image.`
+
+export default function LocalErase({ variant = 'erase', initialImageFromGallery }) {
+  const isTextRemove = variant === 'text-remove'
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [result, setResult] = useState(null)
@@ -59,6 +65,18 @@ export default function LocalErase() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+        clearMask()
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 
@@ -230,7 +248,7 @@ export default function LocalErase() {
       return
     }
     if (!hasMask()) {
-      setError('请使用画笔涂抹需要消除的区域')
+      setError(isTextRemove ? '请使用画笔涂抹需要去除的文字区域' : '请使用画笔涂抹需要消除的区域')
       return
     }
     setError('')
@@ -239,7 +257,7 @@ export default function LocalErase() {
     try {
       const compositeDataUrl = await buildCompositeImage()
       if (!compositeDataUrl) throw new Error('生成遮罩图失败')
-      const erasePrompt = `This image has a purple/violet semi-transparent overlay indicating the region to REMOVE. Erase and remove the content in that purple/marked region completely. Fill that area naturally so it blends seamlessly with the surrounding background. Do not change any other part of the image.`
+      const erasePrompt = isTextRemove ? TEXT_REMOVE_PROMPT : ERASE_PROMPT
       const headers = { 'Content-Type': 'application/json' }
       const token = getToken()
       if (token) headers.Authorization = `Bearer ${token}`
@@ -256,11 +274,11 @@ export default function LocalErase() {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '消除失败')
+      if (!res.ok) throw new Error(data.error || (isTextRemove ? '文字去除失败' : '消除失败'))
       setResult(data.image)
       if (refreshUser) refreshUser()
     } catch (e) {
-      setError(e.message || '消除失败，请稍后重试')
+      setError(e.message || (isTextRemove ? '文字去除失败，请稍后重试' : '消除失败，请稍后重试'))
     } finally {
       setGenerating(false)
     }
@@ -271,7 +289,7 @@ export default function LocalErase() {
     try {
       const res = await fetch(result)
       const blob = await res.blob()
-      await saveBlobWithPicker(blob, '局部消除结果.png')
+      await saveBlobWithPicker(blob, isTextRemove ? '文字去除结果.png' : '局部消除结果.png')
     } catch (e) {
       setError('保存失败')
     }
@@ -279,15 +297,16 @@ export default function LocalErase() {
 
   return (
     <div className="relative space-y-4 min-h-[240px]">
-      <GeneratingOverlay open={generating} message="消除中..." />
+      <GeneratingOverlay open={generating} message={isTextRemove ? '文字去除中...' : '消除中...'} />
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">局部消除</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{isTextRemove ? '文字去除' : '局部消除'}</h1>
         <p className="mt-1.5 text-base text-gray-600">
-          上传需要消除的图片，使用画笔涂抹即可实现一键消除
+          {isTextRemove ? '上传含文字的图片，使用画笔涂抹需要去除的文字区域，一键清除' : '上传需要消除的图片，使用画笔涂抹即可实现一键消除'}
         </p>
       </div>
 
-      {/* 示例对比 */}
+      {/* 示例对比（仅局部消除展示） */}
+      {!isTextRemove && (
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
         <div className="flex flex-col items-center">
           <p className="text-sm font-medium text-gray-500 mb-2">原图</p>
@@ -307,6 +326,7 @@ export default function LocalErase() {
           </div>
         </div>
       </div>
+      )}
 
       {/* 上传按钮 */}
       <div className="flex flex-wrap gap-2 justify-center">
@@ -362,7 +382,7 @@ export default function LocalErase() {
       {image && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">涂抹需要消除的区域</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{isTextRemove ? '涂抹需要去除的文字区域' : '涂抹需要消除的区域'}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-gray-500">画笔大小</span>
               <input
@@ -408,7 +428,7 @@ export default function LocalErase() {
             disabled={generating}
             className="w-full max-w-xs mx-auto block py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition"
           >
-            {generating ? '消除中...' : '一键消除'}
+            {generating ? (isTextRemove ? '文字去除中...' : '消除中...') : (isTextRemove ? '一键去除文字' : '一键消除')}
           </button>
         </div>
       )}
@@ -417,7 +437,7 @@ export default function LocalErase() {
 
       {result && (
         <div className="rounded-2xl border border-gray-200 bg-white p-4 max-w-3xl mx-auto">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">消除结果</h3>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{isTextRemove ? '去除结果' : '消除结果'}</h3>
           <div className="flex items-start gap-2 sm:gap-3 flex-wrap">
             <button type="button" onClick={() => setLightbox({ open: true, src: result })} className="rounded-lg overflow-hidden border border-gray-200 hover:border-gray-400 transition max-h-[220px]">
               <img src={result} alt="结果" className="max-h-[220px] w-auto object-contain" />
@@ -433,7 +453,7 @@ export default function LocalErase() {
         </div>
       )}
 
-      <ImageLightbox open={lightbox.open} src={lightbox.src} alt="消除结果" onClose={() => setLightbox({ open: false, src: null })} />
+      <ImageLightbox open={lightbox.open} src={lightbox.src} alt={isTextRemove ? '去除结果' : '消除结果'} onClose={() => setLightbox({ open: false, src: null })} />
     </div>
   )
 }

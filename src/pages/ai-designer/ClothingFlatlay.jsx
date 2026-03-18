@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   return new Promise((resolve, reject) => {
@@ -40,7 +41,7 @@ const SURFACE_OPTIONS = [
   { id: 'custom', label: '自定义', prompt: '' },
 ]
 
-export default function ClothingFlatlay() {
+export default function ClothingFlatlay({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [surfaceId, setSurfaceId] = useState('wooden-table')
@@ -65,6 +66,17 @@ export default function ClothingFlatlay() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 

@@ -11,7 +11,7 @@
 | 了解项目整体、怎么跑起来 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) |
 | 做电商组图、理解数据流 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
 | 做亚马逊 Listing、合规与生图 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
-| 用 AI 美工（局部重绘/消除/换色/扩图/提升质感） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
+| 用 AI 美工（局部重绘/消除/换色/添加人/物/扩图/提升质感）、仓库→用AI编辑带图 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | 用风格复刻（参考图+产品图→高转化详情图） | AI美工 → 风格复刻，路由 `/ai-designer/style-clone`，见 PROJECT-OVERVIEW |
 | 部署到服务器、查地区限制 | [DEPLOY.md](./DEPLOY.md) |
 | 仓库图片国内加速（COS+CDN）、实现范围与测试 | [COS-CDN.md](./COS-CDN.md) |
@@ -49,7 +49,7 @@
 
 | 文档 | 说明 |
 |------|------|
-| [AI-DESIGNER.md](./AI-DESIGNER.md) | 局部重绘、局部消除、一键换色、智能扩图、提升质感、风格复刻、官方示例 7 种 |
+| [AI-DESIGNER.md](./AI-DESIGNER.md) | 局部重绘、局部消除、一键换色、智能扩图、提升质感、添加人/物、风格复刻、官方示例 7 种 |
 
 ---
 

@@ -6,6 +6,7 @@ import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
+import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 const EXPANSION_RATIOS = [
   { value: 1.1, label: '原比例1.1x' },
@@ -14,7 +15,7 @@ const EXPANSION_RATIOS = [
   { value: 2, label: '原比例2x' },
 ]
 
-export default function SmartExpansion() {
+export default function SmartExpansion({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [ratio, setRatio] = useState(1.5)
@@ -37,6 +38,17 @@ export default function SmartExpansion() {
     img.onerror = () => setImageDims({ w: 0, h: 0 })
     img.src = image.dataUrl
   }, [image?.dataUrl])
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+      .then(({ file, dataUrl }) => {
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   // 扩图后尺寸更大，积分按扩图后估算
   const estimatedPoints = getEstimatedPointsForDimensions(

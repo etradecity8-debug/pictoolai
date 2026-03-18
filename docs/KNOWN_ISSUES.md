@@ -67,6 +67,43 @@
 
 ---
 
+## 今日完成（2026-03-18）
+
+### 1. 添加人/物（完善）
+
+- **多物品**：支持最多 3 件物品，每件可选「文字描述」或「上传产品图」+ 位置；多张产品图时走 `composition`，prompt 中按 image 2、image 3… 指定放置位置。
+- **自定义位置**：人物与物品均支持**自定义位置**输入（如「咖啡桌上」「沙发上」「小孩手里」），优先于预设位置下拉。
+- **真实比例**：prompt 中增加「真实世界比例」约束（如香水瓶在桌上须为手部大小），减轻添加物过大的问题。
+- **占位图**：`public/demo-add-person-object-before.png`、`demo-add-person-object-after.png`；页面顶部有示例对比区。
+- **文档**：`docs/AI-DESIGNER.md` 第三·E 部分已含上述说明。
+
+### 2. 仓库「用AI编辑」+ 一二级菜单
+
+- **入口**：仓库页（`/dashboard/gallery`）每张图卡片增加「用AI编辑」按钮，点击后弹窗选择功能并跳转 AI 美工对应页面。
+- **自动带图**：跳转时通过路由 `state` 传入 `fromGallery`、`imageUrl`、`imageId`、`imageTitle`；AiDesigner 读取后以 `initialImageFromGallery` 传给各子页面；各 AI 美工页面及 ImageEdit 通过 `src/lib/loadGalleryImage.js` 的 `loadImageFromGalleryUrl(url, getToken)` 拉取图片并设为初始图，无需用户再次上传。
+- **一二级菜单**：弹窗内按**一级分组**（图片编辑、质量提升、文字修改、风格变迁、水印添加/去除、官方示例）展示，**二级**为各组内功能按钮，与 AI 美工侧栏结构一致。
+- **完整性**：文字修改含 3 项（文字替换、语言转换、文字去除）；官方示例含 7 项（添加/移除元素、局部重绘(语义)、风格迁移、高级合成、高保真细节保留、让草图变生动、角色一致性360°）。详见 `src/pages/dashboard/Gallery.jsx` 中 `GALLERY_EDIT_GROUPS`。
+
+### 3. 文档与项目记忆
+
+- 已更新 `docs/AI-DESIGNER.md`、`docs/README.md`（索引）、`.cursor/rules/project-context.mdc`（关键文件、仓库用AI编辑、添加人/物、文字修改/官方示例项数），保证与代码一致。
+
+---
+
+## 推送到服务器（执行步骤）
+
+**完整步骤**：按 `docs/DEPLOY-UPDATE-STEPS.md` 执行（本机 `git add` / `commit` / `push` → 服务器 `git pull` / `npm install` / `npm run build` / `pm2 restart`）。
+
+**本次（2026-03-18）建议提交说明**：
+```bash
+git add .
+git commit -m "feat: 添加人/物完善(多物品/自定义位置/真实比例/占位图)+仓库用AI编辑(一二级菜单/自动带图)+文档同步"
+git push
+```
+然后到服务器执行 `docs/DEPLOY-UPDATE-STEPS.md` 第二步、第三步。
+
+---
+
 ## 今日完成（2026-03-17）
 
 ### 1. 从图库选择图加载优化
