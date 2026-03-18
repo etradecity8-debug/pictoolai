@@ -173,11 +173,17 @@
 - **服务商**：腾讯云轻量应用服务器
 - **地域**：美国硅谷（Gemini API 无地区限制）
 - **公网 IP**：43.162.87.60
-- **访问**：http://43.162.87.60
+- **访问**：https://pictoolai.studio（推荐）；http://43.162.87.60 或 http://pictoolai.studio 会跳转 HTTPS
 - **PM2**：`pm2 start /home/ubuntu/app/server/index.js --name pictoolai-server --cwd /home/ubuntu/app/server`（确保 dotenv 加载 server/.env）
 - **管理员**：ADMIN_EMAIL/ADMIN_PASSWORD 需在 server/.env 配置，PM2 需 --cwd 到 server 目录才能正确读取
-- **域名**：pictoolai.studio 已购买（实名审核中），审核通过后配置 DNS A 记录指向 43.162.87.60
+- **域名**：pictoolai.studio 已配置 DNS A 记录指向 43.162.87.60；HTTPS 已启用（Let's Encrypt，certbot 自动续期）
 - **Nginx**：proxy_read_timeout/connect_timeout/send_timeout 已设为 300s，避免 image-edit 等长请求 504
+- **防火墙**：腾讯云轻量控制台须放行 **TCP 443**，否则 HTTPS 无法访问（见 DEPLOY.md「HTTPS 已配置」）
+
+### 运维小记（2026-03-18）
+- **用 IP 访问**：Nginx 已设 `listen 80 default_server` 与 `server_name ... 43.162.87.60`，服务器 curl 正常则问题多在浏览器：缓存或 Chrome 无痕下 HTTP 的「此网站不支持安全连接」提示，点「继续访问网站」即可。建议日常用 https://pictoolai.studio。
+- **SSH 过一会儿断联**：多为运营商/中间设备空闲断开，属常见现象；**重新登录不影响服务器**，Nginx、PM2 等照常运行。可选：本机 `~/.ssh/config` 里为该 Host 加 `ServerAliveInterval 60` 减少断线。
+- **~/.ssh/config 为空**：正常；未配置快捷主机或别名时即为空，不影响 SSH 登录。
 
 ---
 
