@@ -16,12 +16,12 @@ const POINTS_MAP = {
  * 获取某模型某清晰度下每张图扣除的积分
  * @param {string} model - 如 'Nano Banana' | 'Nano Banana 2' | 'Nano Banana Pro'
  * @param {string} clarity - 如 '0.5K 快速' | '1K 标准' | '2K 高清' | '4K 超清'
- * @returns {number} 积分，未知组合返回 3
+ * @returns {number} 积分，未知组合返回 4
  */
 export function getPointsPerImage(model, clarity) {
   const byModel = POINTS_MAP[model]
-  if (!byModel) return 3
-  return byModel[clarity] ?? 3
+  if (!byModel) return 4
+  return byModel[clarity] ?? 4
 }
 
 /** 用于定价页展示的积分规则表：{ model, clarity, points }[] */

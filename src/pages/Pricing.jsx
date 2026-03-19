@@ -23,16 +23,12 @@ function ContactModal({ open, onClose }) {
   )
 }
 
-const OPERATIONS = [
-  { label: '通用电商生图（Nano Banana 1K）', points: 4, note: '每张' },
-  { label: '通用电商生图（Nano Banana 2 标准 1K）', points: 6, note: '每张' },
-  { label: '通用电商生图（Nano Banana 2 高清 2K）', points: 10, note: '每张' },
-  { label: '通用电商生图（Nano Banana Pro 1K/2K）', points: 12, note: '每张' },
-  { label: '通用电商生图（Nano Banana Pro 超清 4K）', points: 20, note: '每张' },
-  { label: 'AI 美工（局部重绘/消除/换色/扩图等）', points: 4, note: '每次，实际按所选模型扣费' },
+/** 非生图类操作（生图明细见 POINTS_TABLE）；pointsRange: [min, max] 表示积分区间 */
+const OTHER_OPERATIONS = [
+  { label: 'AI 美工（局部重绘/消除/换色等）', pointsRange: [4, 20], note: '每次，按所选模型' },
   { label: '侵权风险检测 · 深度查询', points: 20, note: '每次' },
   { label: '侵权风险检测 · 快速筛查', points: 0, note: '免费' },
-  { label: '电商AI运营助手（Listing 分析/优化/关键词等）', points: 0, note: '免费' },
+  { label: '电商AI运营助手（多平台 listing 生成/优化/关键字等）', points: 0, note: '免费' },
 ]
 
 const PLAN = { price: 200, points: 1000, expireDays: 365 }
@@ -41,7 +37,7 @@ export default function Pricing() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-16">
+    <div className="max-w-5xl mx-auto px-4 py-16">
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold text-gray-900">简单透明的定价</h1>
         <p className="mt-3 text-gray-500 max-w-xl mx-auto text-sm">
@@ -73,7 +69,7 @@ export default function Pricing() {
             </li>
             <li className="flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              <span>全功能通用（生图 / AI 美工 / 侵权检测）</span>
+              <span>全功能通用（通用电商生图 / AI美工 / AI运营助手 / 侵权检测）</span>
             </li>
             <li className="flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -91,37 +87,58 @@ export default function Pricing() {
         </div>
       </div>
 
-      {/* 积分用量参考 */}
+      {/* 积分用量一览（生图明细 + 其他操作） */}
       <section className="mb-12">
-        <h2 className="text-base font-semibold text-gray-900 mb-1">积分用量参考</h2>
-        <p className="text-xs text-gray-500 mb-4">1000 积分能做多少事？</p>
-        <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-          <table className="w-full text-sm">
+        <h2 className="text-base font-semibold text-gray-900 mb-1">积分用量一览</h2>
+        <p className="text-xs text-gray-500 mb-4">各模型清晰度扣费 + 非生图操作，1000 积分能做多少事？</p>
+        <div className="rounded-xl border border-gray-200 overflow-x-auto bg-white">
+          <table className="w-full text-sm min-w-[800px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-700">操作类型</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-700">消耗积分</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-700">1000积分可做</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 whitespace-nowrap">操作 / 模型</th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700 whitespace-nowrap">清晰度</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-700 whitespace-nowrap">积分</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-700 whitespace-nowrap">折合单价</th>
+                <th className="text-right py-3 px-4 font-medium text-gray-700 whitespace-nowrap">1000积分可做</th>
               </tr>
             </thead>
             <tbody>
-              {OPERATIONS.map((op, i) => {
-                const count = op.points > 0 ? Math.floor(PLAN.points / op.points) : null
+              {POINTS_TABLE.map((row, i) => (
+                <tr key={`img-${i}`} className="border-b border-gray-100 hover:bg-gray-50/50">
+                  <td className="py-3 px-4 text-gray-800 whitespace-nowrap">{row.model}</td>
+                  <td className="py-3 px-4 text-gray-600 whitespace-nowrap">{row.clarity}</td>
+                  <td className="py-3 px-4 text-right font-semibold text-gray-900 whitespace-nowrap">{row.points}</td>
+                  <td className="py-3 px-4 text-right text-gray-500 whitespace-nowrap">¥{(PLAN.price * row.points / PLAN.points).toFixed(2)}/张</td>
+                  <td className="py-3 px-4 text-right text-gray-600 whitespace-nowrap">{Math.floor(PLAN.points / row.points)} 张</td>
+                </tr>
+              ))}
+              {OTHER_OPERATIONS.map((op, i) => {
+                const [minPt, maxPt] = op.pointsRange ?? (op.points > 0 ? [op.points, op.points] : [0, 0])
+                const count = op.points === 0 ? null : op.pointsRange
+                  ? `${Math.floor(PLAN.points / maxPt)}-${Math.floor(PLAN.points / minPt)}`
+                  : Math.floor(PLAN.points / op.points)
+                const priceStr = op.points === 0 ? '—' : op.pointsRange
+                  ? `¥${(PLAN.price * minPt / PLAN.points).toFixed(2)}-${(PLAN.price * maxPt / PLAN.points).toFixed(2)}/次`
+                  : `¥${(PLAN.price * op.points / PLAN.points).toFixed(2)}/次`
                 return (
-                  <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                    <td className="py-3 px-4 text-gray-800">{op.label}</td>
-                    <td className="py-3 px-4 text-right">
+                  <tr key={`op-${i}`} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                    <td className="py-3 px-4 text-gray-800 whitespace-nowrap">{op.label}</td>
+                    <td className="py-3 px-4 text-gray-400 whitespace-nowrap">—</td>
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
                       {op.points === 0 ? (
                         <span className="text-emerald-600 font-medium">免费</span>
+                      ) : op.pointsRange ? (
+                        <span className="font-medium text-gray-900">{minPt}-{maxPt}<span className="text-gray-400 font-normal text-xs ml-1">{op.note}</span></span>
                       ) : (
-                        <span className="font-medium text-gray-900">{op.points} 积分<span className="text-gray-400 font-normal text-xs ml-1">{op.note}</span></span>
+                        <span className="font-medium text-gray-900">{op.points}<span className="text-gray-400 font-normal text-xs ml-1">{op.note}</span></span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-right text-gray-600">
+                    <td className="py-3 px-4 text-right text-gray-500 whitespace-nowrap">{priceStr}</td>
+                    <td className="py-3 px-4 text-right text-gray-600 whitespace-nowrap">
                       {op.points === 0 ? (
                         <span className="text-emerald-600">不限次</span>
                       ) : (
-                        <span>{count} 次</span>
+                        <span>{typeof count === 'string' ? count : count} 次</span>
                       )}
                     </td>
                   </tr>
@@ -130,38 +147,8 @@ export default function Pricing() {
             </tbody>
           </table>
         </div>
-      </section>
-
-      {/* 生图积分明细 */}
-      <section className="mb-12">
-        <h2 className="text-base font-semibold text-gray-900 mb-1">生图积分明细</h2>
-        <p className="text-xs text-gray-500 mb-4">各模型 + 清晰度的确切扣费，方便精确估算。</p>
-        <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-medium text-gray-700">模型</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">清晰度</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-700">积分/张</th>
-                <th className="text-right py-3 px-4 font-medium text-gray-700">折合单价</th>
-              </tr>
-            </thead>
-            <tbody>
-              {POINTS_TABLE.map((row, i) => (
-                <tr key={i} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                  <td className="py-3 px-4 text-gray-800">{row.model}</td>
-                  <td className="py-3 px-4 text-gray-600">{row.clarity}</td>
-                  <td className="py-3 px-4 text-right font-semibold text-gray-900">{row.points}</td>
-                  <td className="py-3 px-4 text-right text-gray-500">
-                    ¥{(PLAN.price * row.points / PLAN.points).toFixed(2)}/张
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
         <p className="mt-2 text-xs text-gray-400">
-          折合单价 = ¥200 × 每张积分 ÷ 1000 积分
+          折合单价 = ¥200 × 积分 ÷ 1000；生图为每张，其他为每次
         </p>
       </section>
 
