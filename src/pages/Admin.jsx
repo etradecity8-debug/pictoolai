@@ -243,6 +243,72 @@ function DeleteModal({ user, onClose, onSuccess, getToken }) {
   )
 }
 
+// ── 备注弹窗 ──────────────────────────────────────────────────────────────────
+
+function NotesModal({ user, onClose, onSuccess, getToken }) {
+  const [notes, setNotes] = useState(user.adminNotes ?? '')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(user.email)}/notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ adminNotes: notes }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '保存失败')
+      onSuccess(user.email, notes)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-1">客户备注</h3>
+        <p className="text-sm text-gray-500 mb-4 truncate">{user.email}</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">备注（如：该客户是谁、来源等）</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="例如：朋友张三、从某某渠道来的试用客户"
+              rows={3}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+            />
+          </div>
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── 主页面 ────────────────────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -255,6 +321,7 @@ export default function Admin() {
   const [grantTarget, setGrantTarget] = useState(null)
   const [txTarget, setTxTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [notesTarget, setNotesTarget] = useState(null)
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResult, setCleanupResult] = useState(null)
 
@@ -290,6 +357,11 @@ export default function Admin() {
   function handleDeleteSuccess(email) {
     setUsers((prev) => prev.filter((u) => u.email !== email))
     setDeleteTarget(null)
+  }
+
+  function handleNotesSuccess(email, adminNotes) {
+    setUsers((prev) => prev.map((u) => (u.email === email ? { ...u, adminNotes } : u)))
+    setNotesTarget(null)
   }
 
   if (!isAdmin) return null
@@ -381,6 +453,7 @@ export default function Admin() {
                     <th className="text-right px-4 py-3 font-medium text-gray-500">已消耗</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-500">订阅到期</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-500">注册时间</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">备注</th>
                     <th className="text-right px-6 py-3 font-medium text-gray-500">操作</th>
                   </tr>
                 </thead>
@@ -411,6 +484,18 @@ export default function Admin() {
                       </td>
                       <td className="px-4 py-4">{formatExpiry(u.expiresAt)}</td>
                       <td className="px-4 py-4 text-gray-500">{formatDate(u.createdAt)}</td>
+                      <td className="px-4 py-4 max-w-[140px]">
+                        <span className="block truncate text-gray-600 text-xs" title={u.adminNotes || ''}>
+                          {u.adminNotes || '—'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setNotesTarget(u)}
+                          className="mt-1 text-xs text-indigo-600 hover:underline"
+                        >
+                          编辑备注
+                        </button>
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
@@ -468,6 +553,14 @@ export default function Admin() {
           user={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onSuccess={handleDeleteSuccess}
+          getToken={getToken}
+        />
+      )}
+      {notesTarget && (
+        <NotesModal
+          user={notesTarget}
+          onClose={() => setNotesTarget(null)}
+          onSuccess={handleNotesSuccess}
           getToken={getToken}
         />
       )}

@@ -88,6 +88,29 @@
 
 - 已更新 `docs/AI-DESIGNER.md`、`docs/README.md`（索引）、`.cursor/rules/project-context.mdc`（关键文件、仓库用AI编辑、添加人/物、文字修改/官方示例项数），保证与代码一致。
 
+### 4. 删除用户与重新注册 + 管理员客户备注
+
+- **删除用户逻辑**：管理员删除客户时会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`。**删除后该邮箱可以重新注册**（注册时只检查 `users` 表是否存在该邮箱）。若删除后该邮箱仍提示「该邮箱已注册」，说明当时删除未生效或数据库仍保留该行，可在服务器上对 SQLite 执行：`DELETE FROM users WHERE email = '该邮箱';` 后该邮箱即可再次注册。
+- **管理员客户备注**：`users` 表新增 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表增加「备注」列与「编辑备注」按钮，管理员可为每个客户填写备注（如「朋友张三」「某某渠道试用客户」）。API：`GET /api/admin/users` 返回 `adminNotes`；`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }` 更新备注。
+
+### 5. 侵权风险检测（MVP 免费快筛 + 方案 B 深度查询）
+
+- **入口**：AI 运营助手左侧栏「侵权风险检测」，单独模块，路由 `?platform=ip-risk`。
+- **输入**：1～6 张产品图（必填）；选填：产品名称、品类、目标市场、其他说明。
+- **免费快筛（MVP）**：仅调用 Gemini 多模态分析，输出商标/Logo、外观设计、IP 形象、平台合规风险与综合等级、建议及免责声明；不扣积分。**快筛返回**：后端优先让 AI 输出 JSON 结构化字段（trademarkRisk、designRisk、ipImageRisk、platformRisk、overallLevel、suggestions、disclaimer），成功时返回 `{ mode: 'quick', sections: {...} }`，前端按分组卡片展示（每块一个标题+内容）；解析失败时回退为 `{ mode: 'quick', report: 整段文本 }`，前端单块 Markdown 渲染。
+- **深度查询（方案 B）**：在快筛基础上，调用 SerpApi：**Google Lens**（首图视觉匹配）、**Google Patents**（专利关键词检索）、**Google 搜索**（商标检索，查询「USPTO trademark + AI 提取的品牌/产品名词」），再由 Gemini 综合成报告；**消耗 10 积分**。深度返回与快筛一致：成功解析 JSON 时返回 `{ mode: 'deep', sections: {...} }` 分组卡片展示，失败时 `{ mode: 'deep', report: 整段 Markdown }`。深度结果另含 **searchSummary** 数组（每项含 method / service / content / purpose），前端在报告上方展示「本次深度查询使用的检索方式」表格（检索方式列含「使用服务」如 Google Lens、Google Patents、Google 搜索），用途说明已区分：以图搜图=整网、专利=主要美国、商标=以美国为主。报告分组卡片从正文开头解析风险等级（高/中高/中/中低/低）展示在标题行，等级为「高」时红色文字+警告图标。需在 `server/.env` 配置 `SERPAPI_KEY`，未配置时深度查询返回「暂未开放」。
+- **后端**：`POST /api/ai-assistant/ip-risk-check`，body `{ images, productName?, category?, targetMarket?, hints?, mode: 'quick'|'deep' }`；临时图供 Lens 抓取用 `GET /api/temp-ip-risk-image/:id`，临时文件存 `server/.temp-ip-risk/`，用后删除。深度扣费 `IP_RISK_DEEP_POINTS = 10`。
+- **免责**：报告末尾统一带「本报告由 AI 生成，仅供参考，不构成法律意见」。
+
+**深度查询所需 SerpApi 申请步骤**（配置后才能在站内使用「深度查询」）：
+
+1. 打开 **https://serpapi.com** ，点击右上角 **Sign up** 用邮箱或 Google/GitHub 注册。
+2. 登录后进入 **Dashboard**（或 **https://serpapi.com/manage-api-key**），在页面上复制你的 **API Key**。
+3. 在项目 **`server/.env`** 中增加一行：`SERPAPI_KEY=你的API_Key`，保存后重启后端（如 `pm2 restart`）。未配置时前端深度查询会提示「深度查询暂未开放」。
+4. 套餐说明：**Free** 约 250 次/月可试用；正式使用建议 **Developer**（约 $75/月，约 5000 次/月）。每次深度查询约消耗 3 次 SerpApi（1 次 Google Lens + 1 次 Google Patents + 1 次 Google 商标检索）。
+
+**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/IP-RISK-SERVICES-AND-COST.md**。
+
 ---
 
 ## 推送到服务器（执行步骤）

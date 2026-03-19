@@ -42,6 +42,8 @@
 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | 亚马逊 Listing 生成流程、合规规则、生图提示词、A+ 模块定义 |
 | [ECOMMERCE-AI-ASSISTANT-EBAY.md](./ECOMMERCE-AI-ASSISTANT-EBAY.md) | eBay 模块：Cassini 搜索优化、标题 80 字符、Item Specifics |
 | [ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md](./ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md) | 速卖通模块：标题 128 字符、产品属性、移动端描述 |
+| [IP-RISK-SERVICES-AND-COST.md](./IP-RISK-SERVICES-AND-COST.md) | 侵权风险检测：服务与费用说明（客户沟通用），含方案 B 费用汇总、轻量/完整版、如何向客户解释查了什么 |
+| 侵权风险检测（实现与配置） | 免费快筛（Gemini）；深度查询（SerpApi Lens + 专利 + 商标，10 积分）、检索方式表格、SerpApi 申请步骤，见 KNOWN_ISSUES |
 
 ---
 

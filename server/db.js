@@ -114,6 +114,11 @@ export function getDb() {
       const listingNames = listingInfo.map((c) => c.name)
       if (!listingNames.includes('product_image_ids')) db.exec('ALTER TABLE amazon_listing_snapshots ADD COLUMN product_image_ids TEXT')
     } catch (_) {}
+    try {
+      const usersInfo = db.prepare('PRAGMA table_info(users)').all()
+      const usersNames = usersInfo.map((c) => c.name)
+      if (!usersNames.includes('admin_notes')) db.exec('ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT NULL')
+    } catch (_) {}
   }
   return db
 }

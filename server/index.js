@@ -3714,12 +3714,289 @@ Output ONLY valid JSON (no markdown fences):
   }
 })
 
+// ── AI 运营助手 · 侵权风险检测（免费快筛 MVP + 付费深度查询 SerpApi）────────────────
+const IP_RISK_DEEP_POINTS = 10
+const tempIpRiskDir = join(__dirname, '.temp-ip-risk')
+
+function ensureTempIpRiskDir() {
+  if (!existsSync(tempIpRiskDir)) mkdirSync(tempIpRiskDir, { recursive: true })
+}
+
+// 临时图片供 SerpApi Google Lens 抓取（无需登录，用后由接口删除）
+app.get('/api/temp-ip-risk-image/:id', (req, res) => {
+  try {
+    const id = req.params.id.replace(/[^a-zA-Z0-9-]/g, '')
+    if (!id) return res.status(400).end()
+    const filePath = join(tempIpRiskDir, `${id}.jpg`)
+    if (!existsSync(filePath)) return res.status(404).end()
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.sendFile(filePath)
+  } catch (e) {
+    res.status(500).end()
+  }
+})
+
+app.post('/api/ai-assistant/ip-risk-check', requireAuth, async (req, res) => {
+  const apiKey = getGeminiApiKey()
+  if (!apiKey) return res.status(503).json({ error: '未配置 GEMINI_API_KEY' })
+  const { images, productName, category, targetMarket, hints, mode } = req.body || {}
+  if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: '请上传至少一张产品图' })
+  const resolvedMode = mode === 'deep' ? 'deep' : 'quick'
+  if (resolvedMode === 'deep') {
+    if (!process.env.SERPAPI_KEY) return res.status(503).json({ error: '深度查询暂未开放，请联系管理员' })
+    const balance = getBalance(req.user.email)
+    if (balance < IP_RISK_DEEP_POINTS) return res.status(400).json({ error: `积分不足，深度查询需 ${IP_RISK_DEEP_POINTS} 积分` })
+  }
+
+  const parsedImages = []
+  for (let i = 0; i < images.length; i++) {
+    const p = parseDataUrl(images[i])
+    if (!p) return res.status(400).json({ error: `第 ${i + 1} 张图片格式无效` })
+    parsedImages.push(p)
+  }
+
+  let tempToken = null
+  let report = ''
+  let deepResults = null
+  let deepSections = null
+
+  try {
+    const hintText = [
+      productName?.trim() && `产品名称：${productName.trim()}`,
+      category?.trim() && `品类：${category.trim()}`,
+      targetMarket?.trim() && `目标市场：${targetMarket.trim()}`,
+      hints?.trim() && `其他说明：${hints.trim()}`,
+    ].filter(Boolean).join('\n')
+
+    if (resolvedMode === 'quick') {
+      const prompt = `你是一位跨境电商知识产权与合规顾问。用户上传了产品图片（可能多张）和可选说明，请基于图片与说明做一次侵权与专利风险的快速初筛。
+
+用户提供的信息：
+${hintText || '（无文字说明）'}
+
+请严格输出一个 JSON 对象（仅此对象，不要 markdown 代码块、不要其他文字），包含以下字段，每个字段为字符串（可含换行，内容简洁、2～4 句为宜）：
+- "trademarkRisk": 商标/Logo 风险：图中是否出现与知名品牌相似或易混淆的文字、Logo、标识？若有列出可能冲突的品牌与建议。
+- "designRisk": 外观设计风险：产品造型是否与某知名品牌标志性设计高度相似？列举可能冲突的品牌或产品类型。
+- "ipImageRisk": IP 形象/版权风险：是否含有受版权保护的角色、图案、艺术作品元素？
+- "platformRisk": 平台合规风险：该品类在亚马逊/eBay 等平台是否属于侵权投诉高发品类？简要提示。
+- "overallLevel": 综合风险等级与理由，格式如 "中 - 理由简述" 或 "低 - 理由简述"。
+- "suggestions": 针对上述风险的可操作建议，每条一行或分点列出。
+- "disclaimer": 免责声明一句：本报告由 AI 生成，仅供参考，不构成法律意见。建议就高风险项咨询专业知识产权律师。`
+
+      const parts = [
+        ...parsedImages.slice(0, 5).map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
+        { text: prompt },
+      ]
+      const ai = new GoogleGenAI({ apiKey })
+      const response = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: parts })
+      const rawText = response?.text ?? (response?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+      if (!rawText.trim()) return res.status(500).json({ error: 'AI 分析未返回内容，请重试' })
+
+      let sections = null
+      try {
+        const parsed = extractAnalyzeJson(rawText, true)
+        if (parsed && (parsed.trademarkRisk != null || parsed.overallLevel != null)) {
+          sections = {
+            trademarkRisk: String(parsed.trademarkRisk ?? '').trim(),
+            designRisk: String(parsed.designRisk ?? '').trim(),
+            ipImageRisk: String(parsed.ipImageRisk ?? '').trim(),
+            platformRisk: String(parsed.platformRisk ?? '').trim(),
+            overallLevel: String(parsed.overallLevel ?? '').trim(),
+            suggestions: String(parsed.suggestions ?? '').trim(),
+            disclaimer: String(parsed.disclaimer ?? '').trim(),
+          }
+        }
+      } catch (_) {}
+
+      if (sections) {
+        console.log('[IP Risk] 快筛完成（分组）')
+        return res.json({ report: null, sections, mode: 'quick' })
+      }
+      report = rawText.trim()
+      console.log('[IP Risk] 快筛完成（纯文本回退）')
+      return res.json({ report, sections: null, mode: 'quick' })
+    }
+
+    // ── deep：Gemini 初析 + 专利关键词 → SerpApi Lens + Patents → Gemini 综合报告 ──
+    const analysisPrompt = `你是一位跨境电商知识产权顾问。用户上传了产品图片和说明，请先做快速分析并输出一个 JSON（仅输出 JSON，不要 markdown 代码块）。
+
+用户提供的信息：
+${hintText || '（无文字说明）'}
+
+请输出唯一一个 JSON 对象，包含：
+- "quickReport": "2-4 段简短文字，概括商标/外观/IP 形象/平台合规的初步判断与风险等级（高/中/低）"
+- "patentSearchTerms": ["关键词1", "关键词2", "关键词3"]  // 用于在美国专利库中检索外观或设计相关专利，用英文，3-5 个词
+- "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标`
+
+    const analysisParts = [
+      ...parsedImages.slice(0, 5).map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
+      { text: analysisPrompt },
+    ]
+    const ai = new GoogleGenAI({ apiKey })
+    const analysisResp = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: analysisParts })
+    const analysisText = analysisResp?.text ?? (analysisResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    let quickReport = ''
+    let patentSearchTerms = ['product design', 'consumer product']
+    let trademarkSearchTerms = []
+    try {
+      const parsed = extractAnalyzeJson(analysisText, true)
+      if (parsed?.quickReport) quickReport = String(parsed.quickReport)
+      if (Array.isArray(parsed?.patentSearchTerms) && parsed.patentSearchTerms.length > 0) {
+        patentSearchTerms = parsed.patentSearchTerms.slice(0, 5).map((t) => String(t).trim()).filter(Boolean)
+      }
+      if (Array.isArray(parsed?.trademarkSearchTerms) && parsed.trademarkSearchTerms.length > 0) {
+        trademarkSearchTerms = parsed.trademarkSearchTerms.slice(0, 3).map((t) => String(t).trim()).filter(Boolean)
+      }
+    } catch (_) {}
+
+    ensureTempIpRiskDir()
+    tempToken = createHash('sha256').update(Date.now() + Math.random().toString()).digest('hex').slice(0, 24)
+    const tempPath = join(tempIpRiskDir, `${tempToken}.jpg`)
+    const firstImage = parsedImages[0]
+    const buf = Buffer.from(firstImage.data, 'base64')
+    writeFileSync(tempPath, buf)
+
+    const baseUrl = `${req.protocol}://${req.get('host') || 'localhost'}`
+    const imageUrl = `${baseUrl}/api/temp-ip-risk-image/${tempToken}`
+
+    const serpApiKey = process.env.SERPAPI_KEY
+    let lensData = null
+    let patentsData = null
+    let trademarksData = null
+
+    try {
+      const lensRes = await fetch(
+        `https://serpapi.com/search.json?engine=google_lens&url=${encodeURIComponent(imageUrl)}&api_key=${serpApiKey}`
+      )
+      if (lensRes.ok) lensData = await lensRes.json()
+    } catch (e) {
+      console.error('[IP Risk] SerpApi Google Lens 失败', e.message)
+    }
+    try {
+      const q = patentSearchTerms.slice(0, 2).join(' ')
+      const patentRes = await fetch(
+        `https://serpapi.com/search.json?engine=google_patents&q=${encodeURIComponent(q)}&api_key=${serpApiKey}`
+      )
+      if (patentRes.ok) patentsData = await patentRes.json()
+    } catch (e) {
+      console.error('[IP Risk] SerpApi Google Patents 失败', e.message)
+    }
+    if (trademarkSearchTerms.length > 0) {
+      try {
+        const tq = `USPTO trademark ${trademarkSearchTerms[0]}`
+        const trademarkRes = await fetch(
+          `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(tq)}&api_key=${serpApiKey}`
+        )
+        if (trademarkRes.ok) trademarksData = await trademarkRes.json()
+      } catch (e) {
+        console.error('[IP Risk] SerpApi Google 商标检索失败', e.message)
+      }
+    }
+
+    deepResults = { lens: lensData, patents: patentsData, trademarks: trademarksData }
+
+    const lensSummary =
+      lensData?.visual_matches?.slice?.(0, 8).map((m) => `${m.title || ''} ${m.link || ''}`).join('\n') || '（无视觉匹配结果）'
+    const patentSummary =
+      patentsData?.organic_results?.slice?.(0, 5).map((p) => `${p.title || ''} - ${p.link || ''}`).join('\n') || '（无专利检索结果）'
+    const trademarkSummary =
+      trademarksData?.organic_results?.slice?.(0, 6).map((p) => `${p.title || ''} - ${p.link || ''}`).join('\n') || '（无商标检索结果）'
+
+    const synthesizePrompt = `你是一位跨境电商知识产权顾问。已有初步分析、Google Lens 视觉匹配、专利检索与商标检索结果，请合成侵权风险报告。
+
+=== 初步分析 ===
+${quickReport || '（无）'}
+
+=== Google Lens 视觉匹配（与图中产品外观相似的网络结果）===
+${lensSummary}
+
+=== 专利检索相关结果（仅供参考，非精确法律检索）===
+${patentSummary}
+
+=== 商标检索相关结果（Google 检索 USPTO/商标信息，仅供参考）===
+${trademarkSummary}
+
+请严格输出一个 JSON 对象（仅此对象，不要 markdown 代码块、不要其他文字），包含以下字段，每个字段为字符串（可含换行）：
+- "trademarkRisk": 商标/Logo 风险（结合初析与上述商标检索结果，指出可能冲突或近似的商标及建议）
+- "designRisk": 外观设计风险（结合初析与上述 Lens/专利结果，说明是否需进一步规避）
+- "ipImageRisk": IP 形象/版权风险
+- "platformRisk": 平台合规与建议
+- "overallLevel": 综合风险等级与理由，格式如 "中 - 理由简述"
+- "suggestions": 可操作建议，每条一行或分点
+- "disclaimer": 免责声明一句：本报告由 AI 与公开检索结果生成，仅供参考，不构成法律意见。建议就高风险项咨询专业知识产权律师。`
+
+    const synResp = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: synthesizePrompt }] })
+    const rawDeepText = synResp?.text ?? (synResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+    if (!rawDeepText.trim()) {
+      report = quickReport || '深度分析完成，但综合报告生成失败，请重试。'
+    } else {
+      try {
+        const parsed = extractAnalyzeJson(rawDeepText, true)
+        if (parsed && (parsed.trademarkRisk != null || parsed.overallLevel != null)) {
+          deepSections = {
+            trademarkRisk: String(parsed.trademarkRisk ?? '').trim(),
+            designRisk: String(parsed.designRisk ?? '').trim(),
+            ipImageRisk: String(parsed.ipImageRisk ?? '').trim(),
+            platformRisk: String(parsed.platformRisk ?? '').trim(),
+            overallLevel: String(parsed.overallLevel ?? '').trim(),
+            suggestions: String(parsed.suggestions ?? '').trim(),
+            disclaimer: String(parsed.disclaimer ?? '').trim(),
+          }
+        }
+      } catch (_) {}
+      if (!deepSections) report = rawDeepText.trim()
+    }
+
+    deductPoints(req.user.email, IP_RISK_DEEP_POINTS, `侵权风险深度查询`)
+    const newBalance = getBalance(req.user.email)
+    console.log('[IP Risk] 深度查询完成，扣费', IP_RISK_DEEP_POINTS, '积分，用户', req.user.email)
+
+    if (tempToken) {
+      const fp = join(tempIpRiskDir, `${tempToken}.jpg`)
+      if (existsSync(fp)) try { unlinkSync(fp) } catch (e) { console.error('[IP Risk] 删临时图失败', e.message) }
+    }
+
+    const patentQuery = patentSearchTerms.slice(0, 2).join(' ')
+    const trademarkQuery = trademarkSearchTerms.length > 0 ? `USPTO trademark ${trademarkSearchTerms[0]}` : ''
+    const searchSummary = [
+      { method: '以图搜图', service: 'Google Lens', content: '您上传的首张产品图', purpose: '检索整个网络中与您产品外观相似的图片/商品，辅助判断外观设计侵权风险' },
+      { method: '专利检索', service: 'Google Patents', content: patentQuery || '（未获取到检索词）', purpose: '主要在美国专利库中检索相关外观/设计专利（也可能包含其他地区），辅助判断专利侵权风险' },
+    ]
+    if (trademarkQuery) {
+      searchSummary.push({
+        method: '商标检索',
+        service: 'Google 搜索',
+        content: trademarkQuery,
+        purpose: '通过 Google 检索商标相关网页（含美国商标局等），以美国商标信息为主，辅助判断商标/Logo 侵权风险',
+      })
+    }
+
+    const payload = {
+      mode: 'deep',
+      pointsUsed: IP_RISK_DEEP_POINTS,
+      newBalance,
+      deepResults: { hasLens: !!lensData, hasPatents: !!patentsData, hasTrademarks: !!trademarksData },
+      searchSummary,
+    }
+    if (deepSections) payload.sections = deepSections
+    else payload.report = report
+    return res.json(payload)
+  } catch (e) {
+    if (tempToken) {
+      const fp = join(tempIpRiskDir, `${tempToken}.jpg`)
+      if (existsSync(fp)) try { unlinkSync(fp) } catch (_) {}
+    }
+    console.error('[IP Risk] 失败', e.message)
+    return res.status(500).json({ error: e.message || '侵权风险检测失败，请稍后重试' })
+  }
+})
+
 // ── 管理员 API ────────────────────────────────────────────────────────────────
 
-// 客户列表（含余额、订阅到期时间、总消耗）
+// 客户列表（含余额、订阅到期时间、总消耗、管理员备注）
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   try {
-    const users = getDb().prepare('SELECT email, role, created_at FROM users ORDER BY created_at DESC').all()
+    const users = getDb().prepare('SELECT email, role, created_at, admin_notes FROM users ORDER BY created_at DESC').all()
     const result = users.map((u) => {
       const info = getSubscriptionInfo(u.email)
       const spentRow = getDb()
@@ -3729,6 +4006,7 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
         email: u.email,
         role: u.role,
         createdAt: u.created_at,
+        adminNotes: u.admin_notes ?? '',
         balance: info.balance,
         expiresAt: info.expiresAt,
         lastGrantedAt: info.lastGrantedAt,
@@ -3739,6 +4017,21 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '获取客户列表失败' })
+  }
+})
+
+// 更新客户备注（管理员）
+app.patch('/api/admin/users/:email/notes', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    const user = dbFindUser(targetEmail)
+    if (!user) return res.status(404).json({ error: '用户不存在' })
+    const notes = typeof req.body?.adminNotes === 'string' ? req.body.adminNotes.trim() : ''
+    getDb().prepare('UPDATE users SET admin_notes = ? WHERE email = ?').run(notes || null, targetEmail)
+    return res.json({ ok: true, adminNotes: notes })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '更新备注失败' })
   }
 })
 
@@ -3776,10 +4069,13 @@ app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
       if (row.cos_key && isCosEnabled()) deleteFromCos(row.cos_key).catch((e) => console.error('[Admin] 删 COS 对象失败', row.cos_key, e.message))
     }
     db.prepare('DELETE FROM gallery WHERE user_email = ?').run(targetEmail)
-    db.prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
     db.prepare('DELETE FROM user_points WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM points_transactions WHERE user_email = ?').run(targetEmail)
-    console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}（含 ${galleryRows.length} 张仓库图）`)
+    db.prepare('DELETE FROM amazon_listing_snapshots WHERE user_email = ?').run(targetEmail)
+    db.prepare('DELETE FROM ebay_listing_snapshots WHERE user_email = ?').run(targetEmail)
+    db.prepare('DELETE FROM aliexpress_listing_snapshots WHERE user_email = ?').run(targetEmail)
+    db.prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
+    console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}（含 ${galleryRows.length} 张仓库图），该邮箱可重新注册`)
     return res.json({ ok: true })
   } catch (e) {
     console.error(e)
