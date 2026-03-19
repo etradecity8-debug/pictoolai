@@ -1,74 +1,51 @@
-# PicToolAI 部署指南（VPS）
+# PicToolAI 运维手册
 
-> **当前规划**：香港部署已暂停（Gemini API 香港不可用，详见文末「附录：Gemini 地区限制」）。下次可能改在美国 VPS 部署；美国直连 Gemini 无地区限制。下文步骤适用于任意 Ubuntu/Debian VPS，部署时把「服务器 IP、用户」换成你的即可。
+> 本文涵盖四块内容：**首次部署**（VPS 环境搭建）→ **每次更新**（日常发版操作）→ **COS 配置**（仓库图片国内加速）→ **用户管理**（管理后台 + 数据库操作）。
+>
+> 附录：Gemini 地区限制说明。
 
-## 服务器信息（示例：此前香港 VPS，仅供参考）
+---
 
-| 项目 | 内容 |
-|------|------|
-| 服务商 | 腾讯云轻量应用服务器 |
-| 地域 | 中国香港（锐驰型，跨境优化）— **已暂停，后续或改美国** |
-| 套餐 | 2核2G / 40GB SSD / 200Mbps / ¥55/月 |
-| 公网 IP | 43.161.215.41（示例，美国部署时换为你自己的 IP） |
-| 系统 | Ubuntu 22.04 LTS |
-| 登录用户 | ubuntu |
+## 目录
 
-## 连接服务器
+- [一、首次部署（VPS）](#一首次部署vps)
+- [二、每次更新上线](#二每次更新上线)
+- [三、配置 SerpApi（开放侵权深度查询）](#三配置-serpapi开放侵权深度查询)
+- [四、仓库图片加速（腾讯云 COS，可选）](#四仓库图片加速腾讯云-cos可选)
+- [五、用户管理与数据库操作](#五用户管理与数据库操作)
+- [附录：Gemini 地区限制](#附录gemini-地区限制)
+
+---
+
+## 一、首次部署（VPS）
+
+> 下文步骤适用于 Ubuntu/Debian VPS，部署时把「服务器 IP、用户」换成你的即可。
+> 当前已部署：美国硅谷（腾讯云轻量，`43.162.87.60`，域名 `pictoolai.studio`，HTTPS 已启用）。
+
+### 1.1 连接服务器
 
 ```bash
 ssh ubuntu@你的服务器IP
 ```
 
----
-
-## 阶段一：环境安装（已完成 ✅）
-
-### 安装 Git、Nginx、Node.js 20、PM2
+### 1.2 安装环境（已完成 ✅）
 
 ```bash
-sudo apt update && sudo apt upgrade -y && sudo apt install -y git nginx && curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs && sudo npm install -g pm2
+sudo apt update && sudo apt upgrade -y && sudo apt install -y git nginx
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+sudo npm install -g pm2
 ```
 
-### 验证版本
+验证版本：
 
 ```bash
 node -v && npm -v && pm2 -v && nginx -v
 ```
 
-已安装版本：
-- Node.js v20.20.1
-- npm 10.8.2
-- PM2 6.0.14
-- Nginx 1.18.0
+> 遇到紫色弹窗时：按 **Tab** 键移到 `<Ok>` 再回车。
 
-> **遇到紫色弹窗时**：按键盘左上角 **Tab** 键移动到 `<Ok>` 按钮，再按回车确认。
-
----
-
-## 阶段二：上传代码
-
-### 2.1 本地：推送到 GitHub
-
-1. **在 GitHub 新建私有仓库**（如 `pictoolai`），不要勾选「Add README」。
-2. **在项目根目录执行**（把 `你的用户名` 和 `仓库名` 换成你的）：
-
-```bash
-git remote add origin https://github.com/你的用户名/仓库名.git
-git push -u origin main
-```
-
-若仓库已存在且已添加过 `origin`，只需 `git push -u origin main`。
-
-若推送报错 **Repository not found**：先确认在 GitHub 已创建同名仓库（如 `pictoolai`）；若仓库名不同，可修改远程地址：
-
-```bash
-git remote set-url origin https://github.com/你的用户名/实际仓库名.git
-git push -u origin main
-```
-
-### 2.2 服务器上：克隆代码
-
-SSH 登录后执行（本项目仓库：`etradecity8-debug/pictoolai`）：
+### 1.3 克隆代码
 
 ```bash
 cd ~
@@ -76,102 +53,79 @@ git clone https://github.com/etradecity8-debug/pictoolai.git app
 cd app
 ```
 
-若为私有仓库，会提示输入 GitHub 用户名和密码（密码处填 **Personal Access Token**）。
+私有仓库会提示输入 GitHub 用户名和密码（密码填 **Personal Access Token**）。
 
----
-
-## 阶段三：配置环境变量
-
-在服务器上执行：
+### 1.4 配置环境变量
 
 ```bash
 nano server/.env
 ```
 
-**下面整段复制到 nano 里**，把 `你的Gemini的API_Key`、`你的管理员邮箱`、`你的管理员密码` 换成真实值后保存：
+把下面内容粘贴进去，把 `你的…` 换成真实值后保存：
 
 ```
 GEMINI_API_KEY=你的Gemini的API_Key
-
-# 美国等支持地区直连 Gemini，可不填；若在香港等不支持地区需代理再填
-# HTTPS_PROXY=
-
 ADMIN_EMAIL=你的管理员邮箱
 ADMIN_PASSWORD=你的管理员密码
+
+# 以下可选：
+# HTTPS_PROXY=http://127.0.0.1:7890        # 若服务器访问 Gemini 需代理则填
+# SERPAPI_KEY=你的SerpApi密钥               # 侵权风险深度查询，见第三节
+# COS_SECRET_ID=                            # 腾讯云 COS 加速，见第四节
+# COS_SECRET_KEY=
+# COS_BUCKET=pictoolai-1234567890
+# COS_REGION=na-siliconvalley
+# COS_CDN_DOMAIN=img.pictoolai.studio       # 可选 CDN 加速域名
 ```
 
-保存：`Ctrl+O`（**字母 O**，不是数字 0）回车，退出：`Ctrl+X`。
+保存：`Ctrl+O` 回车；退出：`Ctrl+X`。
 
----
-
-## 阶段四：安装依赖（待做）
-
-```bash
-# 安装前端依赖
-cd ~/app
-npm install
-
-# 安装后端依赖
-cd ~/app/server
-npm install
-```
-
----
-
-## 阶段五：构建前端（待做）
+### 1.5 安装依赖并构建前端
 
 ```bash
 cd ~/app
+npm install
 npm run build
+cd server
+npm install
 ```
 
-构建完成后会生成 `dist/` 目录，这是前端的静态文件。
-
----
-
-## 阶段六：启动后端（待做）
+### 1.6 启动后端
 
 ```bash
 cd ~/app/server
-pm2 start index.js --name pictoolai-server
+pm2 start index.js --name pictoolai-server --cwd /home/ubuntu/app/server
 pm2 save
 pm2 startup
 ```
 
-验证后端是否正常：
+验证：
 
 ```bash
 pm2 status
 pm2 logs pictoolai-server
 ```
 
----
-
-## 阶段七：配置 Nginx
-
-> 说明：Nginx 配置文件名、PM2 进程名只是「标识符」，和仓库名 pictoolai 一致即可，避免与品牌名 PicToolAI 混淆。
+### 1.7 配置 Nginx
 
 ```bash
 sudo nano /etc/nginx/sites-available/pictoolai
 ```
 
-填入以下配置：
+粘贴以下配置（**不要带 ` ```nginx ` 等 Markdown 符号**）：
 
 ```nginx
 server {
     listen 80;
-    server_name 43.161.215.41;  # 后续换成域名
+    server_name 43.162.87.60;
 
-    # 前端静态文件
     root /home/ubuntu/app/dist;
     index index.html;
 
-    # 前端路由（React Router）
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # 后端 API 转发
     location /api/ {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
@@ -180,177 +134,348 @@ server {
         proxy_read_timeout 120s;
         client_max_body_size 20m;
     }
-
-    # 仓库图片转发
-    location /api/gallery/ {
-        proxy_pass http://localhost:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
 }
 ```
 
-启用配置：
+启用并重载：
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/pictoolai /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default   # 去掉默认站点，否则会显示 Welcome to nginx
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-**阶段七常见问题：**
+**常见问题**：
+- **浏览器 500**：Nginx 无权限读 `dist`，执行 `sudo chmod 755 /home/ubuntu /home/ubuntu/app /home/ubuntu/app/dist && sudo chmod -R 755 /home/ubuntu/app/dist`，再强制刷新。
+- **登录不进去**：确认 `pm2 status` 显示 `pictoolai-server` 为 `online`；若在配好 `.env` 前就启动了后端，管理员未创建，需 `pm2 restart pictoolai-server` 后重试。
 
-- **浏览器 500**：多半是 Nginx 无权限读 `dist`。在服务器执行：
-  ```bash
-  sudo chmod 755 /home/ubuntu /home/ubuntu/app /home/ubuntu/app/dist
-  sudo chmod -R 755 /home/ubuntu/app/dist
-  ```
-  然后强制刷新页面（Ctrl+Shift+R）。
-- **粘贴配置时**：只粘贴从 `server {` 到 `}` 的纯配置，**不要**带 \`\`\`nginx 或 \`\`\` 等 Markdown 符号，否则 nginx -t 会报 unknown directive。
+### 1.8 配置 HTTPS（已完成 ✅）
 
----
-
-## 阶段八：验证访问
-
-浏览器打开：`http://43.161.215.41`
-
-能看到登录页面说明部署成功。
-
-**若登录不进去**：见下方「登录问题排查」。
-
----
-
-## 登录问题排查
-
-- **用哪个账号？** 服务器上的管理员账号 = 你在**服务器** `server/.env` 里填的 `ADMIN_EMAIL` + `ADMIN_PASSWORD`（后端启动时会自动创建或提升该邮箱为管理员）。请用这两个值登录，注意大小写、空格。
-- **先试注册**：在登录页点「注册」，用任意邮箱和至少 6 位密码注册，再登录，可确认接口是否正常。
-- **确认后端在跑**：SSH 上服务器执行 `pm2 status`，看 `pictoolai-server` 是否为 `online`。
-- **重启后端再试**：若你是在配好 `server/.env` 之前就启动了后端，管理员可能没被创建。SSH 上执行 `pm2 restart pictoolai-server`（若你当时写成了 `picaitool-server` 则用该名），再用 ADMIN_EMAIL / ADMIN_PASSWORD 登录。
-- **看接口是否被调用**：浏览器 F12 → Network，点登录，看是否有对 `http://你的服务器IP/api/login` 的请求；若 401 为「邮箱或密码错误」，若 500 可看服务器 `pm2 logs pictoolai-server` 最后几行报错。
-
----
-
-## 部署完成总结（第一次部署后看）
-
-| 项目 | 说明 |
-|------|------|
-| 访问地址 | http://你的服务器IP（美国部署时填美国 VPS 的 IP） |
-| 代码位置 | 服务器 `~/app`（Git 从 GitHub 拉取） |
-| 后端 | PM2 进程名 `pictoolai-server` |
-| 下次更新 | 见下方「日常运维 → 更新代码」，或部署时再问一步步操作 |
-
----
-
-## 日常运维
-
-### 已有香港服务器（曾用 picaitool）的迁移说明
-
-若你之前按「错误拼写」部署过，本次统一为 **PicToolAI**（技术标识为 pictoolai）后，只需做一次迁移：
-
-1. **数据库**：若服务器上已有 `server/picaitool.db`，拉取新代码前先重命名，否则会新建空库：
-   ```bash
-   cd ~/app/server && mv picaitool.db pictoolai.db 2>/dev/null; mv picaitool.db-wal pictoolai.db-wal 2>/dev/null; mv picaitool.db-shm pictoolai.db-shm 2>/dev/null; true
-   ```
-2. **PM2 进程名**：若当时起的是 `picaitool-server`，可保留（重启时仍用该名）或改为统一名称：
-   ```bash
-   pm2 delete picaitool-server
-   cd ~/app/server && pm2 start index.js --name pictoolai-server
-   pm2 save
-   ```
-
-之后日常更新代码按下面「更新代码」步骤即可。
-
-### 更新代码（分两步：本机 → 服务器）
-
-> **若不熟悉 Git/部署**：请严格按顺序、一步一步执行；先做完「本机」再去做「服务器」。
-
-**第一步：本机**（在项目目录，如 `nano banana for business`）
 ```bash
-git add .                    # 或只 add 改动的文件，如 git add server/index.js
-git commit -m "简短说明"     # 例如：fix: 删除用户时清除积分
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d pictoolai.studio
+```
+
+- 证书自动续期（`certbot.timer`）。
+- 腾讯云轻量防火墙需放行 **TCP 443**（来源 0.0.0.0/0）。
+- 如需添加 `www`：先做 A 记录，再执行 `sudo certbot --nginx -d pictoolai.studio -d www.pictoolai.studio`。
+
+### 1.9 迁移说明（已有旧版部署）
+
+若曾按旧拼写（`picaitool`）部署过，执行一次性迁移：
+
+```bash
+# 重命名旧数据库
+cd ~/app/server
+mv picaitool.db pictoolai.db 2>/dev/null
+mv picaitool.db-wal pictoolai.db-wal 2>/dev/null
+
+# 更换 PM2 进程名
+pm2 delete picaitool-server
+pm2 start index.js --name pictoolai-server --cwd /home/ubuntu/app/server
+pm2 save
+```
+
+---
+
+## 二、每次更新上线
+
+> 每次改完代码后按这个流程操作。先在本机做 1-4 步，然后 SSH 登录服务器做 5-11 步。
+
+### 第一步：本机 → 查看改动
+
+```bash
+git status
+```
+
+确认改动文件符合预期（如 `server/index.js`、`src/pages/...`、`docs/` 等）。
+
+### 第二步：本机 → 加入暂存区
+
+```bash
+git add .
+```
+
+### 第三步：本机 → 提交
+
+```bash
+git commit -m "简短说明，如：feat: 侵权风险检测"
+```
+
+### 第四步：本机 → 推送
+
+```bash
 git push
 ```
 
-**第二步：服务器**（SSH 登录后）
+若提示输入密码，填 GitHub **Personal Access Token**（不是登录密码）。
+
+---
+
+以下在**服务器**（SSH 登录后）执行：
+
+### 第五步：进入项目目录
+
 ```bash
 cd ~/app
-git pull
-npm run build                # 仅当前端有改动时执行
-cd server && npm install     # 仅当后端依赖有变化时执行
-pm2 restart pictoolai-server   # 若你当时用的是 picaitool-server，用那个名字即可
 ```
 
-只有后端改动的更新（如只改了 `server/index.js`）：本机 push 后，服务器执行 `cd ~/app && git pull && pm2 restart pictoolai-server` 即可，无需 build。
-
-### 管理后台：删除用户
-
-管理员在「管理后台」删除客户时，会同时清除该客户的**积分余额**与**流水记录**，该邮箱重新注册后积分为 0。
-
-### 查看后端日志
+### 第六步：拉取最新代码
 
 ```bash
-pm2 logs pictoolai-server
+git pull
 ```
 
-### 重启后端
+### 第七步：安装前端依赖（仅 package.json 有变化时需要）
+
+```bash
+npm install
+```
+
+### 第八步：构建前端（有前端改动时执行）
+
+```bash
+npm run build
+```
+
+若只改了后端（`server/index.js` 等），跳过第七、八步。
+
+### 第九步：进入后端目录
+
+```bash
+cd server
+```
+
+### 第十步：安装后端依赖（仅后端 package.json 有变化时需要）
+
+```bash
+npm install
+```
+
+### 第十一步：重启后端
 
 ```bash
 pm2 restart pictoolai-server
 ```
 
-### 服务器重启后自动恢复
-
-PM2 startup 配置好后，服务器重启会自动拉起后端，Nginx 也会自动启动。
+若 PM2 进程名不是 `pictoolai-server`，先用 `pm2 list` 查看实际名字。
 
 ---
 
-## 仓库图片国内加速（可选）
+**查看日志**（出现问题时）：
 
-国内用户访问仓库图片若较慢，可配置 **腾讯云 COS**：新图同步上传 COS，列表返回临时签名 URL，浏览器从 COS（或 CDN）拉图。详见 [COS-CDN.md](./COS-CDN.md)。
+```bash
+pm2 logs pictoolai-server
+```
 
----
-
-## HTTPS 已配置（pictoolai.studio，2026-03-18）
-
-- **访问**：https://pictoolai.studio（推荐）；HTTP 会自动 301 跳转到 HTTPS。
-- **证书**：Let's Encrypt（certbot），免费，到期前自动续期（`certbot.timer`）。
-- **申请时**：仅主域名 `pictoolai.studio`（`www` 未做 DNS 解析则 certbot 不加 `-d www.pictoolai.studio`，否则 NXDOMAIN 会失败）。若后续为 www 添加 A 记录后，可再执行 `sudo certbot --nginx -d pictoolai.studio -d www.pictoolai.studio` 扩展证书。
-- **防火墙**：腾讯云轻量应用服务器需在控制台**放行 TCP 443**（协议 TCP，端口 443，来源 0.0.0.0/0），否则外网无法访问 HTTPS，页面会“完全打不开”。
-- **Nginx**：certbot 已自动在 `/etc/nginx/sites-available/pictoolai` 中加入 443、证书路径及 HTTP→HTTPS 重定向。
-
-### 其他域名或新站点
-
-1. 域名解析：A 记录指向服务器 IP（美国站为 43.162.87.60）
-2. 安装 certbot 后：`sudo certbot --nginx -d 你的域名.com`
+**服务器重启后自动恢复**：PM2 startup 配置好后，服务器重启会自动拉起后端，Nginx 也会自动启动。
 
 ---
 
-## 附录：Gemini 地区限制问题
+## 三、配置 SerpApi（开放侵权深度查询）
+
+界面显示「深度查询暂未开放，请联系管理员」= 服务器上未配置 `SERPAPI_KEY`。
+
+**获取 Key**：访问 https://serpapi.com/ → 注册/登录 → Dashboard → 复制 API Key。
+
+**套餐参考**：Free 约 250 次/月；正式使用建议 Developer（$75/月，5000 次/月）。每次深度查询约消耗 3 次（1 次 Lens + 1 次 Patents + 1 次商标）。
+
+**在服务器上配置**（一步步执行）：
+
+```bash
+cd ~/app
+```
+
+```bash
+nano server/.env
+```
+
+在文件末尾加一行：
+
+```
+SERPAPI_KEY=你的SerpApi密钥
+```
+
+保存退出（`Ctrl+O` 回车 → `Ctrl+X`）。
+
+```bash
+pm2 restart pictoolai-server
+```
+
+重启后，站内「深度查询」即可正常使用。
+
+---
+
+## 四、仓库图片加速（腾讯云 COS，可选）
+
+服务器在海外（美国），国内用户访问仓库图片会较慢。配置腾讯云 COS 后，新图自动同步到 COS，国内用户从就近节点加载，速度明显提升。**不配置时行为与之前一致，无需迁移**。
+
+### 4.1 准备 COS
+
+1. 登录[腾讯云控制台](https://console.cloud.tencent.com)，进入**对象存储** → **创建存储桶**。
+2. 选地域（国内加速建议香港/广州），权限选**私有读写**。记下**桶名称**（如 `pictoolai-1234567890`）和**地域**（如 `ap-guangzhou`）。
+3. **访问管理** → **API 密钥管理** → **新建密钥**，得到 `SecretId` 和 `SecretKey`。
+4. **可选 CDN**：在 CDN 控制台添加加速域名（如 `img.pictoolai.studio`），源站选对象存储，再配置 CNAME。
+
+### 4.2 配置 .env
+
+在服务器 `server/.env` 末尾追加：
+
+```
+COS_SECRET_ID=你的SecretId
+COS_SECRET_KEY=你的SecretKey
+COS_BUCKET=pictoolai-1234567890
+COS_REGION=ap-guangzhou
+# COS_CDN_DOMAIN=img.pictoolai.studio   # 可选，配了 CDN 再填
+```
+
+```bash
+pm2 restart pictoolai-server
+```
+
+### 4.3 工作原理
+
+| 状态 | 仓库返回地址 | 前端展示 |
+|------|------------|---------|
+| 图刚生图，COS 还在上传 | `/api/gallery/image/:id`（本地） | 带 Token fetch，能正常展示 |
+| COS 上传完成 | `https://...cos...`（COS 签名 URL） | 直接 img src，加载更快 |
+
+- 生图时先写本地 + 入库，再**异步**上传 COS，不阻塞生图接口。
+- 仓库列表对 COS URL 直接 img src（无 CORS 问题）；相对路径带 Token fetch。
+- 下载/批量下载统一走 `/api/gallery/image/:id`（后端从本地读），不依赖 COS。
+- 删除图片时同时删本地文件和 COS 对象（若有 `cos_key`）。
+
+### 4.4 费用参考（2026-03 价格）
+
+| 费用类型 | 单价 |
+|---------|------|
+| 存储费 | ~0.099 元/GB/月 |
+| 读请求（GET） | ~0.01 元/万次 |
+| 写请求（PUT） | ~0.01 元/万次 |
+| 外网下行流量 | ~0.5 元/GB（主要费用） |
+
+**实测**：单用户每天生成 10 张图、查看仓库几次，月费约 **0.1–0.3 元**。若配 CDN 可降低流量费（CDN 回源约 0.15 元/GB，且有缓存）。不需要 COS 时注释掉 `.env` 里四行 `COS_*` 并重启即可关闭。
+
+### 4.5 验收测试
+
+**不配 COS 时**：生图后立刻进仓库，应能看到图（不卡「加载中」）；点下载能保存。
+
+**配 COS 后**：生图后进仓库，图能展示（先相对路径，稍后刷新变 COS URL）；删除一张图后列表消失。
+
+若仓库图片一直「加载中」：F12 → Network 看 `/api/gallery` 和 `/api/gallery/image/xxx`。**401** = Token 过期，重新登录；**404/500** = 查后端日志。
+
+---
+
+## 五、用户管理与数据库操作
+
+### 5.1 管理后台删除用户（推荐）
+
+1. 管理员账号登录站点，进入 `/admin`（管理后台）。
+2. 找到用户，点「删除」按钮，弹窗确认。
+
+后台会**同时清除**：`users`、`user_points`、`points_transactions`、`gallery`（含本地文件与 COS 对象）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`。
+
+删除后该邮箱可重新注册（积分重置为 0）。不能删除自己的账号。
+
+### 5.2 在服务器上手动删除（仅数据库，不删文件）
+
+> 用于后台不可用或需直接操作数据库时。**此方法只删数据库记录，不删图片文件**。若需连文件一起删，用 5.1 的管理后台方式。
+
+进入数据库：
+
+```bash
+cd ~/app/server
+sqlite3 pictoolai.db
+```
+
+逐条执行（把邮箱替换为实际邮箱，引号要成对，不要多打）：
+
+```sql
+DELETE FROM gallery WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM user_points WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM points_transactions WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM amazon_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM ebay_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM aliexpress_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM users WHERE email = '要删除的邮箱@example.com';
+```
+
+退出：
+
+```sql
+.quit
+```
+
+**sqlite3 卡住时**（`...>` 出不去）：按 **Ctrl+C** 回到 `sqlite>`，再输入 `.quit`。通常是引号没闭合（多打了一个 `'`）导致续行状态。
+
+### 5.3 只让邮箱能再次注册
+
+若界面提示「该邮箱已注册」但用户已删，多半是 `users` 表还有残留。执行：
+
+```bash
+cd ~/app/server && sqlite3 pictoolai.db
+```
+
+```sql
+DELETE FROM users WHERE email = '该邮箱@example.com';
+.quit
+```
+
+注意：其他表的数据（积分、仓库、Listing）不会被删，如需彻底清理请用 5.2 的完整 7 条语句。
+
+### 5.4 查看所有用户
+
+```bash
+cd ~/app/server && sqlite3 pictoolai.db
+```
+
+```sql
+SELECT email, role, admin_notes, datetime(created_at/1000,'unixepoch','localtime') AS 注册时间
+FROM users ORDER BY created_at DESC;
+```
+
+退出：`.quit`。不要用 `SELECT *`，避免在终端暴露 `password_hash`。
+
+### 5.5 数据库文件位置
+
+| 内容 | 位置 |
+|------|------|
+| 数据库文件 | `server/pictoolai.db` |
+| 图片文件 | `server/gallery/` |
+| 备份方式 | 复制这两个路径即可 |
+
+### 5.6 接口对应关系
+
+| 操作 | 接口 | 权限 |
+|------|------|------|
+| 删除用户 | `DELETE /api/admin/users/:email` | 仅 admin |
+| 充值积分 | `POST /api/admin/users/:email/grant` | 仅 admin |
+| 查积分流水 | `GET /api/admin/users/:email/transactions` | 仅 admin |
+| 编辑备注 | `PATCH /api/admin/users/:email/notes` | 仅 admin |
+| 清理孤儿仓库 | `POST /api/admin/cleanup-orphan-gallery` | 仅 admin |
+
+---
+
+## 附录：Gemini 地区限制
 
 ### 现象
 
-- 前后端部署在香港服务器时，**调用 Gemini 的功能**（生图、分析等）返回：`{"error":{"code":400,"message":"User location is not supported for the API use.","status":"FAILED_PRECONDITION"}}`
-- 用户是否在国内、是否开代理**均不影响**：发请求给 Gemini 的是服务器，不是用户浏览器。
+服务器在香港时，调用 Gemini 返回：
+```
+User location is not supported for the API use.（status: FAILED_PRECONDITION）
+```
 
 ### 原因
 
-- Google 对 **Gemini API** 有**地区限制**，仅允许部分国家/地区发起请求（美国、加拿大、部分欧洲、印度、澳大利亚等）。
-- **香港不在支持列表**。请求链路：用户浏览器 → 香港服务器 → 香港服务器请求 Gemini；Google 看的是**服务器 IP 所属地区**，即香港，因此拒绝。
+Gemini API 有地区限制，仅允许美国、加拿大、部分欧洲、印度、澳大利亚等地区请求。**香港不在列**。发请求的是服务器（非用户浏览器），因此用户自己开代理无效。
 
-### 可选方案
+### 解决方案
 
-| 方案 | 做法 | 优点 | 缺点 |
-|------|------|------|------|
-| **A. 迁美国服务器** | 在美国 VPS 重新部署 | 从源头解决，无需代理 | 国内用户访问可能更慢；需重新部署 |
-| **B. 香港 + 代理** | 在 `server/.env` 配置 `HTTPS_PROXY`，让后端请求 Gemini 时经美国/支持地区代理出口 | 保留香港部署与国内访问体验 | 需有美国或支持地区代理 |
-| **C. 用户自己开代理** | 国内用户自行开代理 | — | **无效**：调 Gemini 的是服务器，不是用户浏览器 |
+| 方案 | 做法 | 优缺点 |
+|------|------|--------|
+| **A. 迁美国服务器（当前方案）** | 在美国 VPS 重新部署 | 根本解决；国内用户访问略慢 |
+| **B. 香港 + 代理** | `server/.env` 配 `HTTPS_PROXY=http://代理IP:端口` | 保留香港部署；需有美国代理出口 |
+| **C. 用户自己开代理** | — | **无效**（调 Gemini 的是服务器） |
 
-结论：**真正能解决的是 A 或 B**；C 不适用。
-
-### 方案 A 验证建议
-
-1. 先新购一台**腾讯云美国硅谷轻量**，不急于全站迁移。
-2. 在该机仅安装 Node 并配置 `GEMINI_API_KEY`，用最小脚本**只发起一次 Gemini API 调用**。
-3. 若该请求**不再**返回 "User location is not supported"，即可确认该美国节点出口 IP 被 Google 接受，再按本文档做完整部署。
+**当前状态**：已迁移至美国硅谷（43.162.87.60），Gemini 访问正常，无需代理。

@@ -444,24 +444,24 @@ export default function Admin() {
             <div className="text-center text-gray-400 py-16">暂无用户</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[900px] text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
                   <tr>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">邮箱</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">角色</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">余额</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500">已消耗</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">订阅到期</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">注册时间</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500">备注</th>
-                    <th className="text-right px-6 py-3 font-medium text-gray-500">操作</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500 w-[18%] min-w-[140px]">邮箱</th>
+                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">角色</th>
+                    <th className="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">余额</th>
+                    <th className="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">已消耗</th>
+                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">订阅到期</th>
+                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">注册时间</th>
+                    <th className="text-left px-3 py-3 font-medium text-gray-500 min-w-[100px]">备注</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">操作</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {filtered.map((u) => (
                     <tr key={u.email} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-800">{u.email}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-3 font-medium text-gray-800 align-middle">{u.email}</td>
+                      <td className="px-3 py-3 align-middle whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             u.role === 'admin'
@@ -472,19 +472,19 @@ export default function Admin() {
                           {u.role === 'admin' ? '管理员' : '普通用户'}
                         </span>
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-3 py-3 text-right align-middle whitespace-nowrap">
                         <span className={`font-semibold ${u.balance > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
                           {u.balance}
                         </span>
                         <span className="text-gray-400 text-xs ml-1">积分</span>
                       </td>
-                      <td className="px-4 py-4 text-right text-gray-500">
+                      <td className="px-3 py-3 text-right text-gray-500 align-middle whitespace-nowrap">
                         {u.totalSpent}
                         <span className="text-gray-400 text-xs ml-1">积分</span>
                       </td>
-                      <td className="px-4 py-4">{formatExpiry(u.expiresAt)}</td>
-                      <td className="px-4 py-4 text-gray-500">{formatDate(u.createdAt)}</td>
-                      <td className="px-4 py-4 max-w-[140px]">
+                      <td className="px-3 py-3 align-middle whitespace-nowrap">{formatExpiry(u.expiresAt)}</td>
+                      <td className="px-3 py-3 text-gray-500 align-middle whitespace-nowrap">{formatDate(u.createdAt)}</td>
+                      <td className="px-3 py-3 align-middle max-w-[140px]">
                         <span className="block truncate text-gray-600 text-xs" title={u.adminNotes || ''}>
                           {u.adminNotes || '—'}
                         </span>
@@ -496,7 +496,7 @@ export default function Admin() {
                           编辑备注
                         </button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 align-middle whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setGrantTarget(u)}
@@ -527,7 +527,7 @@ export default function Admin() {
         </div>
 
         {/* 说明 */}
-        <p className="text-xs text-gray-400 mt-4 text-center">
+        <p className="text-sm text-gray-500 mt-4 text-center max-w-xl mx-auto">
           每次充值会重置积分有效期。到期后用户剩余积分自动清零。
         </p>
       </div>

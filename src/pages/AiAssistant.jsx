@@ -305,7 +305,7 @@ function GenerateForm() {
   const [genVariants, setGenVariants] = useState([])
   const [genVariantsLoading, setGenVariantsLoading] = useState(false)
   const [genActiveTab, setGenActiveTab] = useState(0)
-  const [imageModel, setImageModel] = useState('Nano Banana') // Step 3/4 生图模型，默认 Nano Banana(2.5) 兼容性更好
+  const [imageModel, setImageModel] = useState('Nano Banana') // Step 3/4 生图模型，默认 Nano Banana 兼容性更好
   const [mainImageCount, setMainImageCount] = useState(1)   // Step 3 白底主图 0～4
   const [sceneImageCount, setSceneImageCount] = useState(1) // Step 3 场景图 0～4
   const [closeUpImageCount, setCloseUpImageCount] = useState(1) // Step 3 特写图 0～4
@@ -964,7 +964,7 @@ function GenerateForm() {
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">Nano Banana(2.5) 兼容性较好；若遇网络错误可优先选此</p>
+                  <p className="text-xs text-gray-500 mt-1">Nano Banana 兼容性较好；若遇网络错误可优先选此</p>
                 </div>
                 <div className="space-y-3">
                   <label className="block text-xs font-medium text-gray-700 mb-1">生成数量（各类型 0～4 张；卖点图 0～你填写的卖点数）</label>
@@ -3532,16 +3532,20 @@ function IpRiskCheckForm() {
         {/* 模式 */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">检测模式</label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="ipRiskMode" value="quick" checked={mode === 'quick'} onChange={() => setMode('quick')} />
-              <span className="text-sm">免费快筛</span>
-              <span className="text-xs text-gray-400">仅 AI 分析，不扣积分</span>
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="radio" name="ipRiskMode" value="quick" checked={mode === 'quick'} onChange={() => setMode('quick')} className="mt-1 shrink-0" />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium whitespace-nowrap">免费快筛</span>
+                <span className="text-xs text-gray-500">仅 AI 分析，不扣积分</span>
+              </span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="ipRiskMode" value="deep" checked={mode === 'deep'} onChange={() => setMode('deep')} />
-              <span className="text-sm">深度查询</span>
-              <span className="text-xs text-amber-600">以图搜图（Google Lens）+ 专利检索（Google Patents）+ 商标检索（Google 搜索），消耗 10 积分</span>
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="radio" name="ipRiskMode" value="deep" checked={mode === 'deep'} onChange={() => setMode('deep')} className="mt-1 shrink-0" />
+              <span className="flex flex-col gap-0.5 min-w-0 max-w-[420px]">
+                <span className="text-sm font-medium whitespace-nowrap">深度查询</span>
+                <span className="text-xs text-amber-600">以图搜图（Google Lens）+ 专利检索（Google Patents）+ 商标检索（Google 搜索），消耗 10 积分</span>
+              </span>
             </label>
           </div>
         </div>

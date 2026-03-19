@@ -5,7 +5,6 @@ import GalleryThumb from '../../components/GalleryThumb'
 import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
-import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
@@ -50,15 +49,20 @@ const SCENE_EXAMPLES = [
   '产品放在卧室床头柜上，柔和的灯光和舒适的床品',
 ]
 
+const MAX_SCENES = 6
+
 export default function SceneGeneration({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [productName, setProductName] = useState('')
-  const [sceneDescription, setSceneDescription] = useState('')
+  // 多场景：数组，每项为一个场景描述字符串
+  const [scenes, setScenes] = useState([''])
   const [selectedStyle, setSelectedStyle] = useState('warm')
   const [customStyle, setCustomStyle] = useState('')
-  const [result, setResult] = useState(null)
+  // results: Array<{ scene, url, error } | null>（null 表示尚未生成）
+  const [results, setResults] = useState([])
   const [generating, setGenerating] = useState(false)
+  const [generateProgress, setGenerateProgress] = useState({ current: 0, total: 0 })
   const [error, setError] = useState('')
   const [lightbox, setLightbox] = useState({ open: false, src: null })
   const [galleryPicker, setGalleryPicker] = useState({ open: false })
@@ -82,13 +86,41 @@ export default function SceneGeneration({ initialImageFromGallery }) {
     loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
       .then(({ file, dataUrl }) => {
         setImage({ file, dataUrl })
-        setResult(null)
+        setResults([])
         setError('')
       })
       .catch(() => {})
   }, [initialImageFromGallery?.url])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
+  const validScenes = scenes.filter(s => s.trim())
+  const totalScenes = validScenes.length
+
+  const addScene = () => {
+    if (scenes.length >= MAX_SCENES) return
+    setScenes(prev => [...prev, ''])
+  }
+
+  const removeScene = (idx) => {
+    if (scenes.length <= 1) return
+    setScenes(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const updateScene = (idx, val) => {
+    setScenes(prev => prev.map((s, i) => i === idx ? val : s))
+  }
+
+  const applyExample = (ex) => {
+    // 找第一个空的场景填入，否则填入最后一个
+    const firstEmpty = scenes.findIndex(s => !s.trim())
+    if (firstEmpty >= 0) {
+      updateScene(firstEmpty, ex)
+    } else if (scenes.length < MAX_SCENES) {
+      setScenes(prev => [...prev, ex])
+    } else {
+      updateScene(scenes.length - 1, ex)
+    }
+  }
 
   const openGallery = async () => {
     setGalleryPicker({ open: true })
@@ -115,7 +147,7 @@ export default function SceneGeneration({ initialImageFromGallery }) {
       const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
       const dataUrl = URL.createObjectURL(file)
       setImage({ file, dataUrl })
-      setResult(null)
+      setResults([])
       setError('')
     } catch (_) {}
   }
@@ -125,64 +157,102 @@ export default function SceneGeneration({ initialImageFromGallery }) {
     if (!file || !file.type.startsWith('image/')) return
     const dataUrl = URL.createObjectURL(file)
     setImage({ file, dataUrl })
-    setResult(null)
+    setResults([])
     setError('')
   }
 
   const handleGenerate = async () => {
     if (!image) { setError('请先上传产品图片'); return }
     if (!productName.trim()) { setError('请输入产品名称'); return }
-    if (!sceneDescription.trim()) { setError('请描述想要生成的场景'); return }
+    if (validScenes.length === 0) { setError('请至少填写一个场景描述'); return }
     setError('')
     setGenerating(true)
-    setResult(null)
+    setResults([])
+    setGenerateProgress({ current: 0, total: validScenes.length })
+
+    const styleObj = STYLE_PRESETS.find(s => s.key === selectedStyle)
+    const styleText = selectedStyle === 'custom' ? customStyle.trim() : (styleObj?.desc || '')
+
+    let compressed
     try {
-      const compressed = await fileToCompressedDataUrl(image.file)
-      const headers = { 'Content-Type': 'application/json' }
-      const token = getToken()
-      if (token) headers.Authorization = `Bearer ${token}`
-      const styleObj = STYLE_PRESETS.find(s => s.key === selectedStyle)
-      const styleText = selectedStyle === 'custom' ? customStyle.trim() : (styleObj?.desc || '')
-      const res = await fetch('/api/image-edit', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          mode: 'scene-generation',
-          prompt: '',
-          images: [compressed],
-          productName: productName.trim(),
-          sceneDescription: sceneDescription.trim(),
-          styleDescription: styleText,
-          model,
-          aspectRatio,
-          clarity,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || '生成失败')
-      setResult(data.image)
-      if (refreshUser) refreshUser()
+      compressed = await fileToCompressedDataUrl(image.file)
     } catch (e) {
-      setError(e.message || '生成失败，请稍后重试')
-    } finally {
+      setError('图片压缩失败，请重试')
       setGenerating(false)
+      return
     }
+
+    const accumulated = []
+    for (let i = 0; i < validScenes.length; i++) {
+      setGenerateProgress({ current: i + 1, total: validScenes.length })
+      const sceneDesc = validScenes[i]
+      try {
+        const headers = { 'Content-Type': 'application/json' }
+        const token = getToken()
+        if (token) headers.Authorization = `Bearer ${token}`
+        const res = await fetch('/api/image-edit', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            mode: 'scene-generation',
+            prompt: '',
+            images: [compressed],
+            productName: productName.trim(),
+            sceneDescription: sceneDesc,
+            styleDescription: styleText,
+            model,
+            aspectRatio,
+            clarity,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || '生成失败')
+        accumulated.push({ scene: sceneDesc, url: data.image, error: null })
+      } catch (e) {
+        accumulated.push({ scene: sceneDesc, url: null, error: e.message || '生成失败' })
+      }
+      setResults([...accumulated])
+    }
+
+    if (refreshUser) refreshUser()
+    setGenerating(false)
   }
 
-  const handleSaveResult = async () => {
-    if (!result) return
+  const handleSaveOne = async (url, idx) => {
+    if (!url) return
     try {
-      const res = await fetch(result)
+      const res = await fetch(url)
       const blob = await res.blob()
-      await saveBlobWithPicker(blob, `场景生成_${productName || '产品'}.png`)
-    } catch (e) {
+      await saveBlobWithPicker(blob, `场景生成_${productName || '产品'}_${idx + 1}.png`)
+    } catch (_) {
       setError('保存失败')
     }
   }
 
   return (
     <div className="relative space-y-4 min-h-[240px]">
-      <GeneratingOverlay open={generating} message="场景生成中..." />
+      {/* 生成中遮罩（手写，不用 GeneratingOverlay 以便显示进度） */}
+      {generating && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gray-900/50 backdrop-blur-[2px]">
+          <div className="flex flex-col items-center gap-4 rounded-2xl bg-white px-8 py-6 shadow-xl min-w-[280px]">
+            <svg className="h-12 w-12 animate-spin text-gray-700" fill="none" viewBox="0 0 24 24" aria-hidden>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <p className="text-sm font-medium text-gray-800">
+              正在生成第 {generateProgress.current} / {generateProgress.total} 张场景图...
+            </p>
+            <p className="text-xs text-gray-500">请勿关闭或刷新页面，每张约 20 秒～1 分钟</p>
+            <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gray-700 rounded-full transition-all duration-500"
+                style={{ width: `${generateProgress.total > 0 ? (generateProgress.current / generateProgress.total) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">生成场景</h1>
         <p className="mt-1.5 text-base text-gray-600">
@@ -233,7 +303,7 @@ export default function SceneGeneration({ initialImageFromGallery }) {
             <img src={image.dataUrl} alt="已上传" className="max-h-60 rounded-xl border border-gray-200 shadow-sm cursor-pointer"
               onClick={() => setLightbox({ open: true, src: image.dataUrl })} />
             <button type="button" className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600"
-              onClick={() => { setImage(null); setResult(null) }}>×</button>
+              onClick={() => { setImage(null); setResults([]) }}>×</button>
           </div>
         </div>
       )}
@@ -248,24 +318,65 @@ export default function SceneGeneration({ initialImageFromGallery }) {
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
           </div>
 
+          {/* 多场景描述 */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">场景描述 <span className="text-red-500">*</span></label>
-            <textarea value={sceneDescription} onChange={e => setSceneDescription(e.target.value)}
-              placeholder="描述你想要的场景，例如：一个女人坐在客厅的沙发上看书，旁边有落地灯和书架"
-              rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none" />
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {SCENE_EXAMPLES.map((ex, i) => (
-                <button key={i} type="button" onClick={() => setSceneDescription(ex)}
-                  className="px-2 py-1 rounded-md bg-gray-100 text-xs text-gray-600 hover:bg-primary/10 hover:text-primary transition truncate max-w-[200px]">
-                  {ex}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-semibold text-gray-700">
+                场景描述 <span className="text-red-500">*</span>
+                <span className="ml-2 text-xs font-normal text-gray-400">（最多 {MAX_SCENES} 个场景，每个场景生成一张图）</span>
+              </label>
+              {scenes.length < MAX_SCENES && (
+                <button type="button" onClick={addScene}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-primary hover:text-primary transition">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  添加场景
                 </button>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              {scenes.map((scene, idx) => (
+                <div key={idx} className="flex gap-2 items-start">
+                  <div className="flex-shrink-0 w-6 h-6 mt-2 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-500">
+                    {idx + 1}
+                  </div>
+                  <textarea
+                    value={scene}
+                    onChange={e => updateScene(idx, e.target.value)}
+                    placeholder={`场景 ${idx + 1}：例如 ${SCENE_EXAMPLES[idx % SCENE_EXAMPLES.length]}`}
+                    rows={2}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none"
+                  />
+                  {scenes.length > 1 && (
+                    <button type="button" onClick={() => removeScene(idx)}
+                      className="flex-shrink-0 mt-1.5 w-6 h-6 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
+            </div>
+
+            {/* 示例快捷填入 */}
+            <div className="mt-2">
+              <p className="text-xs text-gray-400 mb-1.5">快捷示例（点击填入）：</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SCENE_EXAMPLES.map((ex, i) => (
+                  <button key={i} type="button" onClick={() => applyExample(ex)}
+                    className="px-2 py-1 rounded-md bg-gray-100 text-xs text-gray-600 hover:bg-primary/10 hover:text-primary transition truncate max-w-[200px]">
+                    {ex}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">画面风格</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">画面风格（所有场景共用）</label>
             <div className="grid grid-cols-4 gap-2">
               {STYLE_PRESETS.map(s => (
                 <button key={s.key} type="button" onClick={() => setSelectedStyle(s.key)}
@@ -293,9 +404,21 @@ export default function SceneGeneration({ initialImageFromGallery }) {
             onAspectRatioChange={setAspectRatio}
             onClarityChange={setClarity}
           />
-          <button type="button" onClick={handleGenerate} disabled={generating}
+
+          {/* 积分预估 */}
+          {totalScenes > 0 && (
+            <p className="text-xs text-amber-700">
+              预计消耗 {estimatedPoints * totalScenes} 积分（{totalScenes} 张 × {estimatedPoints} 积分/张）
+            </p>
+          )}
+
+          <button type="button" onClick={handleGenerate} disabled={generating || totalScenes === 0}
             className="w-full py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition">
-            {generating ? '生成中...' : '生成场景'}
+            {generating
+              ? `生成中（${generateProgress.current}/${generateProgress.total}）...`
+              : totalScenes > 0
+                ? `生成 ${totalScenes} 张场景图`
+                : '请填写场景描述'}
           </button>
         </div>
       )}
@@ -303,18 +426,55 @@ export default function SceneGeneration({ initialImageFromGallery }) {
       {error && <p className="text-center text-sm text-red-500 font-medium">{error}</p>}
 
       {/* 结果展示 */}
-      {result && (
-        <div className="flex flex-col items-center gap-3 pt-2">
-          <h3 className="text-lg font-bold text-gray-900">生成结果</h3>
-          <img src={result} alt="场景效果" className="max-h-96 rounded-xl border border-gray-200 shadow-md cursor-pointer"
-            onClick={() => setLightbox({ open: true, src: result })} />
-          <button type="button" onClick={handleSaveResult}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            保存到本地
-          </button>
+      {results.length > 0 && (
+        <div className="max-w-3xl mx-auto pt-2">
+          <h3 className="text-lg font-bold text-gray-900 mb-4 text-center">
+            生成结果（{results.filter(r => r.url).length}/{results.length} 张）
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {results.map((r, idx) => (
+              <div key={idx} className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                {r.url ? (
+                  <img
+                    src={r.url}
+                    alt={`场景 ${idx + 1}`}
+                    className="w-full object-cover cursor-pointer"
+                    onClick={() => setLightbox({ open: true, src: r.url })}
+                  />
+                ) : (
+                  <div className="w-full h-48 flex items-center justify-center bg-gray-50">
+                    <p className="text-sm text-red-400 px-4 text-center">{r.error || '生成失败'}</p>
+                  </div>
+                )}
+                <div className="p-3 space-y-2">
+                  <p className="text-xs text-gray-500 line-clamp-2">场景 {idx + 1}：{r.scene}</p>
+                  {r.url && (
+                    <button type="button" onClick={() => handleSaveOne(r.url, idx)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-medium hover:bg-gray-800 transition">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      保存到本地
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {/* 正在生成中的占位卡片 */}
+            {generating && generateProgress.current <= generateProgress.total && results.length < generateProgress.total && (
+              Array.from({ length: generateProgress.total - results.length }).map((_, i) => (
+                <div key={`pending-${i}`} className="rounded-xl border border-dashed border-gray-200 bg-gray-50 h-48 flex items-center justify-center">
+                  <div className="text-center">
+                    <svg className="w-8 h-8 animate-spin text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <p className="text-xs text-gray-400">待生成</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 

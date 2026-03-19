@@ -1,79 +1,39 @@
 # PicToolAI 文档中心
 
-**入口**：根目录 `README.md` 只有快速开始；所有详细说明都在本目录。
+> 所有详细说明都在本目录（`docs/`）。根目录 `README.md` 只做快速开始入口。
 
 ---
 
-## 快速找文档
+## 快速找文档（按「我想做什么」查）
 
-| 我想… | 看这个 |
+| 我想… | 看这里 |
 |-------|--------|
-| 了解项目整体、怎么跑起来 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) |
-| 做电商组图、理解数据流 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
-| 做亚马逊 Listing、合规与生图 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
-| 用 AI 美工（局部重绘/消除/换色/添加人/物/扩图/提升质感）、仓库→用AI编辑带图 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
-| 用风格复刻（参考图+产品图→高转化详情图） | AI美工 → 风格复刻，路由 `/ai-designer/style-clone`，见 PROJECT-OVERVIEW |
-| 部署到服务器、查地区限制 | [DEPLOY.md](./DEPLOY.md) |
-| 仓库图片国内加速（COS+CDN）、实现范围与测试 | [COS-CDN.md](./COS-CDN.md) |
-| 查已知问题、待办 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
+| 了解项目整体结构、技术栈、怎么本地跑起来 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) |
+| 做电商组图（全品类），理解字段与 AI 传参 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
+| 做亚马逊 Listing（生成/优化/竞品/关键词）、合规规则、A+ | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第一至六部分 |
+| 做 eBay Listing（80字符标题、Item Specifics、Cassini） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第七部分 |
+| 做速卖通 Listing（128字符标题、产品属性、移动端描述） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第八部分 |
+| 了解侵权风险检测（快筛/深度），向客户解释查了什么 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 附录 |
+| 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/风格复刻） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
+| **首次**把项目部署到服务器（VPS 安装/克隆/配置/启动） | [DEPLOY.md](./DEPLOY.md) — 第一节 |
+| **每次**发版更新线上（git push → 服务器 pull/build/restart） | [DEPLOY.md](./DEPLOY.md) — 第二节 |
+| 配置 SerpApi，开放侵权风险深度查询 | [DEPLOY.md](./DEPLOY.md) — 第三节 |
+| 配置腾讯云 COS 加速仓库图片（国内访问快） | [DEPLOY.md](./DEPLOY.md) — 第四节 |
+| 删除用户及用户数据（管理后台 / 服务器 SQL） | [DEPLOY.md](./DEPLOY.md) — 第五节 |
+| 查看用户列表（sqlite3 命令） | [DEPLOY.md](./DEPLOY.md) — 第五节 5.4 |
+| sqlite3 卡住出不去 | [DEPLOY.md](./DEPLOY.md) — 第五节 5.2（Ctrl+C） |
+| 查已知问题、功能待办、积分规则、数据隐私说明 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
 
 ---
 
-## 一、项目总览
+## 文档目录（7 个文件）
 
-| 文档 | 说明 |
+| 文件 | 内容 |
 |------|------|
 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) | 技术栈、目录结构、主要功能一览、本地运行要点 |
-
----
-
-## 二、电商生图
-
-| 文档 | 说明 |
-|------|------|
-| [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) | 电商生图（全品类组图）：字段、AI 传参、数据流 |
-
----
-
-## 三、电商 AI 运营助手（亚马逊 · eBay · 速卖通）
-
-| 文档 | 说明 |
-|------|------|
-| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | 亚马逊 Listing 生成流程、合规规则、生图提示词、A+ 模块定义 |
-| [ECOMMERCE-AI-ASSISTANT-EBAY.md](./ECOMMERCE-AI-ASSISTANT-EBAY.md) | eBay 模块：Cassini 搜索优化、标题 80 字符、Item Specifics |
-| [ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md](./ECOMMERCE-AI-ASSISTANT-ALIEXPRESS.md) | 速卖通模块：标题 128 字符、产品属性、移动端描述 |
-| [IP-RISK-SERVICES-AND-COST.md](./IP-RISK-SERVICES-AND-COST.md) | 侵权风险检测：服务与费用说明（客户沟通用），含方案 B 费用汇总、轻量/完整版、如何向客户解释查了什么 |
-| 侵权风险检测（实现与配置） | 免费快筛（Gemini）；深度查询（SerpApi Lens + 专利 + 商标，10 积分）、检索方式表格、SerpApi 申请步骤，见 KNOWN_ISSUES |
-
----
-
-## 四、AI 美工
-
-| 文档 | 说明 |
-|------|------|
-| [AI-DESIGNER.md](./AI-DESIGNER.md) | 局部重绘、局部消除、一键换色、智能扩图、提升质感、添加人/物、风格复刻、官方示例 7 种 |
-
----
-
-## 五、运维与部署
-
-| 文档 | 说明 |
-|------|------|
-| [DEPLOY.md](./DEPLOY.md) | VPS 部署步骤（含附录：Gemini 地区限制） |
-| [DEPLOY-UPDATE-STEPS.md](./DEPLOY-UPDATE-STEPS.md) | 本次更新：本机 git 提交推送 + 服务器拉取构建重启（一步步执行） |
-| [COS-CDN.md](./COS-CDN.md) | 仓库图片国内加速：腾讯云 COS + 临时签名 URL；实现说明、全代码影响、测试步骤 |
-
----
-
-## 六、已知问题与待办
-
-| 文档 | 说明 |
-|------|------|
-| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、待办、运营须知 |
-
----
-
-## 打印版
-
-- **`docs/print/`**：上述 .md 已转为 HTML，打开 `docs/print/index.html` 可浏览并打印。
-- 重新生成：项目根目录执行 `npm run docs:print`。
+| [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) | 全品类组图：5 个输入字段、AI 传参、分析→确认→生图数据流 |
+| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | AI 运营助手：亚马逊（第1-6部分）+ eBay（第7部分）+ 速卖通（第8部分）+ 侵权风险检测（附录） |
+| [AI-DESIGNER.md](./AI-DESIGNER.md) | AI 美工：局部重绘/消除/换色/扩图/提升质感/添加人物/服装3D/生成场景/风格复刻/文字修改/官方示例 |
+| [DEPLOY.md](./DEPLOY.md) | 运维手册：首次部署 + 每次更新 + SerpApi + COS + 用户管理（删除/查询/SQL） + Gemini 地区限制 |
+| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、功能待办、积分规则、数据隐私说明 |
+| [README.md](./README.md)（本文件） | 文档总索引 |

@@ -61,7 +61,7 @@
 
 ### 仓库 COS 加速（已实现）
 
-- **已完成**：腾讯云 COS 接入（可选），配置 `COS_*` 环境变量后新图自动上传 COS，列表返回临时签名 URL 加速访问。未配置 COS 时行为与之前一致。详见 `docs/COS-CDN.md`。
+- **已完成**：腾讯云 COS 接入（可选），配置 `COS_*` 环境变量后新图自动上传 COS，列表返回临时签名 URL 加速访问。未配置 COS 时行为与之前一致。详见 `docs/DEPLOY.md` 第四节。
 - **业务逻辑**：全站统一——生图成功即自动入仓，图片旁仅「保存到本地」。仓库页对 COS 绝对 URL 直接 img src 展示（不 fetch，避免 CORS）；对相对路径用 Token fetch 转 blob 展示。下载/批量下载统一走 `/api/gallery/image/:id`（带 Token，从本地文件读取）。
 - **拉图失败处理**：相对路径 fetch 失败时，仓库页显示「加载失败」+「点击重试」（而非永远「加载中」），控制台打日志 `[仓库] 拉图失败`，便于排查（常见原因：Token 过期 → 重新登录）。
 
@@ -90,8 +90,8 @@
 
 ### 4. 删除用户与重新注册 + 管理员客户备注
 
-- **删除用户逻辑**：管理员删除客户时会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`。**删除后该邮箱可以重新注册**（注册时只检查 `users` 表是否存在该邮箱）。若删除后该邮箱仍提示「该邮箱已注册」，说明当时删除未生效或数据库仍保留该行，可在服务器上对 SQLite 执行：`DELETE FROM users WHERE email = '该邮箱';` 后该邮箱即可再次注册。
-- **管理员客户备注**：`users` 表新增 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表增加「备注」列与「编辑备注」按钮，管理员可为每个客户填写备注（如「朋友张三」「某某渠道试用客户」）。API：`GET /api/admin/users` 返回 `adminNotes`；`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }` 更新备注。
+- **删除用户逻辑**：管理员删除客户时会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`。**删除后该邮箱可以重新注册**（注册时只检查 `users` 表是否存在该邮箱）。**一步步操作说明**（管理后台删除、服务器上手写 SQL、查用户、仅删 users 让邮箱再注册、sqlite 卡住时 Ctrl+C）：见 **docs/DEPLOY.md 第五节**。若删除后该邮箱仍提示「该邮箱已注册」，可在服务器上执行 `DELETE FROM users WHERE email = '该邮箱';` 后该邮箱即可再次注册。
+- **管理员客户备注**：`users` 表有 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表有「备注」列与「编辑备注」按钮，管理员可为每个客户填写备注（如「朋友张三」「某某渠道试用客户」）。API：`GET /api/admin/users` 返回 `adminNotes`；`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }` 更新备注。
 
 ### 5. 侵权风险检测（MVP 免费快筛 + 方案 B 深度查询）
 
@@ -109,13 +109,13 @@
 3. 在项目 **`server/.env`** 中增加一行：`SERPAPI_KEY=你的API_Key`，保存后重启后端（如 `pm2 restart`）。未配置时前端深度查询会提示「深度查询暂未开放」。
 4. 套餐说明：**Free** 约 250 次/月可试用；正式使用建议 **Developer**（约 $75/月，约 5000 次/月）。每次深度查询约消耗 3 次 SerpApi（1 次 Google Lens + 1 次 Google Patents + 1 次 Google 商标检索）。
 
-**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/IP-RISK-SERVICES-AND-COST.md**。
+**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/ECOMMERCE-AI-ASSISTANT.md 附录**。
 
 ---
 
 ## 推送到服务器（执行步骤）
 
-**完整步骤**：按 `docs/DEPLOY-UPDATE-STEPS.md` 执行（本机 `git add` / `commit` / `push` → 服务器 `git pull` / `npm install` / `npm run build` / `pm2 restart`）。
+**完整步骤**：按 `docs/DEPLOY.md` 第二节执行（本机 `git add` / `commit` / `push` → 服务器 `git pull` / `npm install` / `npm run build` / `pm2 restart`）。
 
 **本次（2026-03-18）建议提交说明**：
 ```bash
@@ -123,7 +123,7 @@ git add .
 git commit -m "feat: 添加人/物完善(多物品/自定义位置/真实比例/占位图)+仓库用AI编辑(一二级菜单/自动带图)+文档同步"
 git push
 ```
-然后到服务器执行 `docs/DEPLOY-UPDATE-STEPS.md` 第二步、第三步。
+然后到服务器执行 `docs/DEPLOY.md` 第二节的步骤。
 
 ---
 
@@ -133,7 +133,7 @@ git push
 
 - **问题**：「从作品库选择」弹窗里缩略图加载慢（尤其未配 COS 时每张都请求服务器）。
 - **实现**：抽公共组件 `src/components/GalleryThumb.jsx`。当 `item.url` 为**绝对 URL（COS 签名）**时**直接用 `<img src={url} />`**，不 fetch，与仓库页一致、加载更快；为相对路径时仍带 Token fetch 转 blob 展示。
-- **使用处**：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 `docs/COS-CDN.md` 前端约定。
+- **使用处**：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 `docs/DEPLOY.md` 第四节前端约定。
 
 ### 2. AI 美工输出设置统一（与官方示例一致）
 
@@ -457,6 +457,15 @@ git push
 
 - 前端已删除 `SECONDARY_LABELS`、`splitBySecondaryLabels`、`parseLabelLine`；`SpecPreview` 与图片规划描述均用 `react-markdown` 渲染。
 - 若分析结果格式不规范，可在 `server/index.js` 的分析 prompt 中约定输出为规范 Markdown。
+
+---
+
+## 今日完成（2026-03-19）
+
+### 界面文案调整
+- **导航栏**：「电商生图」→「**通用电商生图**」；页面标题同步更新。文档（PROJECT-OVERVIEW、ECOMMERCE-GENERAL-CREATE-PICTURES）与项目记忆已同步。
+- **Nano Banana 提示**：去掉「Nano Banana(2.5)」中的版本号 `(2.5)`，改为「Nano Banana」，避免客户困惑（两处：DetailSet.jsx / AiAssistant.jsx）。
+- **卖点图张数标签**：原「各类型 0～4 张；卖点图 0～你填写的卖点数」→「主图/场景/特写/交互图各 0～4 张；卖点图 0～5 张，对应你填写的卖点数」，消除「卖点图也限 4 张」的误解（实际逻辑一直是动态上限=填写卖点数，最多 5 张）。
 
 ---
 

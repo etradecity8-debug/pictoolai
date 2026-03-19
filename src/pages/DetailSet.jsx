@@ -38,7 +38,23 @@ const TARGET_LANGUAGE_OPTIONS = [
 ]
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
-const QUANTITY_OPTIONS = Array.from({ length: 15 }, (_, i) => `${i + 1}张`)
+
+const IMAGE_TYPE_LABELS = {
+  main: '白底主图',
+  scene: '场景图',
+  closeUp: '特写图',
+  sellingPoint: '卖点图',
+  interaction: '交互图',
+  general: '生成图片',
+}
+const IMAGE_TYPE_COLORS = {
+  main: 'bg-gray-100 text-gray-600',
+  scene: 'bg-blue-50 text-blue-600',
+  closeUp: 'bg-purple-50 text-purple-600',
+  sellingPoint: 'bg-orange-50 text-orange-600',
+  interaction: 'bg-green-50 text-green-600',
+  general: 'bg-gray-100 text-gray-500',
+}
 
 /** 尺寸比例文案 → 展示用的 Tailwind aspect 类，与用户选择一致 */
 function aspectRatioToCssClass(label) {
@@ -166,7 +182,12 @@ export default function DetailSet() {
   const [designSpecMarkdown, setDesignSpecMarkdown] = useState('')
   const [imagePlan, setImagePlan] = useState([])
   const [analyzeError, setAnalyzeError] = useState('')
-  const [quantity, setQuantity] = useState('3张')
+  const [mainImageCount, setMainImageCount] = useState(1)
+  const [sceneImageCount, setSceneImageCount] = useState(1)
+  const [closeUpImageCount, setCloseUpImageCount] = useState(1)
+  const [sellingPointImageCount, setSellingPointImageCount] = useState(0)
+  const [sellingPointShowText, setSellingPointShowText] = useState(false)
+  const [interactionImageCount, setInteractionImageCount] = useState(0)
   const [aspectRatio, setAspectRatio] = useState('3:4 竖版')
   const [targetLanguage, setTargetLanguage] = useState('英语')
   const [generating, setGenerating] = useState(false)
@@ -230,14 +251,16 @@ export default function DetailSet() {
       setAnalyzeError('请填写产品名称后再开始分析')
       return
     }
+    if (totalImageCount === 0) {
+      setAnalyzeError('请在「生成数量」中至少选择一种图片类型')
+      return
+    }
     setAnalyzeError('')
     setStep(2)
     setAnalyzing(true)
     try {
       const requirementsParts = []
       if (productName.trim()) requirementsParts.push(`产品名称：${productName.trim()}`)
-      const sellingPointsLines = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5]
-        .map(s => s.trim()).filter(Boolean)
       if (sellingPointsLines.length) requirementsParts.push(`卖点：${sellingPointsLines.join('\n')}`)
       if (targetAudience.trim()) requirementsParts.push(`目标人群：${targetAudience.trim()}`)
       if (styleDesc.trim()) requirementsParts.push(`风格：${styleDesc.trim()}`)
@@ -252,7 +275,13 @@ export default function DetailSet() {
           image: base64,
           requirements: combinedRequirements || undefined,
           model,
-          quantity: parseInt(quantity.replace(/\D/g, ''), 10) || 3,
+          mainCount: mainImageCount,
+          sceneCount: sceneImageCount,
+          closeUpCount: closeUpImageCount,
+          sellingPointCount: effectiveSellingPointCount,
+          sellingPoints: sellingPointsLines,
+          sellingPointShowText,
+          interactionCount: interactionImageCount,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -297,6 +326,7 @@ export default function DetailSet() {
           clarity,
           aspectRatio: aspectRatio || '3:4 竖版',
           targetLanguage,
+          sellingPointShowText,
           quantity: imagePlan.length,
           image: productImageBase64,
         }),
@@ -319,6 +349,10 @@ export default function DetailSet() {
     }
   }
 
+  const sellingPointsLines = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5]
+    .map(s => s.trim()).filter(Boolean)
+  const effectiveSellingPointCount = Math.min(sellingPointImageCount, sellingPointsLines.length)
+  const totalImageCount = mainImageCount + sceneImageCount + closeUpImageCount + effectiveSellingPointCount + interactionImageCount
   const planCount = imagePlan.length
   const isBusy = analyzing || generating
 
@@ -351,7 +385,7 @@ export default function DetailSet() {
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">一键电商生图</h1>
+          <h1 className="text-2xl font-bold text-gray-900">通用电商生图</h1>
           <p className="mt-1 text-sm text-gray-500">
             上传产品图，AI 智能分析产品特征，自动生成多角度、多场景的电商详情图组
           </p>
@@ -555,59 +589,67 @@ export default function DetailSet() {
               </div>
             </div>
 
-            {/* 下拉设置：第一行 目标语言+模型（框拉大），第二行 清晰度+尺寸比例+生成数量 */}
-            <div className="grid grid-cols-[minmax(8rem,1.5fr)_minmax(8rem,1.5fr)_1fr] gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700">目标语言</label>
-                <select
-                  className="mt-1 w-full min-w-[8rem] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={targetLanguage}
-                  onChange={(e) => setTargetLanguage(e.target.value)}
-                >
-                  {TARGET_LANGUAGE_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+            {/* 下拉设置：目标语言+模型，清晰度+尺寸比例 */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">目标语言</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                  >
+                    {TARGET_LANGUAGE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">模型</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={model}
+                    onChange={(e) => handleModelChange(e.target.value)}
+                  >
+                    {MODEL_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">清晰度</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={clarity}
+                    onChange={(e) => setClarity(e.target.value)}
+                  >
+                    {getClarityOptionsForModel(model).map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700">尺寸比例</label>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    value={aspectRatio}
+                    onChange={(e) => setAspectRatio(e.target.value)}
+                  >
+                    {getAspectOptionsForModel(model).map((opt) => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700">模型</label>
-                <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={model}
-                  onChange={(e) => handleModelChange(e.target.value)}
-                >
-                  {MODEL_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700">清晰度</label>
-                <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={clarity}
-                  onChange={(e) => setClarity(e.target.value)}
-                >
-                  {getClarityOptionsForModel(model).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700">尺寸比例</label>
-                <select
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value)}
-                >
-                  {getAspectOptionsForModel(model).map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={step >= 3 ? 'opacity-50' : ''}>
-                <div className="flex items-center gap-1.5">
-                  <label className="block text-xs font-medium text-gray-700">生成数量</label>
+
+              {/* 生成数量（多类型） */}
+              <div className={`rounded-xl border border-gray-200 bg-white p-4 ${step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <label className="text-xs font-medium text-gray-700">生图模型</label>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Nano Banana 兼容性较好；若遇网络错误可优先选此</p>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <label className="text-xs font-semibold text-gray-800">生成数量（主图/场景/特写/交互图各 0～4 张；卖点图 0～5 张，对应你填写的卖点数）</label>
                   {step >= 3 && (
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                       <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -615,19 +657,87 @@ export default function DetailSet() {
                     </span>
                   )}
                 </div>
-                <select
-                  disabled={step >= 3}
-                  className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                  value={quantity}
-                  onChange={(e) => {
-                    setQuantity(e.target.value)
-                    resetToInputIfEdited()
-                  }}
-                >
-                  {QUANTITY_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">白底主图</label>
+                    <select
+                      disabled={step >= 3}
+                      value={mainImageCount}
+                      onChange={(e) => { setMainImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
+                    >
+                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">场景图</label>
+                    <select
+                      disabled={step >= 3}
+                      value={sceneImageCount}
+                      onChange={(e) => { setSceneImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
+                    >
+                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">特写图</label>
+                    <select
+                      disabled={step >= 3}
+                      value={closeUpImageCount}
+                      onChange={(e) => { setCloseUpImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
+                    >
+                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">卖点图</label>
+                    <select
+                      disabled={step >= 3}
+                      value={Math.min(sellingPointImageCount, sellingPointsLines.length)}
+                      onChange={(e) => { setSellingPointImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
+                    >
+                      {Array.from({ length: sellingPointsLines.length + 1 }, (_, n) => (
+                        <option key={n} value={n}>{n} 张</option>
+                      ))}
+                    </select>
+                    {sellingPointsLines.length > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">最多 {sellingPointsLines.length} 张，对应你填写的 {sellingPointsLines.length} 条卖点</p>
+                    )}
+                    {effectiveSellingPointCount > 0 && (
+                      <label className="flex items-center gap-1.5 mt-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sellingPointShowText}
+                          onChange={(e) => setSellingPointShowText(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-xs text-gray-600">卖点图上显示文字（按所选语言）</span>
+                      </label>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">交互图</label>
+                    <select
+                      disabled={step >= 3}
+                      value={interactionImageCount}
+                      onChange={(e) => { setInteractionImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
+                    >
+                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-0.5">真人使用/手持产品的场景</p>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-0.5 text-xs text-gray-500">
+                  <p>白底主图：纯白底、产品约 85%、无文字</p>
+                  <p>场景图：使用场景或生活化背景</p>
+                  <p>特写图：产品细节、材质特写</p>
+                  <p>卖点图：每张对应一条你填写的卖点，视觉化展示；可勾选「显示文字」在图上展示卖点文案</p>
+                  <p>交互图：真人使用、手持或与产品互动的场景</p>
+                </div>
               </div>
             </div>
 
@@ -643,18 +753,26 @@ export default function DetailSet() {
             {productImages.length > 0 && !productName.trim() && !analyzeError && step < 3 && (
               <p className="text-xs text-amber-600">请填写产品名称后再开始分析</p>
             )}
+            {productImages.length > 0 && productName.trim() && totalImageCount === 0 && !analyzeError && step < 3 && (
+              <p className="text-xs text-amber-600">请在「生成数量」中至少选择一种图片类型</p>
+            )}
+            {step < 3 && totalImageCount > 0 && productImages.length > 0 && productName.trim() && (
+              <p className="text-xs text-amber-700">
+                预计消耗 {totalImageCount * getPointsPerImage(model, clarity)} 积分（{totalImageCount} 张 × {getPointsPerImage(model, clarity)} 积分/张）
+              </p>
+            )}
             {step < 3 && (
               <button
                 type="button"
-                disabled={analyzing || !productImages.length || !productName.trim()}
+                disabled={analyzing || !productImages.length || !productName.trim() || totalImageCount === 0}
                 onClick={runAnalyze}
-                title={!productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : ''}
+                title={!productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : ''}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 py-3 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                {analyzing ? '分析中...' : !productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : '分析产品'}
+                {analyzing ? '分析中...' : !productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : '分析产品'}
               </button>
             )}
             {(step === 3 || step === 5) && planCount > 0 && (
@@ -670,8 +788,8 @@ export default function DetailSet() {
                   </svg>
                   {step === 5 ? `再次生成 ${planCount} 张图片` : `→ 确认生成 ${planCount} 张图片`}
                 </button>
-                <p className="mt-1 text-center text-xs text-gray-500">
-                  预计扣除 {planCount * getPointsPerImage(model, clarity)} 积分（{planCount} 张 × {getPointsPerImage(model, clarity)} 积分/张）
+                <p className="mt-1 text-center text-xs text-amber-700">
+                  预计消耗 {planCount * getPointsPerImage(model, clarity)} 积分（{planCount} 张 × {getPointsPerImage(model, clarity)} 积分/张）
                 </p>
                 {step === 5 && (
                   <>
@@ -796,50 +914,87 @@ export default function DetailSet() {
                 <p className="mt-1 text-xs text-gray-500">根据设计规范与图片规划生成中</p>
               </div>
             )}
-            {step === 5 && generatedImages.length > 0 && (
-              <div className="mt-6">
-                <p className="text-xs text-gray-500">共 {generatedImages.length} 张</p>
-                <div className="mt-4 grid max-w-4xl grid-cols-2 gap-6">
-                  {generatedImages.map((img) => (
-                    <div key={img.id} className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
+            {step === 5 && generatedImages.length > 0 && (() => {
+              const typeOrder = ['main', 'scene', 'closeUp', 'sellingPoint', 'interaction', 'general']
+              const groups = {}
+              typeOrder.forEach((t) => { groups[t] = [] })
+              generatedImages.forEach((img) => {
+                const t = img.type && groups[img.type] !== undefined ? img.type : 'general'
+                groups[t].push(img)
+              })
+              const hasTypes = generatedImages.some((img) => img.type && img.type !== 'general')
+
+              const renderImageCard = (img) => (
+                <div key={img.id} className="rounded-xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
+                  <button
+                    type="button"
+                    className={`block w-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset ${aspectRatioToCssClass(aspectRatio)}`}
+                    onClick={() => img.url && setLightbox({ open: true, src: img.url, alt: img.title })}
+                  >
+                    {img.url ? (
+                      <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <p className="text-xs text-red-500 px-3 text-center">{img.error || '生成失败'}</p>
+                      </div>
+                    )}
+                  </button>
+                  <p className="p-3 text-sm font-medium text-gray-700 truncate">{img.title}</p>
+                  {img.url && (
+                    <div className="flex flex-wrap gap-2 px-3 pb-3">
                       <button
                         type="button"
-                        className={`block w-full overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-inset ${aspectRatioToCssClass(aspectRatio)}`}
-                        onClick={() => img.url && setLightbox({ open: true, src: img.url, alt: img.title })}
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(img.url)
+                            const blob = await res.blob()
+                            const name = (img.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
+                            await saveBlobWithPicker(blob, name)
+                          } catch (_) {}
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
-                        <img
-                          src={img.url}
-                          alt={img.title}
-                          className="w-full h-full object-cover"
-                        />
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        保存到本地
                       </button>
-                      <p className="p-3 text-sm font-medium text-gray-700 truncate">{img.title}</p>
-                      {img.url && (
-                        <div className="flex flex-wrap gap-2 px-3 pb-3">
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const res = await fetch(img.url)
-                                const blob = await res.blob()
-                                const name = (img.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
-                                await saveBlobWithPicker(blob, name)
-                              } catch (_) {}
-                            }}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                          >
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            保存到本地
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              </div>
-            )}
+              )
+
+              return (
+                <div className="mt-6">
+                  <p className="text-xs text-gray-500">共 {generatedImages.length} 张</p>
+                  {hasTypes ? (
+                    <div className="mt-4 space-y-6">
+                      {typeOrder.map((t) => {
+                        const imgs = groups[t]
+                        if (!imgs || imgs.length === 0) return null
+                        return (
+                          <div key={t}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${IMAGE_TYPE_COLORS[t] || IMAGE_TYPE_COLORS.general}`}>
+                                {IMAGE_TYPE_LABELS[t] || '图片'}
+                              </span>
+                              <span className="text-xs text-gray-400">{imgs.length} 张</span>
+                            </div>
+                            <div className="grid max-w-4xl grid-cols-2 gap-6">
+                              {imgs.map(renderImageCard)}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid max-w-4xl grid-cols-2 gap-6">
+                      {generatedImages.map(renderImageCard)}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
             {step >= 3 && step !== 4 && step !== 5 && designSpecMarkdown && (
               <div className="mt-6 space-y-6">
                 {/* 整体设计规范：可折叠 + 铅笔编辑 */}
@@ -968,10 +1123,18 @@ export default function DetailSet() {
                             </>
                           ) : (
                             <>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {item.type && IMAGE_TYPE_LABELS[item.type] && (
+                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${IMAGE_TYPE_COLORS[item.type] || IMAGE_TYPE_COLORS.general}`}>
+                                    {IMAGE_TYPE_LABELS[item.type]}
+                                  </span>
+                                )}
                                 <p className="font-medium text-gray-900">{item.title}</p>
                                 <PencilIcon onClick={() => setEditingPlanIndex(i)} />
                               </div>
+                              {item.sellingPointText && (
+                                <p className="mt-0.5 text-xs text-orange-600">卖点：{item.sellingPointText}</p>
+                              )}
                               {item.contentMarkdown ? (
                                 <div className="mt-2 text-sm text-gray-600">
                                   <ReactMarkdown

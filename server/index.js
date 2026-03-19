@@ -297,11 +297,25 @@ app.post('/api/detail-set/analyze', async (req, res) => {
   const apiKey = getGeminiApiKey()
   console.log('[后端 API] POST /api/detail-set/analyze 收到请求，环境变量中有 API key:', !!apiKey)
   try {
-    const { image, requirements, model, quantity } = req.body
+    const { image, requirements, model, quantity,
+      mainCount: rawMain, sceneCount: rawScene, closeUpCount: rawCloseUp,
+      sellingPointCount: rawSp, sellingPoints: rawSellingPoints,
+      sellingPointShowText, interactionCount: rawInteraction,
+    } = req.body
     if (!image) {
       return res.status(400).json({ error: '请上传至少一张产品图' })
     }
-    const planCount = Math.min(15, Math.max(1, parseInt(quantity, 10) || 3))
+    // 支持新版（多类型）和旧版（quantity）两种传参方式
+    const useTypedCounts = rawMain != null || rawScene != null || rawCloseUp != null || rawSp != null || rawInteraction != null
+    const m = useTypedCounts ? Math.min(4, Math.max(0, parseInt(rawMain, 10) || 0)) : 0
+    const s = useTypedCounts ? Math.min(4, Math.max(0, parseInt(rawScene, 10) || 0)) : 0
+    const c = useTypedCounts ? Math.min(4, Math.max(0, parseInt(rawCloseUp, 10) || 0)) : 0
+    const sellingPointsArr = Array.isArray(rawSellingPoints) ? rawSellingPoints : (typeof rawSellingPoints === 'string' ? rawSellingPoints.split(/\n/).map(x => x.trim()).filter(Boolean) : [])
+    const sp = useTypedCounts ? Math.min(sellingPointsArr.length, Math.max(0, parseInt(rawSp, 10) || 0)) : 0
+    const itr = useTypedCounts ? Math.min(4, Math.max(0, parseInt(rawInteraction, 10) || 0)) : 0
+    const planCount = useTypedCounts
+      ? Math.min(15, Math.max(1, m + s + c + sp + itr))
+      : Math.min(15, Math.max(1, parseInt(quantity, 10) || 3))
     if (apiKey) {
       const parsed = parseDataUrl(image)
       if (!parsed) {
@@ -349,13 +363,21 @@ app.post('/api/detail-set/analyze', async (req, res) => {
 
 用户组图要求：${requirements || '（未填写）'}
 
-请输出恰好 ${planCount} 条图片规划，不要多也不要少。每条对应一张图，标题要有区分度（如品牌形象海报、功能卖点图、材质属性图等）。
+${useTypedCounts ? `请按以下类型和数量输出图片规划（共 ${planCount} 条）：
+${m > 0 ? `- 白底主图（type: "main"）：${m} 张，纯白背景，产品约 85%，无文字无 logo，展示产品外观` : ''}
+${s > 0 ? `- 场景图（type: "scene"）：${s} 张，生活/使用场景背景，有环境氛围` : ''}
+${c > 0 ? `- 特写图（type: "closeUp"）：${c} 张，产品细节、材质特写，近距离微观` : ''}
+${sp > 0 ? `- 卖点图（type: "sellingPoint"）：${sp} 张，每张对应一条卖点（${sellingPointsArr.slice(0, sp).join('、')}），sellingPointText 字段填写该卖点文案` : ''}
+${itr > 0 ? `- 交互图（type: "interaction"）：${itr} 张，真人使用或手持产品的场景` : ''}
+按以上类型顺序依次排列。每条 imagePlan 必须包含 type 字段（值为 "main"/"scene"/"closeUp"/"sellingPoint"/"interaction" 之一）。卖点图还需包含 sellingPointText 字段（对应具体卖点文案）。不要多也不要少，共 ${planCount} 条。`
+: `请输出恰好 ${planCount} 条图片规划，不要多也不要少。每条对应一张图，标题要有区分度（如品牌形象海报、功能卖点图、材质属性图等）。`}
 
 你必须只输出一个 JSON 对象，不要其他解释。整个 JSON 必须是合法的一行或单块，字符串内换行用反斜杠 n（\\\\n）。格式：
 {
   "designSpecMarkdown": "上述整体设计规范的完整 Markdown，换行用\\\\n",
   "imagePlan": [
-    { "title": "图1标题", "contentMarkdown": "按上述结构写的该图完整规划，换行用\\\\n" }
+    { "type": "main", "title": "白底主图 1", "contentMarkdown": "按上述结构写的该图完整规划，换行用\\\\n" },
+    { "type": "sellingPoint", "sellingPointText": "天然成分", "title": "卖点图 - 天然成分", "contentMarkdown": "..." }
   ]
 }
 imagePlan 数组长度必须为 ${planCount}。`
@@ -403,6 +425,8 @@ imagePlan 数组长度必须为 ${planCount}。`
           const plan = out.imagePlan.slice(0, planCount).map((item) => ({
             title: item?.title || '未命名',
             contentMarkdown: (item?.contentMarkdown != null ? String(item.contentMarkdown) : '').replace(/\\n/g, '\n'),
+            ...(item?.type ? { type: item.type } : {}),
+            ...(item?.sellingPointText ? { sellingPointText: item.sellingPointText } : {}),
           }))
           const specMarkdown = out.designSpecMarkdown.replace(/\\n/g, '\n')
           return res.json({
@@ -445,13 +469,21 @@ imagePlan 数组长度必须为 ${planCount}。`
 
 ${requirements ? `**用户要求摘要**：${requirements.slice(0, 200)}${requirements.length > 200 ? '...' : ''}` : ''}
 `
-    const mockPlans = [
-      { title: '品牌形象海报', contentMarkdown: '**设计目标**：建立品牌时尚、高端的第一印象\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比 45%；产品放置在画面右侧三分之一处，左侧留白用于排版；文字区域在画面左侧中部；所有文字须完整在画面内，留安全边距。\n**内容要素**：展示产品整体轮廓与纯净色调；突出卖点 Minimalist Design；背景为现代简约客厅、浅灰墙面、木质地板；装饰可为画面边缘一角绿植。\n**文字内容**（使用 英语）：主标题 Effortless Elegance。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：情绪关键词 时尚、宁静、高端、纯净；光影效果 柔和百叶窗投影。' },
-      { title: '功能卖点图', contentMarkdown: '**设计目标**：消除用户对稳固性的顾虑\n**产品出现**：是\n**图中图元素**：可加 [放大镜特写, 圆形, 右下角, 20%大小] 展示细节\n**构图方案**：产品占比 60%；低角度仰拍突出支撑感；文字区域在画面顶部中央；文字须完整在画面内。\n**内容要素**：展示凳腿与连接处、结构线条；突出卖点 Rock-Solid Stability；背景纯净浅灰影棚；可加半透明受力分析线条；保持产品磨砂质感。\n**文字内容**（使用 英语）：主标题 BUILT TO LAST。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：安全、坚固、可靠；硬朗轮廓光。' },
-      { title: '材质/环保图', contentMarkdown: '**设计目标**：传达环保、可持续价值观\n**产品出现**：是\n**图中图元素**：[材质/树叶图标, 左上角, 10%大小, 环保认证]\n**构图方案**：产品占比 50%；对角线构图；文字区域在右下角留白区；文字须完整在画面内。\n**内容要素**：展示材质细腻纹理；突出卖点 Eco-Friendly Material；背景为自然光户外或阳台、模糊绿植；装饰为嫩绿叶片、光斑。\n**文字内容**（使用 英语）：主标题 ECO-CONSCIOUS CHOICE。副标题：（留空，用户可自填）。说明文字：（留空，用户可自填）。\n**氛围营造**：环保、自然、清新；明亮自然阳光。' },
-      { title: '细节图', contentMarkdown: '**设计目标**：展示工艺与质感\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比约 50%；留白 30% 以上；文字区域明确且留边距。\n**内容要素**：局部特写、材质表现。\n**文字内容**（使用 英语）：主标题 Crafted for Detail。副标题：（留空）。说明文字：（留空）。\n**氛围营造**：清晰、专业。' },
-      { title: '卖点总结图', contentMarkdown: '**设计目标**：理性说服、卖点汇总\n**产品出现**：是\n**构图方案**：留白充足；文字区域不贴边。\n**内容要素**：参数或卖点列表。\n**文字内容**（使用 英语）：主标题 Why Choose Us。副标题：（留空）。说明文字：（留空）。' },
-    ]
+    // mock 根据类型生成规划
+    const mockPlans = []
+    const mockMain = useTypedCounts ? m : Math.min(1, planCount)
+    const mockScene = useTypedCounts ? s : Math.min(1, planCount - mockMain)
+    const mockCloseUp = useTypedCounts ? c : Math.min(1, planCount - mockMain - mockScene)
+    const mockSp = useTypedCounts ? sp : Math.min(1, planCount - mockMain - mockScene - mockCloseUp)
+    const mockItr = useTypedCounts ? itr : Math.min(1, planCount - mockMain - mockScene - mockCloseUp - mockSp)
+    for (let i = 0; i < mockMain; i++) mockPlans.push({ type: 'main', title: `白底主图 ${mockMain > 1 ? i + 1 : ''}`.trim(), contentMarkdown: '**设计目标**：清晰展示产品外观与颜色\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品居中，占画面 85%，纯白背景，无文字无装饰。\n**内容要素**：产品正面完整展示，纯白底，无阴影或极淡影。\n**文字内容**：无文字。\n**氛围营造**：纯净、简洁、专业影棚光。' })
+    for (let i = 0; i < mockScene; i++) mockPlans.push({ type: 'scene', title: `场景图 ${mockScene > 1 ? i + 1 : ''}`.trim(), contentMarkdown: '**设计目标**：展示产品在生活中的使用场景\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比 45%，位于画面右侧；左侧留白用于排版；文字须完整在画面内。\n**内容要素**：产品置于现代简约客厅或生活场景；背景为浅灰墙面、木质地板或桌面。\n**文字内容**（使用 英语）：主标题 Effortless Elegance。副标题：（留空）。\n**氛围营造**：时尚、宁静、高端；柔和百叶窗投影。' })
+    for (let i = 0; i < mockCloseUp; i++) mockPlans.push({ type: 'closeUp', title: `特写图 ${mockCloseUp > 1 ? i + 1 : ''}`.trim(), contentMarkdown: '**设计目标**：展示产品工艺细节与材质质感\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：极近距离特写，产品局部占满画面；浅景深，背景虚化；文字区域在下方留白处。\n**内容要素**：材质纹理、表面处理、连接细节；突出高品质工艺。\n**文字内容**（使用 英语）：主标题 Crafted for Detail。副标题：（留空）。\n**氛围营造**：精细、专业、高质感；硬朗轮廓光。' })
+    for (let i = 0; i < mockSp; i++) {
+      const spText = sellingPointsArr[i] || `卖点 ${i + 1}`
+      mockPlans.push({ type: 'sellingPoint', sellingPointText: spText, title: `卖点图 - ${spText}`, contentMarkdown: `**设计目标**：视觉化展示卖点「${spText}」\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：产品占比 55%，左侧三分之一；右侧留白为文字区；文字须完整在画面内，留安全边距。\n**内容要素**：突出与该卖点相关的产品特征；背景浅灰纯净；可加极简几何装饰元素。\n**文字内容**（使用 英语）：主标题（根据卖点提炼短句）。副标题：（留空）。\n**氛围营造**：专业、可信；柔和影棚光。` })
+    }
+    for (let i = 0; i < mockItr; i++) mockPlans.push({ type: 'interaction', title: `交互图 ${mockItr > 1 ? i + 1 : ''}`.trim(), contentMarkdown: '**设计目标**：展示真人使用产品的真实场景\n**产品出现**：是\n**图中图元素**：无\n**构图方案**：人物与产品共同入镜，产品居于画面核心；自然光照；画面下方可留文字区域。\n**内容要素**：手持或使用产品的自然动作，背景为相关生活场景；人物面部避免过于清晰。\n**文字内容**（使用 英语）：主标题 Live the Difference。副标题：（留空）。\n**氛围营造**：真实、温暖、生活化；自然光影。' })
     const imagePlan = mockPlans.slice(0, planCount)
     return res.json({ designSpecMarkdown, imagePlan })
   } catch (e) {
@@ -552,7 +584,7 @@ function getClarityFromDimensions(width, height) {
 // 全品类组图：确认规划后生成图片（调用 Gemini 生图模型）
 app.post('/api/detail-set/generate', async (req, res) => {
   try {
-    const { designSpecMarkdown, imagePlan, model, clarity, aspectRatio, targetLanguage, image } = req.body
+    const { designSpecMarkdown, imagePlan, model, clarity, aspectRatio, targetLanguage, sellingPointShowText, image } = req.body
     if (!Array.isArray(imagePlan) || imagePlan.length === 0) {
       return res.status(400).json({ error: '请先完成分析并确认图片规划' })
     }
@@ -575,7 +607,57 @@ app.post('/api/detail-set/generate', async (req, res) => {
     for (let i = 0; i < count; i++) {
       const item = imagePlan[i]
       const title = item?.title || `图${i + 1}`
+      const itemType = item?.type || 'general'
+
       const aspectRule = `CRITICAL - Aspect ratio: The output image MUST have aspect ratio exactly ${aspectRatioVal}. For 1:1 this means a perfect square (width = height). For 3:4 or 4:3 etc. the image must match that ratio precisely. Do not produce a different aspect ratio.`
+
+      const typeSpecificRule = (() => {
+        if (itemType === 'main') {
+          return `IMAGE TYPE: WHITE BACKGROUND MAIN IMAGE
+CRITICAL TYPE RULES (override everything else for this type):
+- Background: Pure white (#FFFFFF), seamless, no gradients, no shadows, no background elements.
+- Product fills ~85% of the frame, perfectly centered or slightly above center.
+- NO text, NO logos, NO props, NO decorative overlays of any kind.
+- Studio quality: clean, crisp, professional product photography on white.
+- Reference image is for product appearance only; replicate the product accurately.`
+        }
+        if (itemType === 'scene') {
+          return `IMAGE TYPE: SCENE / LIFESTYLE IMAGE
+CRITICAL TYPE RULES:
+- Show the product in a realistic, relevant usage environment (home, office, kitchen, outdoor, etc.).
+- Lighting: natural or styled lifestyle lighting; warm and inviting atmosphere.
+- The setting should complement the product's intended use — choose a scene that makes the product feel desirable.`
+        }
+        if (itemType === 'closeUp') {
+          return `IMAGE TYPE: CLOSE-UP / DETAIL IMAGE
+CRITICAL TYPE RULES:
+- Extreme close-up or macro shot focusing on a specific detail of the product.
+- Shallow depth of field (bokeh effect): the featured detail is razor-sharp, background is softly blurred.
+- Subject: material texture, surface finish, craftsmanship or hardware detail.
+- NO full product shot; show only the relevant close-up portion.`
+        }
+        if (itemType === 'sellingPoint') {
+          const spText = item?.sellingPointText || ''
+          const textRule = sellingPointShowText
+            ? `Include the selling point text "${spText}" as a clean, elegant headline overlay in the appropriate language.`
+            : `NO text overlay. Express the selling point purely through visual composition.`
+          return `IMAGE TYPE: SELLING POINT IMAGE
+CRITICAL TYPE RULES:
+- This image must visually communicate this specific selling point: "${spText}"
+- ${textRule}
+- Use product photography or visual metaphor to illustrate the benefit clearly.
+- The viewer should immediately understand the selling point from the image alone.`
+        }
+        if (itemType === 'interaction') {
+          return `IMAGE TYPE: INTERACTION / LIFESTYLE IMAGE WITH PERSON
+CRITICAL TYPE RULES:
+- Show a real person actively using, holding, or interacting with the product.
+- The person should appear natural, relatable, and appropriate for the target demographic.
+- Real-world scene, not a studio setup. The environment should feel lived-in and authentic.
+- Product remains the hero — the person's role is to demonstrate product use.`
+        }
+        return ''
+      })()
 
       const compositionRule = `CRITICAL - Composition and layout (high-end product ad style):
 - Use clear visual zoning: reserve one area for the product (e.g. right 1/3 or center) and a separate area for the headline (e.g. left or top), with generous negative space between them. Do not crowd product and text together.
@@ -601,9 +683,25 @@ app.post('/api/detail-set/generate', async (req, res) => {
       const placementRule = `CRITICAL - Physically realistic product placement (non-negotiable):
 - The product must be supported by a real, plausible surface: floor, ground, or furniture used as intended (e.g. a stool on the floor beside a sofa, a vase on a side table). No exceptions.
 - FORBIDDEN: (1) Product floating or suspended in mid-air. (2) Product placed on an inappropriate surface (e.g. stool/chair on top of a table, desk, counter, or shelf—seating belongs on the floor; small objects may sit on tables only when that is their normal use). (3) Product balanced impossibly, hanging, or in any unnatural or gravity-defying position.
-- The reference photo may show the product on a table or in a studio—use it only for the product’s appearance. In your image, place the product in a physically correct, realistic scene. When in doubt: put it on the floor or on a surface that matches how the product is actually used in real life.`
+- The reference photo may show the product on a table or in a studio—use it only for the product's appearance. In your image, place the product in a physically correct, realistic scene. When in doubt: put it on the floor or on a surface that matches how the product is actually used in real life.`
 
-      const prompt = `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation. Aim for the visual quality of high-end brand product ads: clear composition, generous negative space, premium typography, and harmonious color.
+      const isWhiteBackground = itemType === 'main'
+
+      const prompt = isWhiteBackground
+        ? `You are an e-commerce product photographer. Generate ONE professional white-background product image.${typeSpecificRule ? '\n\n' + typeSpecificRule : ''}
+
+${aspectRule}
+
+${langRule}
+
+Overall design spec:
+${designSpecMarkdown || 'Clean, professional product photography.'}
+
+This image plan - ${title}:
+${item?.contentMarkdown || 'Pure white background product shot.'}
+
+FINAL REMINDER: Pure white background (#FFFFFF), no text, no logos, no props. Product only, perfectly centered, filling ~85% of frame. Studio quality.`
+        : `You are an e-commerce detail image designer. Generate ONE product detail image according to the design spec and this image's plan. Output only the image, no text explanation. Aim for the visual quality of high-end brand product ads: clear composition, generous negative space, premium typography, and harmonious color.${typeSpecificRule ? '\n\n' + typeSpecificRule : ''}
 
 ${placementRule}
 
@@ -684,12 +782,14 @@ Typography and color (reminder): The headline must feel art-directed — elegant
           images.push({
             id: `gen-${Date.now()}-${i}`,
             title,
+            type: itemType,
             url: `data:${mimeType || 'image/png'};base64,${data}`,
           })
         } else {
           images.push({
             id: `gen-${Date.now()}-${i}`,
             title,
+            type: itemType,
             url: null,
             error: '未返回图片',
           })
@@ -713,6 +813,7 @@ Typography and color (reminder): The headline must feel art-directed — elegant
         images.push({
           id: `gen-${Date.now()}-${i}`,
           title,
+          type: itemType,
           url: null,
           error: errMsg,
         })

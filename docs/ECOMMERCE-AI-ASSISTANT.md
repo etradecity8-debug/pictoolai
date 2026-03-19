@@ -1,6 +1,6 @@
-# 电商 AI 运营助手 · 亚马逊 Listing 完整说明
+# 电商 AI 运营助手完整说明
 
-本文档合并了「电商 AI 运营助手 → 亚马逊」相关的全部内容：Listing 生成流程、合规规则、生图提示词、A+ 模块定义。
+本文档涵盖「电商 AI 运营助手」全平台内容：**亚马逊**（Listing 生成/优化/竞品/关键词/A+ 图片）、**eBay**（生成/优化）、**速卖通**（生成/优化）、**侵权风险检测**（免费快筛 + 深度查询），以及深度查询服务费用附录。
 
 ---
 
@@ -340,29 +340,159 @@ CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, N
 
 ---
 
-# 第七部分：eBay / 速卖通 模块
+# 第七部分：eBay 模块
 
-## 功能概述
+路由 `/ai-assistant?platform=ebay`。流程：分析 → 生成 Listing → 生成产品图，输出规则针对 eBay 定制。
 
-eBay 和速卖通各支持「生成 Listing」和「优化 Listing」两个功能。
+## 平台规格对比（亚马逊 vs eBay）
 
-### 生成 Listing
-- 与亚马逊流程一致：上传产品图 → AI 分析（含深度产品智能：关键词提取、买家问题、买家画像）→ 策略驱动生成标题/属性/描述 → 产品图
-- **eBay**：80 字符标题、15+ Item Specifics、Cassini 搜索优化、GPSR 合规
-- **速卖通**：128 字符标题、15+ 产品属性、标题权重 32.7% 算法优化、CE/UKCA 合规
-- 前端展示「产品洞察」（搜索关键词、买家常见问题、买家画像、关键规格）
+| 维度 | 亚马逊 | eBay |
+|------|--------|------|
+| 标题长度 | ≤200 字符 | **≤80 字符** |
+| 结构化属性 | 五点描述（Bullet Points） | **Item Specifics**（键值对） |
+| 后台关键词 | Search Terms（≤250 bytes） | 无 |
+| 描述长度 | ≤2000 字符 | 500–2000 字符 |
+| A+ 内容 | 支持 | 无 |
+| 搜索算法 | A9 / Cosmo / Rufus / GEO | **Cassini** |
 
-### 优化 Listing
-- 粘贴现有 Listing（支持**智能粘贴**），AI 诊断+优化
-- 输出：产品分析、诊断报告（双语切换）、合规自检（三级严重度）、优化后版本
+## 流程
 
-## 接口
+**Step 1 — 分析产品**：上传产品图 + 填写类目、品牌、卖点、市场、语言 → `POST /api/ai-assistant/ebay/analyze` → 返回 `productName`、`productSummary`、`keyAttributes`（含深度产品智能：关键词提取、买家问题、买家画像）。
 
-| 接口 | 说明 |
+**Step 2 — 生成标题 · Item Specifics · 描述**：`POST /api/ai-assistant/ebay/generate-listing`。AI 生成：
+- 标题 ≤80 字符，前置品牌 + 核心词 + 关键属性
+- Item Specifics 10–20 对键值（Brand、MPN、Type、Material、Color、Size 等）
+- 描述 500–2000 字符，无 HTML
+- 不扣积分
+
+**Step 3 — 生成产品图**：`POST /api/ai-assistant/ebay/generate-product-images`。5 种类型：白底主图、场景图、特写图、卖点图、交互图（真人使用/手持）。每种 0～4 张，扣积分，自动入仓库。
+
+## 优化 Listing
+
+粘贴现有 Listing（支持**智能粘贴**），`POST /api/ai-assistant/ebay/optimize-listing`，Cassini 搜索算法诊断，合规自检（三级），双语诊断报告（原文/中文切换），优化后版本。不扣积分。
+
+## 数据存储与接口
+
+表 `ebay_listing_snapshots`，字段：`title`、`item_specifics`（JSON）、`description`、`analyze_result`、`main_image_id`、`product_image_ids`。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/ai-assistant/ebay/analyze` | 产品分析 |
+| POST | `/api/ai-assistant/ebay/generate-listing` | 生成 Listing（不扣积分） |
+| POST | `/api/ai-assistant/ebay/generate-product-images` | 生成产品图（扣积分） |
+| POST | `/api/ai-assistant/ebay/optimize-listing` | 优化 Listing（不扣积分） |
+| POST | `/api/ai-assistant/ebay/save-listing` | 保存 Listing |
+| GET | `/api/ai-assistant/ebay/listings` | 列表 |
+| GET | `/api/ai-assistant/ebay/listings/:id` | 详情 |
+| DELETE | `/api/ai-assistant/ebay/listings/:id` | 删除 |
+
+Listing 历史：`/dashboard/listings?platform=ebay`，支持导出 CSV / JSON。
+
+---
+
+# 第八部分：速卖通（AliExpress）模块
+
+路由 `/ai-assistant?platform=aliexpress`。流程与 eBay 一致，输出针对速卖通定制。
+
+## 平台规格对比（三平台）
+
+| 维度 | 亚马逊 | eBay | 速卖通 |
+|------|--------|------|--------|
+| 标题长度 | ≤200 字符 | ≤80 字符 | **≤128 字符** |
+| 结构化属性 | 五点描述 | Item Specifics | **产品属性**（键值对） |
+| 后台关键词 | Search Terms | 无 | 无 |
+| 描述长度 | ≤2000 字符 | 500–2000 字符 | **500–3000 字符** |
+| A+ 内容 | 支持 | 无 | 无 |
+| 搜索算法 | A9/Cosmo/Rufus/GEO | Cassini | 速卖通搜索 |
+
+## 速卖通特有规则
+
+**标题（≤128 字符）**：格式 `[品牌] + [核心产品词] + [关键属性/功能]`；不全大写（品牌缩写除外），避免过多标点。
+
+**产品属性（10–25 对）**：速卖通搜索和类目筛选的关键。包括 Brand、Material、Type、Color、Size、Weight、Origin、适用场景、适用季节、目标人群等；使用速卖通标准属性名称。
+
+**描述（500–3000 字符）**：主要在移动端浏览，需短段落；包含产品亮点、规格参数、包装内容、使用场景；纯文本 + 换行，无 HTML；不含竞品、外部链接、联系方式。
+
+**目标市场**：全球、美国、俄罗斯、巴西、法国、西班牙、德国、英国、韩国、日本（10 个）。
+
+**输出语言**：English、中文、Русский、Português、Español、Français、Deutsch、한국어、日本語（9 种）。
+
+## 流程
+
+与 eBay 模块相同节奏：Step1 分析 → Step2 生成标题/属性/描述（不扣积分）→ Step3 生成产品图（扣积分，自动入仓）。
+
+## 数据存储与接口
+
+表 `aliexpress_listing_snapshots`，字段：`title`、`product_attributes`（JSON）、`description`、`analyze_result`、`main_image_id`、`product_image_ids`。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/ai-assistant/aliexpress/analyze` | 产品分析 |
+| POST | `/api/ai-assistant/aliexpress/generate-listing` | 生成 Listing（不扣积分） |
+| POST | `/api/ai-assistant/aliexpress/generate-product-images` | 生成产品图（扣积分） |
+| POST | `/api/ai-assistant/aliexpress/optimize-listing` | 优化 Listing（不扣积分） |
+| POST | `/api/ai-assistant/aliexpress/save-listing` | 保存 Listing |
+| GET | `/api/ai-assistant/aliexpress/listings` | 列表 |
+| GET | `/api/ai-assistant/aliexpress/listings/:id` | 详情 |
+| DELETE | `/api/ai-assistant/aliexpress/listings/:id` | 删除 |
+
+Listing 历史：`/dashboard/listings?platform=aliexpress`，支持导出 CSV / JSON。
+
+---
+
+# 附录：侵权风险检测 — 服务构成与费用（客户沟通用）
+
+> 本附录整理深度查询所用服务、费用及客户沟通话术。
+
+## 深度查询 = 什么方法 → 得到什么
+
+| 方法 | 输入 | 得到的结果 | 用来判断什么 |
+|------|------|-----------|-------------|
+| **Google Lens**（以图搜图） | 首张产品图 | **整网**与您产品外观相似的图片/商品列表 | 外观设计侵权风险 |
+| **Google Patents**（专利检索） | AI 提取的英文关键词 | **主要**美国专利库中相关外观/设计专利（也可能含其他地区） | 专利侵权风险 |
+| **Google 搜索**（商标检索） | AI 提取的品牌/产品词，组成「USPTO trademark xxx」 | 商标相关网页（含美国商标局），**以美国为主** | 商标/Logo 侵权风险 |
+| **Gemini** | 上述结果 + 初步分析 | 分组报告（商标、外观、IP 形象、平台合规、综合等级、建议、免责） | 汇总输出 |
+
+产品内「本次深度查询使用的检索方式」表格与上表一一对应。
+
+## 费用汇总
+
+### 当前方案（轻量版）
+
+| 项目 | 月费 |
 |------|------|
-| `POST /api/ai-assistant/ebay/analyze` | eBay 产品分析 |
-| `POST /api/ai-assistant/ebay/generate-listing` | eBay Listing 生成 |
-| `POST /api/ai-assistant/ebay/optimize-listing` | eBay Listing 优化（不扣积分） |
-| `POST /api/ai-assistant/aliexpress/analyze` | 速卖通产品分析 |
-| `POST /api/ai-assistant/aliexpress/generate-listing` | 速卖通 Listing 生成 |
-| `POST /api/ai-assistant/aliexpress/optimize-listing` | 速卖通 Listing 优化（不扣积分） |
+| SerpApi Developer 套餐 | $75/月（约 ¥540/月） |
+| Gemini API | 已有，不另计 |
+| **合计** | **约 ¥540/月** |
+
+可支撑量：5000 次 SerpApi/月；每次深度查询消耗 3 次，约可支撑 **1600–2500 次/月**。
+
+### 可选升级（完整版）
+
+在轻量版基础上接入商标数据库（如 IPRScan，约 €249/年 ≈ €21/月），可更明确告知客户「Logo 与哪些已注册商标相似」（视觉/语音/概念评分）。合计约 $96/月（约 ¥690/月）。
+
+### 专利检索费用选项
+
+| 费用 | 说明 |
+|------|------|
+| 免费 | 开放数据按关键词检索，但不支持图片搜索 |
+| 几乎免费 | Google Cloud BigQuery 公开数据集，每月 1TB 免费额度 |
+| $75/月起 | SerpApi 抓取 Google Patents（当前实现） |
+
+### 商标检索服务对比
+
+| 类型 | 费用 | 覆盖 |
+|------|------|------|
+| 行业标杆 | 年费数千到数万美元 | 全球，Logo 图片上传比对 |
+| IPRScan（性价比） | 约 €249/年 | USPTO + EUIPO，含相似度评分 |
+| 当前实现 | 包含在 SerpApi 套餐 | Google 搜索商标网页（以美国为主） |
+
+## 建议分步策略
+
+1. **MVP 阶段**：免费快筛（Gemini），零额外成本，看用户反馈。
+2. **第二阶段**：接入 SerpApi（$75/月），开放深度查询（Lens+Patents+商标），性价比最高。
+3. **第三阶段**：客户明确需要「商标相似度专业比对」时，再接入商标数据库（如 IPRScan）。
+
+## 向客户解释时可以说
+
+> 「我们用了以图搜图（Google Lens），能看出您的产品在互联网上和谁长得像；用了专利检索（Google Patents，主要美国专利库），辅助判断是否有类似专利；用了商标检索（以美国商标信息为主），辅助判断商标/Logo 风险；最后由 AI 综合成分组报告。报告末尾有免责声明：仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」
