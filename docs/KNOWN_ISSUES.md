@@ -95,11 +95,11 @@
 
 ### 5. 侵权风险检测（MVP 免费快筛 + 方案 B 深度查询）
 
-- **入口**：AI 运营助手左侧栏「侵权风险检测」，单独模块，路由 `?platform=ip-risk`。
+- **入口**：主导航「侵权风险检测」，独立模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`。
 - **输入**：1～6 张产品图（必填）；选填：产品名称、品类、目标市场、其他说明。
 - **免费快筛（MVP）**：仅调用 Gemini 多模态分析，输出商标/Logo、外观设计、IP 形象、平台合规风险与综合等级、建议及免责声明；不扣积分。**快筛返回**：后端优先让 AI 输出 JSON 结构化字段（trademarkRisk、designRisk、ipImageRisk、platformRisk、overallLevel、suggestions、disclaimer），成功时返回 `{ mode: 'quick', sections: {...} }`，前端按分组卡片展示（每块一个标题+内容）；解析失败时回退为 `{ mode: 'quick', report: 整段文本 }`，前端单块 Markdown 渲染。
-- **深度查询（方案 B）**：在快筛基础上，调用 SerpApi：**Google Lens**（首图视觉匹配）、**Google Patents**（专利关键词检索）、**Google 搜索**（商标检索，查询「USPTO trademark + AI 提取的品牌/产品名词」），再由 Gemini 综合成报告；**消耗 10 积分**。深度返回与快筛一致：成功解析 JSON 时返回 `{ mode: 'deep', sections: {...} }` 分组卡片展示，失败时 `{ mode: 'deep', report: 整段 Markdown }`。深度结果另含 **searchSummary** 数组（每项含 method / service / content / purpose），前端在报告上方展示「本次深度查询使用的检索方式」表格（检索方式列含「使用服务」如 Google Lens、Google Patents、Google 搜索），用途说明已区分：以图搜图=整网、专利=主要美国、商标=以美国为主。报告分组卡片从正文开头解析风险等级（高/中高/中/中低/低）展示在标题行，等级为「高」时红色文字+警告图标。需在 `server/.env` 配置 `SERPAPI_KEY`，未配置时深度查询返回「暂未开放」。
-- **后端**：`POST /api/ai-assistant/ip-risk-check`，body `{ images, productName?, category?, targetMarket?, hints?, mode: 'quick'|'deep' }`；临时图供 Lens 抓取用 `GET /api/temp-ip-risk-image/:id`，临时文件存 `server/.temp-ip-risk/`，用后删除。深度扣费 `IP_RISK_DEEP_POINTS = 10`。
+- **深度查询（方案 B）**：在快筛基础上，调用 SerpApi：**Google Lens**（首图视觉匹配）、**Google Patents**（专利关键词检索）、**Google 搜索**（商标检索，查询「USPTO trademark + AI 提取的品牌/产品名词」），再由 Gemini 综合成报告；**消耗 20 积分**。深度返回与快筛一致：成功解析 JSON 时返回 `{ mode: 'deep', sections: {...} }` 分组卡片展示，失败时 `{ mode: 'deep', report: 整段 Markdown }`。深度结果另含 **searchSummary** 数组（每项含 method / service / content / purpose），前端在报告上方展示「本次深度查询使用的检索方式」表格（检索方式列含「使用服务」如 Google Lens、Google Patents、Google 搜索），用途说明已区分：以图搜图=整网、专利=主要美国、商标=以美国为主。报告分组卡片从正文开头解析风险等级（高/中高/中/中低/低）展示在标题行，等级为「高」时红色文字+警告图标。需在 `server/.env` 配置 `SERPAPI_KEY`，未配置时深度查询返回「暂未开放」。
+- **后端**：`POST /api/ai-assistant/ip-risk-check`，body `{ images, productName?, category?, targetMarket?, hints?, mode: 'quick'|'deep' }`；临时图供 Lens 抓取用 `GET /api/temp-ip-risk-image/:id`，临时文件存 `server/.temp-ip-risk/`，用后删除。深度扣费 `IP_RISK_DEEP_POINTS = 20`。
 - **免责**：报告末尾统一带「本报告由 AI 生成，仅供参考，不构成法律意见」。
 
 **深度查询所需 SerpApi 申请步骤**（配置后才能在站内使用「深度查询」）：
@@ -109,7 +109,7 @@
 3. 在项目 **`server/.env`** 中增加一行：`SERPAPI_KEY=你的API_Key`，保存后重启后端（如 `pm2 restart`）。未配置时前端深度查询会提示「深度查询暂未开放」。
 4. 套餐说明：**Free** 约 250 次/月可试用；正式使用建议 **Developer**（约 $75/月，约 5000 次/月）。每次深度查询约消耗 3 次 SerpApi（1 次 Google Lens + 1 次 Google Patents + 1 次 Google 商标检索）。
 
-**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/ECOMMERCE-AI-ASSISTANT.md 附录**。
+**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/IP-RISK.md**（主文档）或 docs/ECOMMERCE-AI-ASSISTANT.md 附录。
 
 ---
 
@@ -308,6 +308,28 @@ git push
 
 ---
 
+## 今日完成（2026-03-19）
+
+### 定价与积分
+- **套餐**：单一标准套餐 ¥200/1000积分，购买之日起 1 年有效。
+- **积分规则**：Nano Banana 1K=4；Nano Banana 2 各挡 4/6/10/14；Nano Banana Pro 各挡 12/12/20；侵权深度查询=20 积分/次。
+- **有效期**：`grantPoints` 默认 365 天；Admin 充值快捷按钮改为 30天/180天/1年，默认 1 年。
+- **定价页**：重写为单一套餐展示，含积分用量参考、生图明细、常见问题。
+
+### 侵权风险检测
+- **独立模块**：从 AI 运营助手侧栏迁出，主导航新增「侵权风险检测」，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`。
+
+### 文档
+- **IP-RISK.md**：侵权风险检测独立文档（功能、检测维度、费用、客户沟通话术）。
+- **PRODUCT-INTRO.md**：网站功能介绍（对外宣传，发给客户用）。
+- **PRICING-COST.md**：积分规则、API 成本、固定成本（含 Cursor $60/月）、盈利分析、竞品对比（Midjourney、PicSetAI）、试用用户影响评估。
+
+### 其他
+- **电商生图**：导航与标题改为「通用电商生图」；Nano Banana(2.5) 文案改为 Nano Banana；卖点图张数标签澄清。
+- **文档与代码一致性**：已核对 PROJECT-OVERVIEW、KNOWN_ISSUES、ECOMMERCE-AI-ASSISTANT 中侵权积分 10→20、入口路由等。
+
+---
+
 ## 今日完成（2026-03-10）
 
 ### 界面与品牌
@@ -457,6 +479,15 @@ git push
 
 - 前端已删除 `SECONDARY_LABELS`、`splitBySecondaryLabels`、`parseLabelLine`；`SpecPreview` 与图片规划描述均用 `react-markdown` 渲染。
 - 若分析结果格式不规范，可在 `server/index.js` 的分析 prompt 中约定输出为规范 Markdown。
+
+---
+
+## 今日完成（2026-03-19，续）
+
+### 侵权风险检测独立模块
+- **侵权风险检测**从「电商AI运营助手」侧边栏中拆出，成为独立的顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`。
+- 文档是否单独起文件：暂不单独起，相关内容（服务构成、费用、SerpApi 说明、待开放功能、向客户解释话术）统一在 `docs/ECOMMERCE-AI-ASSISTANT.md` 附录章节。
+- `docs/PROJECT-OVERVIEW.md` 功能表已同步更新。
 
 ---
 

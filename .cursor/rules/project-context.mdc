@@ -15,15 +15,18 @@ alwaysApply: true
 - **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY、**ADMIN_EMAIL、ADMIN_PASSWORD**、**COS_SECRET_ID/COS_SECRET_KEY/COS_BUCKET/COS_REGION**（可选，COS 加速）），从 `.env.example` 复制，不提交。
 - **静态演示图**：`public/demo-*.png`（修改图片各模式 before/after 示例图，共 14 张）；`public/local-redraw-demo-*.png`、`public/local-erase-demo-*.png`、`public/recolor-demo-*.png`（AI 美工局部重绘/局部消除/一键换色）；`public/demo-smart-expansion-before.png`、`public/demo-smart-expansion-after.png`（智能扩图）；`public/demo-add-person-object-before.png`、`public/demo-add-person-object-after.png`（添加人/物示例）。
 
-## 文档结构（2026-03 已合并，共 7 个）
+## 文档结构（2026-03，共 10 个）
 
 - **docs/README.md**：总索引，含「快速找文档」表。
 - **PROJECT-OVERVIEW.md**：项目结构、技术栈、功能一览。
 - **ECOMMERCE-GENERAL-CREATE-PICTURES.md**：通用电商生图（全品类组图）字段与 AI 传参。
-- **ECOMMERCE-AI-ASSISTANT.md**：电商 AI 运营助手（亚马逊 / eBay / 速卖通 Listing + 侵权风险检测，含附录服务费用）。
+- **ECOMMERCE-AI-ASSISTANT.md**：电商 AI 运营助手（亚马逊 / eBay / 速卖通 Listing）。
+- **IP-RISK.md**：侵权风险检测独立模块——功能说明、检测维度、服务费用、客户沟通话术。
 - **AI-DESIGNER.md**：AI 美工全部功能（局部重绘/消除/换色/服装/场景/文字修改/风格/水印/官方示例等）。
 - **DEPLOY.md**：运维手册（首次部署、更新上线、SerpApi、COS 加速、用户管理与数据库操作）。
 - **KNOWN_ISSUES.md**：已知问题与待办。
+- **PRICING-COST.md**：积分规则、API 成本核算、固定成本、盈利分析（内部参考）。
+- **PRODUCT-INTRO.md**：网站功能介绍（对外宣传，可直接发给客户）。
 - **打印版**：`docs/print/`，`npm run docs:print` 生成；`index.html` 手工维护链接。
 
 ## 文档约定（重要，不丢失）
@@ -45,6 +48,13 @@ alwaysApply: true
 - 回复用户时使用简体中文。
 - **协作约定**：客户对 Git、GitHub、服务器部署不熟悉。进行提交/推送、部署、更新代码等操作时，要**一步一步**给出命令与说明，避免一次列很多步骤或假设对方已会基本操作。
 
+## 近期大改（2026-03-19，不丢失记忆）
+
+- **定价**：¥200/1000积分/1年有效；积分规则已上调（Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Pro 12/12/20、侵权深度 20）；`grantPoints` 默认 365 天；Admin 充值快捷 30天/180天/1年。
+- **侵权风险检测**：已独立为 `/ip-risk`，IpRisk.jsx；主文档 `docs/IP-RISK.md`。
+- **文档**：新增 PRICING-COST.md（含 Cursor 固定成本、竞品对比、试用用户影响）、PRODUCT-INTRO.md（对外宣传）。
+- **一致性**：PROJECT-OVERVIEW、KNOWN_ISSUES、ECOMMERCE-AI-ASSISTANT 中侵权积分已统一为 20。
+
 ## 待办 / 已知问题（不丢失记忆）
 
 - 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `pictoolai.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；侧栏仅「仓库」、支持多选与**批量保存到本地、批量删除**；生图 prompt 已强化文字不裁切（safeAreaRule）。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。
@@ -53,8 +63,8 @@ alwaysApply: true
 - **修改图片**（`/image-edit`）：现有 **9 种**模式——添加/移除元素、局部重绘、风格迁移、高级合成（多图）、高保真细节保留、让草图变生动、角色一致性360°、文字替换、语言转换。后端接口 `/api/image-edit` 含重试逻辑（Pro/Nano2 最多3次）。每种模式顶部有真实 before→after 可视化示例（`ModeDemo` 组件）。修改后图片自动入图库，显示积分消耗，支持从仓库选图（`GalleryThumb` 组件 fetch+blob URL 认证加载）。
 - **亚马逊 A+ 详情页**（`/amazon-aplus`）：**MVP 阶段**，4步流程：填写信息→确认文案→生成图片→查看结果。两个后端接口：`/api/amazon-aplus/analyze`（文案，不扣积分）+ `/api/amazon-aplus/generate`（顺序生成4张图，扣积分，存图库）。支持10种语言、3种风格。图文一一对应，所有文案一键复制。**完整方案待后续迭代**（A/B对比模块、规格图、导出ZIP等），详见 `docs/KNOWN_ISSUES.md`。
 - **A+ 图片生成注意**：4张图顺序生成（非并行），避免 Nano Banana 2 并发限速；prompt 中加最高优先级禁文字规则，防止 AI 将产品名渲染到图上（尤其中文产品名）；积分按实际成功张数扣除；图库标题与实际生成图绑定（不因失败导致标题错位）。
-- **导航栏**：当前显示「**通用电商生图**」「AI美工」「电商AI运营助手」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「服装组图」「万能画布」。
-- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测**：侧栏单独一项「侵权风险检测」（`?platform=ip-risk`），多图+选填说明。免费快筛（Gemini，返回 `sections` 时分组卡片）；深度查询（SerpApi：Google Lens 以图搜图+Google Patents 专利+Google 搜索商标，10 积分，也返回 `sections` 或 `report`）。深度含 **searchSummary**（method/service/content/purpose），前端表「检索方式（使用服务）」；用途说明以图=整网、专利=主要美国、商标=以美国为主。报告卡片从正文解析风险等级展示在标题行，「高」红色+警告图标。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。客户沟通与费用见 `docs/IP-RISK-SERVICES-AND-COST.md`。
+- **导航栏**：当前显示「**通用电商生图**」「AI美工」「电商AI运营助手」「**侵权风险检测**」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「服装组图」「万能画布」。
+- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测已独立**为顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；深度查询（SerpApi：Google Lens+来源溯源、Google Patents、商标检索、IP 角色版权检索，20 积分）；报告含 copyrightSourceRisk（图片版权溯源）新字段。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。服务构成与费用、客户沟通话术见 `docs/IP-RISK.md`。
 - **亚马逊 Listing 工具链**：
   - **优化 Listing**：诊断+一键优化（A9/Cosmo/Rufus/GEO 四维度），不扣积分。双语诊断报告（原文/中文切换）；合规自检 9 大类（error/warning/info 三级）。
   - **A/B 文案变体**：优化/生成 Listing 结果区可点「生成 A/B 变体」，后端 `/api/ai-assistant/amazon/generate-variants`，生成 2-3 套不同策略角度文案，Tab 切换对比，不扣积分。
@@ -67,7 +77,7 @@ alwaysApply: true
 - **联系我们**：`/contact` 仅微信，有「返回主页」；定价页选套餐弹 ContactModal；Header 有入口。
 - **主页**：Hero 黑色块居中、FeatureCards/FAQ 左对齐、CTA 黑色块；全用 `max-w-7xl` 与 Header 对齐；产品页与 ProductShowcase 已删；Footer「关于我们」「帮助中心」灰掉。
 - **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。
-- **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除。**新用户注册默认赠送 150 积分**（30 天有效期，`grantSignupBonus`）；注册页有「新注册用户赠送 150 积分供您体验」提示。**删除用户**：`DELETE /api/admin/users/:email` 会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`；**删除后该邮箱可重新注册**（注册只查 users 表）。**管理员客户备注**：`users` 表有 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表有「备注」列与「编辑备注」按钮，`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }`。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。**安全**：已移除旧的 `/api/points/credit` 自助充值端点和前端按钮，积分充值仅限管理员 `/api/admin/users/:email/grant`。**积分预估**：`src/lib/pointsEstimate.js` 的 `getEstimatedPointsForDimensions` 已模拟前端压缩（compressMaxSize=1024），与后端实际扣费一致。待后续：支付接入、到期提醒邮件、前端套餐页、注册审批。详见 `docs/KNOWN_ISSUES.md`。
+- **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除（快捷按钮改为 30天/180天/1年，默认 1年）。**新用户注册默认赠送 150 积分**（30 天有效期，`grantSignupBonus`）；注册页有「新注册用户赠送 150 积分供您体验」提示。**删除用户**：`DELETE /api/admin/users/:email` 会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`；**删除后该邮箱可重新注册**（注册只查 users 表）。**管理员客户备注**：`users` 表有 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表有「备注」列与「编辑备注」按钮，`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }`。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。**安全**：已移除旧的 `/api/points/credit` 自助充值端点和前端按钮，积分充值仅限管理员 `/api/admin/users/:email/grant`。**积分预估**：`src/lib/pointsEstimate.js` 的 `getEstimatedPointsForDimensions` 已模拟前端压缩（compressMaxSize=1024），与后端实际扣费一致。**定价**：¥200/1000积分/购买之日起1年有效（`SUBSCRIPTION_PLANS` 单一标准套餐）；积分扣费新规：Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Nano Banana Pro 各挡 12/12/20、侵权深度查询=20 积分/次。`grantPoints` 默认有效期改为 365 天；Admin 充值快捷按钮改为 30天/180天/1年，默认1年。待后续：支付接入、到期提醒邮件、注册审批。详见 `docs/PRICING-COST.md`。
 - **部署**：美国硅谷已部署完成（腾讯云轻量，43.162.87.60，域名 pictoolai.studio，Nginx 反代 + **HTTPS**）；**HTTPS** 已启用（Let's Encrypt/certbot，免费且自动续期）；腾讯云轻量**防火墙须放行 TCP 443**；PM2 需 `--cwd /home/ubuntu/app/server` 以正确加载 .env；香港已暂停（Gemini 不可用）。SSH 空闲断线常见，重连不影响 Nginx/PM2 等服务。详见 `docs/DEPLOY.md`、`docs/KNOWN_ISSUES.md`。
 - **品牌与数据**：品牌名统一 **PicToolAI**，技术标识 **pictoolai**（`pictoolai.db`、`pictoolai_token`/`pictoolai_user`、PM2 示例 `pictoolai-server`）。旧 picaitool.db 与旧 gallery 已清理，仅用新库与新 gallery 目录。
 - **亚马逊 Listing 生成与合规**：电商AI运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant` 选亚马逊）。**流程**：Step 1 仅做分析（按钮「分析产品」）→ 展示分析结果，用户**确认分析结果**后才可进行 Step 2；不认可则「重新分析」返回输入界面；分析结果页只显示分析结果与按钮，不显示表单。Step 2 标题/后台关键词/五点/描述（不扣积分）整体放在与步骤 3、4 同款白底框内；**保存到 Listing / 导出 CSV** 放在所有步骤结束后单独一块。Step 3 产品图（主图白底，扣积分）、Step 4 A+（复用 amazon-aplus 接口）。**合规**：prompt 与后端已按 `docs/ECOMMERCE-AI-ASSISTANT.md` 约束；generate-listing prompt 已增补五类违禁与替代（促销/IP/医疗/杀虫剂与生物杀灭/环保等）；标题返回后去除 `! $ ? _ { } ^ ¬ ¦` 并截断。

@@ -31,7 +31,7 @@ function formatExpiry(ts) {
 
 function GrantModal({ user, onClose, onSuccess, getToken }) {
   const [amount, setAmount] = useState('')
-  const [days, setDays] = useState('30')
+  const [days, setDays] = useState('365')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -79,7 +79,7 @@ function GrantModal({ user, onClose, onSuccess, getToken }) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">有效天数</label>
             <div className="flex gap-2 mb-2">
-              {[7, 30, 90].map((d) => (
+              {[30, 180, 365].map((d) => (
                 <button
                   key={d}
                   type="button"
@@ -90,7 +90,7 @@ function GrantModal({ user, onClose, onSuccess, getToken }) {
                       : 'border-gray-300 text-gray-600 hover:border-indigo-400'
                   }`}
                 >
-                  {d} 天
+                  {d === 365 ? '1年' : `${d}天`}
                 </button>
               ))}
             </div>

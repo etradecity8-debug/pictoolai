@@ -43,7 +43,7 @@
 | 亚马逊 Listing | 电商AI运营助手 → 亚马逊 | 生成/优化/竞品/关键词；Step1 分析 → Step2 文案 → Step3 主图，详见 `ECOMMERCE-AI-ASSISTANT.md` |
 | eBay Listing | 电商AI运营助手 → eBay | 生成/优化；Cassini、80 字符标题、Item Specifics，详见 `ECOMMERCE-AI-ASSISTANT.md` 第七部分 |
 | 速卖通 Listing | 电商AI运营助手 → 速卖通 | 生成/优化；128 字符标题、产品属性，详见 `ECOMMERCE-AI-ASSISTANT.md` 第八部分 |
-| 侵权风险检测 | 电商AI运营助手 → 侵权风险检测 | 免费快筛（Gemini）/ 深度查询（SerpApi：Lens+Patents+商标，10 积分）；`POST /api/ai-assistant/ip-risk-check` |
+| 侵权风险检测 | 导航「侵权风险检测」`/ip-risk` | 免费快筛（Gemini）/ 深度查询（SerpApi：Lens+Patents+商标+IP角色版权，20 积分）；`POST /api/ai-assistant/ip-risk-check` |
 | AI 美工 | 导航「AI美工」`/ai-designer` | 局部重绘、局部消除、一键换色、智能扩图、提升质感、添加人/物、**生成场景（多场景批量，最多6个）**、风格复刻、文字修改（替换/语言转换/去除）、水印、官方示例 |
 | 修改图片（官方示例） | AI美工 → 官方示例 | 9 种模式（添加/移除、局部重绘、风格迁移、多图合成、高保真、草图生动、角色一致、文字替换、语言转换），`POST /api/image-edit` |
 | 风格复刻 | AI美工 → 风格复刻 | 参考图（最多 14 张）+ 产品图 → 两阶段（分析风格 → 生图），`POST /api/style-clone` |

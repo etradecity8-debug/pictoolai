@@ -3816,7 +3816,7 @@ Output ONLY valid JSON (no markdown fences):
 })
 
 // ── AI 运营助手 · 侵权风险检测（免费快筛 MVP + 付费深度查询 SerpApi）────────────────
-const IP_RISK_DEEP_POINTS = 10
+const IP_RISK_DEEP_POINTS = 20
 const tempIpRiskDir = join(__dirname, '.temp-ip-risk')
 
 function ensureTempIpRiskDir() {
@@ -3927,7 +3927,8 @@ ${hintText || '（无文字说明）'}
 请输出唯一一个 JSON 对象，包含：
 - "quickReport": "2-4 段简短文字，概括商标/外观/IP 形象/平台合规的初步判断与风险等级（高/中/低）"
 - "patentSearchTerms": ["关键词1", "关键词2", "关键词3"]  // 用于在美国专利库中检索外观或设计相关专利，用英文，3-5 个词
-- "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标`
+- "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标
+- "ipCharacterNames": ["角色名1"]  // 若图中出现疑似受版权保护的角色、卡通形象、艺术图案（如 Mickey Mouse、Pikachu、Hello Kitty 等），列出英文名称；若无可疑 IP 元素则为空数组 []`
 
     const analysisParts = [
       ...parsedImages.slice(0, 5).map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
@@ -3939,6 +3940,7 @@ ${hintText || '（无文字说明）'}
     let quickReport = ''
     let patentSearchTerms = ['product design', 'consumer product']
     let trademarkSearchTerms = []
+    let ipCharacterNames = []
     try {
       const parsed = extractAnalyzeJson(analysisText, true)
       if (parsed?.quickReport) quickReport = String(parsed.quickReport)
@@ -3947,6 +3949,9 @@ ${hintText || '（无文字说明）'}
       }
       if (Array.isArray(parsed?.trademarkSearchTerms) && parsed.trademarkSearchTerms.length > 0) {
         trademarkSearchTerms = parsed.trademarkSearchTerms.slice(0, 3).map((t) => String(t).trim()).filter(Boolean)
+      }
+      if (Array.isArray(parsed?.ipCharacterNames) && parsed.ipCharacterNames.length > 0) {
+        ipCharacterNames = parsed.ipCharacterNames.slice(0, 3).map((t) => String(t).trim()).filter(Boolean)
       }
     } catch (_) {}
 
@@ -3994,7 +3999,29 @@ ${hintText || '（无文字说明）'}
       }
     }
 
-    deepResults = { lens: lensData, patents: patentsData, trademarks: trademarksData }
+    // ── A：IP 角色版权专项检索 ───────────────────────────────────────────────────
+    let ipCopyrightData = null
+    const ipCharacterQuery = ipCharacterNames.length > 0
+      ? `${ipCharacterNames[0]} copyright owner intellectual property trademark`
+      : ''
+    if (ipCharacterQuery) {
+      try {
+        const ipRes = await fetch(
+          `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(ipCharacterQuery)}&api_key=${serpApiKey}`
+        )
+        if (ipRes.ok) ipCopyrightData = await ipRes.json()
+      } catch (e) {
+        console.error('[IP Risk] IP 角色版权检索失败', e.message)
+      }
+    }
+
+    deepResults = { lens: lensData, patents: patentsData, trademarks: trademarksData, ipCopyright: ipCopyrightData }
+
+    // ── B：从 Lens 结果中提取图片来源（版权溯源） ───────────────────────────────
+    const lensSourceSummary = lensData?.visual_matches?.slice?.(0, 6)
+      .filter((m) => m.link)
+      .map((m) => `${m.title || ''} - ${m.source || new URL(m.link).hostname} (${m.link})`)
+      .join('\n') || '（无来源数据）'
 
     const lensSummary =
       lensData?.visual_matches?.slice?.(0, 8).map((m) => `${m.title || ''} ${m.link || ''}`).join('\n') || '（无视觉匹配结果）'
@@ -4002,25 +4029,36 @@ ${hintText || '（无文字说明）'}
       patentsData?.organic_results?.slice?.(0, 5).map((p) => `${p.title || ''} - ${p.link || ''}`).join('\n') || '（无专利检索结果）'
     const trademarkSummary =
       trademarksData?.organic_results?.slice?.(0, 6).map((p) => `${p.title || ''} - ${p.link || ''}`).join('\n') || '（无商标检索结果）'
+    const ipCopyrightSummary = ipCopyrightData
+      ? ipCopyrightData.organic_results?.slice?.(0, 4).map((p) => `${p.title || ''} - ${p.link || ''}`).join('\n') || '（无结果）'
+      : ipCharacterNames.length > 0 ? '（检索失败）' : '（图中未检测到已知 IP 角色/图案）'
 
-    const synthesizePrompt = `你是一位跨境电商知识产权顾问。已有初步分析、Google Lens 视觉匹配、专利检索与商标检索结果，请合成侵权风险报告。
+    const synthesizePrompt = `你是一位跨境电商知识产权顾问。已有初步分析、Google Lens 视觉匹配与来源溯源、专利检索、商标检索，以及 IP 角色版权专项检索结果，请合成侵权风险报告。
 
 === 初步分析 ===
 ${quickReport || '（无）'}
 
-=== Google Lens 视觉匹配（与图中产品外观相似的网络结果）===
+=== Google Lens 视觉匹配（与产品外观相似的网络结果）===
 ${lensSummary}
+
+=== Google Lens 图片来源（版权溯源：图片最早/主要出现的来源网站）===
+${lensSourceSummary}
 
 === 专利检索相关结果（仅供参考，非精确法律检索）===
 ${patentSummary}
 
-=== 商标检索相关结果（Google 检索 USPTO/商标信息，仅供参考）===
+=== 商标检索相关结果（Google 检索 USPTO/商标信息）===
 ${trademarkSummary}
 
+=== IP 角色/图案版权专项检索（Google 搜索）===
+${ipCharacterNames.length > 0 ? `检索 IP 元素：${ipCharacterNames.join('、')}` : '（AI 未识别到疑似 IP 角色或图案）'}
+${ipCopyrightSummary}
+
 请严格输出一个 JSON 对象（仅此对象，不要 markdown 代码块、不要其他文字），包含以下字段，每个字段为字符串（可含换行）：
-- "trademarkRisk": 商标/Logo 风险（结合初析与上述商标检索结果，指出可能冲突或近似的商标及建议）
-- "designRisk": 外观设计风险（结合初析与上述 Lens/专利结果，说明是否需进一步规避）
-- "ipImageRisk": IP 形象/版权风险
+- "trademarkRisk": 商标/Logo 风险（结合初析与商标检索结果，指出可能冲突或近似的商标及建议）
+- "designRisk": 外观设计风险（结合初析与 Lens/专利结果，说明是否需进一步规避）
+- "ipImageRisk": IP 形象/版权风险（结合 IP 角色专项检索结果，说明图中是否有受版权保护的角色或图案，版权持有方是谁）
+- "copyrightSourceRisk": 图片版权溯源（基于 Google Lens 来源追踪：该产品图片主要来自哪些渠道，是否有迹象表明图片本身来源于有版权限制的网站/摄影师作品/知名品牌官方资料；若无异常来源也请明确说明）
 - "platformRisk": 平台合规与建议
 - "overallLevel": 综合风险等级与理由，格式如 "中 - 理由简述"
 - "suggestions": 可操作建议，每条一行或分点
@@ -4038,6 +4076,7 @@ ${trademarkSummary}
             trademarkRisk: String(parsed.trademarkRisk ?? '').trim(),
             designRisk: String(parsed.designRisk ?? '').trim(),
             ipImageRisk: String(parsed.ipImageRisk ?? '').trim(),
+            copyrightSourceRisk: String(parsed.copyrightSourceRisk ?? '').trim(),
             platformRisk: String(parsed.platformRisk ?? '').trim(),
             overallLevel: String(parsed.overallLevel ?? '').trim(),
             suggestions: String(parsed.suggestions ?? '').trim(),
@@ -4060,8 +4099,18 @@ ${trademarkSummary}
     const patentQuery = patentSearchTerms.slice(0, 2).join(' ')
     const trademarkQuery = trademarkSearchTerms.length > 0 ? `USPTO trademark ${trademarkSearchTerms[0]}` : ''
     const searchSummary = [
-      { method: '以图搜图', service: 'Google Lens', content: '您上传的首张产品图', purpose: '检索整个网络中与您产品外观相似的图片/商品，辅助判断外观设计侵权风险' },
-      { method: '专利检索', service: 'Google Patents', content: patentQuery || '（未获取到检索词）', purpose: '主要在美国专利库中检索相关外观/设计专利（也可能包含其他地区），辅助判断专利侵权风险' },
+      {
+        method: '以图搜图 + 来源溯源',
+        service: 'Google Lens',
+        content: '您上传的首张产品图',
+        purpose: '检索整个网络中与产品外观相似的图片/商品，并追踪图片最早/主要出现的来源网站，辅助判断外观侵权与图片版权溯源',
+      },
+      {
+        method: '专利检索',
+        service: 'Google Patents',
+        content: patentQuery || '（未获取到检索词）',
+        purpose: '主要在美国专利库中检索相关外观/设计专利（也可能包含其他地区），辅助判断专利侵权风险',
+      },
     ]
     if (trademarkQuery) {
       searchSummary.push({
@@ -4071,12 +4120,21 @@ ${trademarkSummary}
         purpose: '通过 Google 检索商标相关网页（含美国商标局等），以美国商标信息为主，辅助判断商标/Logo 侵权风险',
       })
     }
+    if (ipCharacterQuery) {
+      searchSummary.push({
+        method: 'IP 角色版权检索',
+        service: 'Google 搜索',
+        content: ipCharacterQuery,
+        purpose: `针对图中识别到的 IP 元素（${ipCharacterNames.join('、')}）检索版权归属方与知识产权持有方信息`,
+      })
+    }
 
     const payload = {
       mode: 'deep',
       pointsUsed: IP_RISK_DEEP_POINTS,
       newBalance,
-      deepResults: { hasLens: !!lensData, hasPatents: !!patentsData, hasTrademarks: !!trademarksData },
+      ipCharacterNames,
+      deepResults: { hasLens: !!lensData, hasPatents: !!patentsData, hasTrademarks: !!trademarksData, hasIpCopyright: !!ipCopyrightData },
       searchSummary,
     }
     if (deepSections) payload.sections = deepSections

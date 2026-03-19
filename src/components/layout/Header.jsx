@@ -91,6 +91,21 @@ export default function Header() {
               </svg>
               <span>电商AI运营助手</span>
             </Link>
+
+            {/* 侵权风险检测 */}
+            <Link
+              to="/ip-risk"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                location.pathname === '/ip-risk'
+                  ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span>侵权风险检测</span>
+            </Link>
           </nav>
 
           {/* 右侧：订阅 + 语言 + 用户 */}
@@ -210,6 +225,19 @@ export default function Header() {
                   d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               <span>电商AI运营助手</span>
+            </Link>
+            {/* 侵权风险检测（移动端） */}
+            <Link
+              to="/ip-risk"
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
+                location.pathname === '/ip-risk' ? 'text-gray-900 bg-white font-medium' : 'text-gray-600 hover:bg-white/60 hover:text-gray-900'
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span>侵权风险检测</span>
             </Link>
             <Link
               to="/pricing"

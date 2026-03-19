@@ -13,7 +13,7 @@
 | 做亚马逊 Listing（生成/优化/竞品/关键词）、合规规则、A+ | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第一至六部分 |
 | 做 eBay Listing（80字符标题、Item Specifics、Cassini） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第七部分 |
 | 做速卖通 Listing（128字符标题、产品属性、移动端描述） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第八部分 |
-| 了解侵权风险检测（快筛/深度），向客户解释查了什么 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 附录 |
+| 了解侵权风险检测（快筛/深度），向客户解释查了什么 | [IP-RISK.md](./IP-RISK.md) |
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/风格复刻） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | **首次**把项目部署到服务器（VPS 安装/克隆/配置/启动） | [DEPLOY.md](./DEPLOY.md) — 第一节 |
 | **每次**发版更新线上（git push → 服务器 pull/build/restart） | [DEPLOY.md](./DEPLOY.md) — 第二节 |
@@ -22,18 +22,23 @@
 | 删除用户及用户数据（管理后台 / 服务器 SQL） | [DEPLOY.md](./DEPLOY.md) — 第五节 |
 | 查看用户列表（sqlite3 命令） | [DEPLOY.md](./DEPLOY.md) — 第五节 5.4 |
 | sqlite3 卡住出不去 | [DEPLOY.md](./DEPLOY.md) — 第五节 5.2（Ctrl+C） |
-| 查已知问题、功能待办、积分规则、数据隐私说明 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
+| 查已知问题、功能待办、数据隐私说明 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
+| 了解积分规则、API 成本、盈利分析（内部） | [PRICING-COST.md](./PRICING-COST.md) |
+| 对外介绍网站功能（发给客户/推广文案） | [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) |
 
 ---
 
-## 文档目录（7 个文件）
+## 文档目录（10 个文件）
 
 | 文件 | 内容 |
 |------|------|
 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) | 技术栈、目录结构、主要功能一览、本地运行要点 |
 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) | 全品类组图：5 个输入字段、AI 传参、分析→确认→生图数据流 |
-| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | AI 运营助手：亚马逊（第1-6部分）+ eBay（第7部分）+ 速卖通（第8部分）+ 侵权风险检测（附录） |
+| [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | AI 运营助手：亚马逊（第1-6部分）+ eBay（第7部分）+ 速卖通（第8部分） |
+| [IP-RISK.md](./IP-RISK.md) | 侵权风险检测：功能说明、检测维度、费用、客户沟通话术 |
 | [AI-DESIGNER.md](./AI-DESIGNER.md) | AI 美工：局部重绘/消除/换色/扩图/提升质感/添加人物/服装3D/生成场景/风格复刻/文字修改/官方示例 |
 | [DEPLOY.md](./DEPLOY.md) | 运维手册：首次部署 + 每次更新 + SerpApi + COS + 用户管理（删除/查询/SQL） + Gemini 地区限制 |
-| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、功能待办、积分规则、数据隐私说明 |
+| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、功能待办、数据隐私说明 |
+| [PRICING-COST.md](./PRICING-COST.md) | 积分规则、API 成本核算、固定成本、盈利分析（内部参考） |
+| [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) | 网站功能介绍（对外宣传，可直接发给客户） |
 | [README.md](./README.md)（本文件） | 文档总索引 |

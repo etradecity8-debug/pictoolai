@@ -1,11 +1,11 @@
 /**
  * 积分规则与余额（与前端 pointsConfig 一致）
- * Nano Banana 1K=3; Nano Banana Pro 1K=3,2K=5,4K=5; Nano Banana 2 0.5K=3,1K=3,2K=5,4K=5
+ * Nano Banana 1K=4; Nano Banana Pro 1K=12,2K=12,4K=20; Nano Banana 2 0.5K=4,1K=6,2K=10,4K=14
  */
 const POINTS_MAP = {
-  'Nano Banana': { '1K 标准': 3 },
-  'Nano Banana Pro': { '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
-  'Nano Banana 2': { '0.5K 快速': 3, '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
+  'Nano Banana':     { '1K 标准': 4 },
+  'Nano Banana Pro': { '1K 标准': 12, '2K 高清': 12, '4K 超清': 20 },
+  'Nano Banana 2':   { '0.5K 快速': 4, '1K 标准': 6, '2K 高清': 10, '4K 超清': 14 },
 }
 
 export function getPointsPerImage(model, clarity) {
@@ -71,7 +71,7 @@ export function deductPoints(email, totalPoints, description) {
  * 每次授予都会重置有效期：新到期时间 = 现在 + days 天。
  * 若当前积分未到期，新余额 = 旧余额 + amount；若已过期，新余额 = amount。
  */
-export function grantPoints(email, amount, days = 30) {
+export function grantPoints(email, amount, days = 365) {
   const db = getDb()
   const now = Date.now()
   const expiresAt = now + days * 24 * 60 * 60 * 1000
@@ -85,7 +85,7 @@ export function grantPoints(email, amount, days = 30) {
        expires_at = excluded.expires_at,
        last_granted_at = excluded.last_granted_at`
   ).run(email, Math.max(0, newBalance), expiresAt, now)
-  addTransaction(email, amount, `管理员充值 ${amount} 积分，有效期 ${days} 天`)
+  addTransaction(email, amount, `管理员充值 ${amount} 积分，有效期 ${days === 365 ? '1年' : `${days}天`}`)
   return Math.max(0, newBalance)
 }
 

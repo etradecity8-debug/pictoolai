@@ -222,12 +222,12 @@ const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
 
 // 与 server/points.js POINTS_MAP 保持一致
 const POINTS_MAP = {
-  'Nano Banana':     { '1K 标准': 3 },
-  'Nano Banana Pro': { '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
-  'Nano Banana 2':   { '0.5K 快速': 3, '1K 标准': 3, '2K 高清': 5, '4K 超清': 5 },
+  'Nano Banana':     { '1K 标准': 4 },
+  'Nano Banana Pro': { '1K 标准': 12, '2K 高清': 12, '4K 超清': 20 },
+  'Nano Banana 2':   { '0.5K 快速': 4, '1K 标准': 6, '2K 高清': 10, '4K 超清': 14 },
 }
 function getPointsEstimate(model, clarity) {
-  return POINTS_MAP[model]?.[clarity] ?? 3
+  return POINTS_MAP[model]?.[clarity] ?? 4
 }
 
 const LANGUAGE_OPTIONS = [

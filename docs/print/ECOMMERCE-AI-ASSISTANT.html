@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ECOMMERCE AI ASSISTANT</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">ECOMMERCE-AI-ASSISTANT.md → 打印版 · 2026/3/19</div>
+  <h1>电商 AI 运营助手完整说明</h1>
+<p>本文档涵盖「电商 AI 运营助手」全平台内容：<strong>亚马逊</strong>（Listing 生成/优化/竞品/关键词/A+ 图片）、<strong>eBay</strong>（生成/优化）、<strong>速卖通</strong>（生成/优化）、<strong>侵权风险检测</strong>（免费快筛 + 深度查询），以及深度查询服务费用附录。</p>
+<hr>
+<h1>第一部分：Listing 生成产品设计</h1>
+<p><strong>版本</strong>：v0.2 已确认<br><strong>日期</strong>：2026-03-08<br><strong>状态</strong>：已确认，开发中</p>
+<p><strong>合规承诺</strong>：本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9（传统搜索）、Cosmo（语义搜索）、Rufus（AI 购物助手）、GEO（AI 搜索引擎优化）等原则。</p>
+<hr>
+<h2>一、功能概述</h2>
+<p>在「电商AI运营助手 → 亚马逊」模块中新增「生成 Listing」功能。<br>用户填写产品信息后，AI 分多步自动生成符合亚马逊规则的完整 Listing，包括标题、后台关键词、五点描述、产品描述，并可进一步生成 A+ 页面文案和产品图。</p>
+<hr>
+<h2>二、输入设计</h2>
+<h3>必填项（缺少任一项不允许提交）</h3>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>产品图片（至少 1 张）</td>
+<td>随手拍、供应商图均可；AI 从图中提取产品信息，上传数量建议 1–5 张</td>
+</tr>
+<tr>
+<td>2</td>
+<td>产品类别（二级联动下拉）</td>
+<td>一级约 15 个大类，二级联动子类；决定 Listing 格式与优化方向</td>
+</tr>
+<tr>
+<td>3</td>
+<td>品牌名</td>
+<td>亚马逊店铺品牌名；无品牌填 Generic</td>
+</tr>
+<tr>
+<td>4</td>
+<td>核心卖点（至少 2 条）</td>
+<td>用户最了解自己产品的差异化点；每条一行填写</td>
+</tr>
+<tr>
+<td>5</td>
+<td>目标市场</td>
+<td>美国、英国、德国、法国、日本、加拿大、澳大利亚、墨西哥等</td>
+</tr>
+</tbody></table>
+<h3>可选项（填写后 AI 输出质量更高）</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>货源链接</td>
+<td>1688 / 速卖通 / Alibaba 等供应商页面链接；后端自动读取页面内容并补充产品信息</td>
+</tr>
+<tr>
+<td>参考关键词</td>
+<td>用户自己做过关键词研究的可以填入，AI 会优先覆盖这些词</td>
+</tr>
+<tr>
+<td>特殊认证 / 备注</td>
+<td>如 CE、FCC、BPA-free、专利、特别要强调的功能点等</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、产品类别设计（二级联动下拉）</h2>
+<p><strong>设计决策</strong>：不抓取亚马逊完整类目树。原因：类目层级过深（叶子节点达数千个）、维护成本高，且对 Listing 文案生成而言，一二级大类已足够指导 AI 的写作风格和关键词策略。</p>
+<h3>一级 → 二级示例</h3>
+<table>
+<thead>
+<tr>
+<th>一级</th>
+<th>二级示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>家居厨房</td>
+<td>厨具、收纳整理、家纺、灯具、清洁用品、浴室用品</td>
+</tr>
+<tr>
+<td>运动户外</td>
+<td>户外装备、健身器材、自行车、游泳用品、球类运动</td>
+</tr>
+<tr>
+<td>电子数码</td>
+<td>手机配件、电脑配件、音频设备、摄影器材、智能家居</td>
+</tr>
+<tr>
+<td>美容个护</td>
+<td>护肤、彩妆、发型护理、香水、健康护理</td>
+</tr>
+<tr>
+<td>宠物用品</td>
+<td>犬用、猫用、小动物、水族</td>
+</tr>
+<tr>
+<td>婴儿用品</td>
+<td>喂养、婴儿衣物、婴儿玩具、婴儿安全</td>
+</tr>
+<tr>
+<td>服装鞋包</td>
+<td>男装、女装、鞋类、箱包配件</td>
+</tr>
+<tr>
+<td>玩具游戏</td>
+<td>益智玩具、遥控玩具、户外玩具、桌游</td>
+</tr>
+<tr>
+<td>汽车用品</td>
+<td>内饰配件、外饰改装、工具、电子设备</td>
+</tr>
+<tr>
+<td>工具五金</td>
+<td>电动工具、手工具、建材五金</td>
+</tr>
+<tr>
+<td>园艺</td>
+<td>园林工具、种植用品、户外家具</td>
+</tr>
+<tr>
+<td>健康医疗</td>
+<td>维生素/保健品、医疗器具、急救用品</td>
+</tr>
+<tr>
+<td>办公文具</td>
+<td>文具耗材、打印耗材、办公家具</td>
+</tr>
+<tr>
+<td>其他</td>
+<td>用户手动补充描述</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>四、输出设计</h2>
+<h3>4.1 输出内容与字符限制</h3>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>输出项</th>
+<th>亚马逊字符限制</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>标题（Title）</td>
+<td>≤200 字符</td>
+<td>含品牌名、核心搜索词、主要卖点</td>
+</tr>
+<tr>
+<td>2</td>
+<td>后台搜索关键词（Search Terms）</td>
+<td>≤250 bytes</td>
+<td>不与标题中已有的词重复</td>
+</tr>
+<tr>
+<td>3</td>
+<td>五点描述（Bullet Points）</td>
+<td>每条 ≤500 字符，共 5 条</td>
+<td>按 Rufus 问答逻辑组织</td>
+</tr>
+<tr>
+<td>4</td>
+<td>产品描述（Product Description）</td>
+<td>≤2000 字符</td>
+<td>适合尚未注册品牌的卖家</td>
+</tr>
+<tr>
+<td>5</td>
+<td>A+ 文案（Enhanced Brand Content）</td>
+<td>多模块，约 3–5 个</td>
+<td>本模块内新建 A+ 子流程</td>
+</tr>
+<tr>
+<td>6</td>
+<td>产品图</td>
+<td>1～9 张（客户可选）</td>
+<td>第 1 张为主图（白底），第 2～9 张为附加图</td>
+</tr>
+</tbody></table>
+<h3>4.2 四大优化维度</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>说明</th>
+<th>写法要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>A9</strong>（传统搜索算法）</td>
+<td>关键词相关性、点击率、转化率</td>
+<td>标题前 80 字符含高搜索量核心词；五点自然分布长尾词</td>
+</tr>
+<tr>
+<td><strong>Cosmo</strong>（语义搜索）</td>
+<td>理解语义和使用场景</td>
+<td>每个 bullet 用自然语言描述：谁在用、什么场景、解决什么问题</td>
+</tr>
+<tr>
+<td><strong>Rufus</strong>（AI 购物助手）</td>
+<td>直接读取 Listing 回答买家问题</td>
+<td>每个 bullet 隐含回答一个买家常见问题</td>
+</tr>
+<tr>
+<td><strong>GEO</strong>（AI 搜索引擎优化）</td>
+<td>内容结构化、事实性强</td>
+<td>包含精确数据：尺寸、重量、材质、认证、测试结论等</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>五、AI 调用流程（多步生成）</h2>
+<table>
+<thead>
+<tr>
+<th>步骤</th>
+<th>内容</th>
+<th>输入</th>
+<th>预估输出量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Step 1</td>
+<td><strong>产品分析</strong></td>
+<td>图片 + 货源链接（可选）</td>
+<td>结构化 JSON：品类、材质、特点、潜在关键词</td>
+</tr>
+<tr>
+<td>Step 2</td>
+<td><strong>标题 + 后台关键词 + 五点描述</strong></td>
+<td>Step1 结果 + 用户输入</td>
+<td>约 1–1.5K tokens</td>
+</tr>
+<tr>
+<td>Step 3</td>
+<td><strong>产品描述</strong></td>
+<td>Step1 结果 + Step2 结果</td>
+<td>约 1K tokens</td>
+</tr>
+<tr>
+<td>Step 4</td>
+<td><strong>A+ 文案</strong>（可选）</td>
+<td>以上全部结果</td>
+<td>约 2–3K tokens，多模块</td>
+</tr>
+<tr>
+<td>Step 5</td>
+<td><strong>产品图</strong>（可选）</td>
+<td>本模块内生成</td>
+<td>走图像生成流程</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>六、亚马逊规则与合规约束</h2>
+<h3>6.1 标题（Title）</h3>
+<ul>
+<li><strong>长度</strong>：多数类目 ≤200 字符；部分类目更短（如 80/50）。</li>
+<li><strong>禁止</strong>：全大写、堆砌无关关键词、竞品/他人品牌名；<strong>同一单词不得重复超过 2 次</strong>；<strong>禁止使用</strong> <code>! $ ? _ { } ^ ¬ ¦</code> 等符号。</li>
+<li><strong>建议结构</strong>：<code>品牌 + 核心产品词 + 关键属性（材质/尺寸/数量等）+ 主要卖点</code>；<strong>前 80 字符含核心搜索词</strong>。</li>
+</ul>
+<h3>6.2 五点描述（Bullet Points）</h3>
+<ul>
+<li><strong>长度</strong>：每条 ≤500 字符，共 5 条，须全部使用且内容不重复。</li>
+<li><strong>禁止</strong>：价格、促销、站外链接；夸大/绝对化/医疗未证宣称；<strong>特殊符号</strong>（™ ® €）与 <strong>emoji</strong>；<strong>跨条重复</strong>；ASIN、「N/A」「TBD」；公司信息、联系方式、网址；退款/质保承诺用语；类目禁用营销用语。</li>
+<li><strong>建议</strong>：每条对应一个卖点或一个买家常见问题；信息具体、可验证。</li>
+</ul>
+<h3>6.3 产品描述（Product Description）</h3>
+<ul>
+<li><strong>长度</strong>：通常 ≤2000 字符。</li>
+<li><strong>禁止</strong>：与五点逐句重复堆砌、站外链接、联系方式、违禁词；<strong>不得出现竞品对比、「best seller」「top-rated」等宣称</strong>。</li>
+</ul>
+<h3>6.4 后台关键词（Search Terms）</h3>
+<ul>
+<li>总长 ≤250 bytes（多字节语言占更多 bytes）。</li>
+<li>禁止：重复标题/五点中已有的词、竞品品牌、无关词堆砌。</li>
+</ul>
+<h3>6.5 图片（主图要求）</h3>
+<ul>
+<li><strong>主图</strong>：纯白底 <strong>RGB(255,255,255)</strong>；产品占画面 <strong>≥85%</strong>、完整可见、居中；<strong>无文字/logo/水印/边框/多角度拼图</strong>；<strong>长边 ≥1000px</strong>；比例建议 1:1。</li>
+<li><strong>注意</strong>：亚马逊政策要求主图为「实际拍摄」照片；AI 生成图在严格解读下可能不符合主图要求，建议用户将本工具生成图用作参考或附加图。</li>
+</ul>
+<h3>6.6 A+ 内容（Enhanced Brand Content）</h3>
+<ul>
+<li><strong>禁止</strong>：提及竞品名称；使用「best seller」「top-rated」「Amazon&#39;s Choice」；保证/质保类表述；外部链接、社媒、二维码；联系方式或配送细节；医疗或未经支持的宣称；特殊符号（™ ® €）或 emoji。</li>
+</ul>
+<hr>
+<h2>七、实现细节（开发记录）</h2>
+<h3>前端</h3>
+<ul>
+<li><strong>文件</strong>：<code>src/pages/AiAssistant.jsx</code>。</li>
+<li><strong>流程</strong>：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。</li>
+<li><strong>保存与历史</strong>：表 <code>amazon_listing_snapshots</code>；侧栏「Listing 历史」入口（<code>/dashboard/listings</code>）。</li>
+<li><strong>导出 CSV / JSON</strong>：实现见 <code>src/lib/exportListingCsv.js</code>（统一导出，支持亚马逊/eBay/速卖通）。</li>
+<li><strong>输出纯文本</strong>：后端 <code>stripMarkdown</code> 函数自动清除 AI 返回的 <code>**粗体**</code>、<code>_斜体_</code> 等 Markdown 格式，确保五点描述和产品描述可直接粘贴到平台后台。</li>
+</ul>
+<h3>后端接口</h3>
+<ul>
+<li><strong>Step 1</strong>：<code>POST /api/ai-assistant/amazon/analyze</code> — 分析，不扣积分。</li>
+<li><strong>Step 2</strong>：<code>POST /api/ai-assistant/amazon/generate-listing</code> — 文案，不扣积分。</li>
+<li><strong>Step 3</strong>：<code>POST /api/ai-assistant/amazon/generate-product-images</code> — 产品图，扣积分。</li>
+<li><strong>Step 4 A+</strong>：复用 <code>POST /api/amazon-aplus/analyze</code>（文案）、<code>POST /api/amazon-aplus/generate</code>（4 张 A+ 图，扣积分）。</li>
+</ul>
+<hr>
+<h1>第二部分：生图提示词与准则</h1>
+<h2>一、通用规则（所有生图均遵守）</h2>
+<ul>
+<li><strong>禁止图中出现任何文字</strong>：不渲染英文、中文、日文、韩文、数字、标签、品牌名、产品名。</li>
+<li><strong>纯商业摄影</strong>：无文字、无水印、无 logo。</li>
+</ul>
+<p>代码中的通用规则文案（noTextRule）：</p>
+<pre><code>CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks. Product name and brand below are CONTEXT ONLY — do NOT render them in the image. Pure clean commercial photography, zero text.
+</code></pre>
+<hr>
+<h2>二、Step 3 产品图（白底主图 / 场景图 / 特写图 / 卖点图）</h2>
+<ul>
+<li><strong>白底主图</strong>：<code>noTextRule</code> + <code>--- Amazon main image: Pure white background only (RGB 255,255,255). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered.</code></li>
+<li><strong>场景图</strong>：<code>noTextRule</code> + <code>--- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting.</code></li>
+<li><strong>特写图</strong>：<code>noTextRule</code> + <code>--- Amazon detail/close-up image: ...</code> 参考图仅作产品外形，纯白或柔和渐变影棚背景。</li>
+<li><strong>卖点图</strong>：每张对应一条用户填写的卖点，视觉化展示；可选是否在图上显示文字。</li>
+</ul>
+<hr>
+<h2>三、Step 4 A+ 图片（4 张）</h2>
+<ul>
+<li><strong>用途</strong>：Hero 横幅（16:9）+ 3 张特点图（1:1）。</li>
+<li><strong>Hero</strong>：<code>--- Amazon A+ hero banner. Product context: {product} by {brand}. Visual style: {styleDesc}.</code></li>
+<li><strong>特点图</strong>：<code>--- Amazon A+ feature image. Feature to visualize: {f0/f1/f2}.</code></li>
+<li><strong>风格</strong>：minimal / lifestyle / luxury 对应不同背景与光线描述。</li>
+<li><strong>生成顺序</strong>：后端按顺序生成 4 张，避免并发限速。</li>
+</ul>
+<hr>
+<h2>四、与亚马逊官方要求对照</h2>
+<table>
+<thead>
+<tr>
+<th>要求项</th>
+<th>当前实现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>背景色 纯白 RGB(255,255,255)</td>
+<td>✅ prompt 中明确写 Pure white / RGB 255,255,255</td>
+</tr>
+<tr>
+<td>产品占比 ≥85%</td>
+<td>✅ product fill approximately 85%, centered</td>
+</tr>
+<tr>
+<td>文字/logo/水印 禁止</td>
+<td>✅ noTextRule 强制禁止</td>
+</tr>
+<tr>
+<td>主图 1:1</td>
+<td>✅ 后端 aspectRatio: &#39;1:1&#39;</td>
+</tr>
+<tr>
+<td>分辨率 长边 ≥1000px</td>
+<td>⚠️ 模型输出多为 1K，用户可自行放大</td>
+</tr>
+<tr>
+<td>AI 生成 vs 实际拍摄</td>
+<td>⚠️ 严格解读下主图宜用实拍；生成图建议作参考或附加图</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>第三部分：A+ 模块定义</h1>
+<p>亚马逊标准 A+ 有 <strong>17 种模块</strong>，每个 listing 最多约 5 个模块。本系统<strong>全部支持 17 种</strong>。</p>
+<h2>17 种模块 ID 与规格</h2>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>模块 ID</th>
+<th>中文名</th>
+<th>图片</th>
+<th>文案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>header</code></td>
+<td>图片页头</td>
+<td>1 张 16:9</td>
+<td>标题 ≤50 + 正文 300–500 字</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>single_highlights</code></td>
+<td>单图+亮点</td>
+<td>1 张 1:1</td>
+<td>标题 ≤50 + 4 条亮点 ≤80 字</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>image_dark_overlay</code></td>
+<td>深色文字叠加图</td>
+<td>1 张 16:9</td>
+<td>标题+正文（叠在深色区）</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>image_white_overlay</code></td>
+<td>浅色文字叠加图</td>
+<td>1 张 16:9</td>
+<td>标题+正文（叠在浅色区）</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>comparison_chart</code></td>
+<td>对比表格</td>
+<td>无</td>
+<td>多行 feature/value1/value2</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>multiple_images</code></td>
+<td>多图模块</td>
+<td>4 张 1:1</td>
+<td>4 块 title+desc</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>product_description</code></td>
+<td>产品描述长文</td>
+<td>无</td>
+<td>≤2000 字</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>company_logo</code></td>
+<td>品牌 Logo</td>
+<td>1 张 16:9</td>
+<td>可选 logoCaption</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>single_image_sidebar</code></td>
+<td>单图+侧栏</td>
+<td>1 张 1:1</td>
+<td>标题 ≤50 + 正文 ≤400</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>standard_text</code></td>
+<td>纯文字</td>
+<td>无</td>
+<td>≤500 字</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>quad_images</code></td>
+<td>四图+文字</td>
+<td>4 张 1:1</td>
+<td>4 块 ≤100 字</td>
+</tr>
+<tr>
+<td>12</td>
+<td><code>tech_specs</code></td>
+<td>技术规格</td>
+<td>无</td>
+<td>最多 10 行 name+value</td>
+</tr>
+<tr>
+<td>13</td>
+<td><code>single_right_image</code></td>
+<td>右图左文</td>
+<td>1 张 1:1</td>
+<td>标题 ≤50 + 正文 ≤160</td>
+</tr>
+<tr>
+<td>14</td>
+<td><code>three_images</code></td>
+<td>三图+文字</td>
+<td>3 张 1:1</td>
+<td>3 块 标题+正文</td>
+</tr>
+<tr>
+<td>15</td>
+<td><code>single_left_image</code></td>
+<td>左图右文</td>
+<td>1 张 1:1</td>
+<td>标题 ≤50 + 正文 ≤450</td>
+</tr>
+<tr>
+<td>16</td>
+<td><code>single_image_specs</code></td>
+<td>单图+规格</td>
+<td>1 张 1:1</td>
+<td>标题+要点列表(≤5条)</td>
+</tr>
+<tr>
+<td>17</td>
+<td><code>brand_story</code></td>
+<td>品牌故事</td>
+<td>无</td>
+<td>标题 ≤8 字 + 正文 60–80 字</td>
+</tr>
+</tbody></table>
+<h2>推荐套餐</h2>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>模块组合</th>
+<th>图片张数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基础</td>
+<td>header + three_images + tech_specs</td>
+<td>4</td>
+</tr>
+<tr>
+<td>标准</td>
+<td>header + single_highlights + three_images + tech_specs + brand_story</td>
+<td>5</td>
+</tr>
+<tr>
+<td>精品</td>
+<td>header + single_highlights + quad_images + tech_specs + brand_story</td>
+<td>6</td>
+</tr>
+</tbody></table>
+<p><strong>自定义</strong>：从 17 种中勾选，最多 5 个，按选择顺序生成。</p>
+<hr>
+<h1>第四部分：优化 Listing</h1>
+<h2>功能概述</h2>
+<p>在「电商AI运营助手 → 亚马逊」模块中，「优化 Listing」功能允许卖家粘贴已有的 Listing 文案，AI 自动诊断问题并生成优化版本。<strong>不扣积分</strong>。</p>
+<p>支持<strong>智能粘贴</strong>：用户可在 Listing 页面全选复制后一次性粘贴，AI 自动识别并拆分到标题、五点、描述等字段。</p>
+<h2>输入</h2>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>现有标题</td>
+<td>是</td>
+<td>粘贴当前 Listing 标题</td>
+</tr>
+<tr>
+<td>五点描述</td>
+<td>是</td>
+<td>粘贴当前五点，每条一行</td>
+</tr>
+<tr>
+<td>详情描述</td>
+<td>否</td>
+<td>粘贴当前 Product Description</td>
+</tr>
+<tr>
+<td>后台关键词</td>
+<td>否</td>
+<td>粘贴当前 Search Terms</td>
+</tr>
+<tr>
+<td>目标市场</td>
+<td>是</td>
+<td>美/英/德/法/日/西/意/加/澳/墨</td>
+</tr>
+<tr>
+<td>目标语言</td>
+<td>是</td>
+<td>中/英/德/法/日/西（支持跨语言转换）</td>
+</tr>
+</tbody></table>
+<h2>输出</h2>
+<h3>诊断报告（双语）</h3>
+<ul>
+<li><strong>综合评分</strong>（1–10）及一句话总结</li>
+<li><strong>各项评分</strong>：标题、五点、描述、后台关键词各 1–10 分，附具体问题列表</li>
+<li><strong>合规自检</strong>：9 大类检测（标题格式、五点格式、描述规则、促销用语、IP/品牌、医疗声明、农药/杀菌、环保声明、其他），每项带三级严重度（error/warning/info）、位置、问题文本和修改建议</li>
+<li><strong>双语切换</strong>：诊断报告支持「原文语言 / 中文」切换显示</li>
+</ul>
+<h3>优化后版本</h3>
+<ul>
+<li>优化后的标题（≤200 字符）、五点（各 ≤500 字符）、描述（≤2000 字符）、后台关键词（≤250 字节）</li>
+<li>每个字段均可单独复制，也可一键复制全部</li>
+</ul>
+<h3>A/B 文案变体</h3>
+<ul>
+<li>优化完成后可点击「生成 A/B 变体」，生成 2-3 套不同策略角度的文案版本（功能参数型、场景情感型等）</li>
+<li>Tab 切换对比各版本，每版含标题、五点、描述、后台关键词、策略说明</li>
+<li>不扣积分</li>
+</ul>
+<h2>评估标准</h2>
+<p>优化基于以下维度：</p>
+<ul>
+<li><strong>A9</strong>（传统搜索）：标题前 50–80 字符含核心词、关键词分布、Search Terms 不重复</li>
+<li><strong>Cosmo</strong>（语义搜索）：自然语言描述场景和目标用户</li>
+<li><strong>Rufus</strong>（AI 购物助手）：每条五点隐含回答买家问题，含具体参数</li>
+<li><strong>GEO</strong>（结构化内容）：精确数据（尺寸、重量、材质）、市场对应单位</li>
+<li><strong>合规</strong>：九大类违禁检测与替代建议</li>
+</ul>
+<h2>接口</h2>
+<table>
+<thead>
+<tr>
+<th>接口</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>POST /api/ai-assistant/amazon/optimize-listing</code></td>
+<td>诊断+优化（不扣积分）</td>
+</tr>
+<tr>
+<td><code>POST /api/ai-assistant/amazon/generate-variants</code></td>
+<td>A/B 文案变体（不扣积分）</td>
+</tr>
+<tr>
+<td><code>POST /api/ai-assistant/smart-paste</code></td>
+<td>智能粘贴识别（不扣积分）</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>第五部分：竞品对比</h1>
+<h2>功能概述</h2>
+<p>粘贴自己的 Listing 和 1-5 个竞品 Listing（Tab 切换输入，可增删），AI 对比关键词覆盖、卖点差异、标题/五点策略，输出行动计划。<strong>不扣积分</strong>。</p>
+<p>支持<strong>智能粘贴</strong>：「我的 Listing」和每个竞品块均可使用智能粘贴，一次性粘贴整页内容自动拆分。</p>
+<h2>输出</h2>
+<ul>
+<li><strong>关键词差异</strong>：我的优势词 / 待补充词 / 共有词</li>
+<li><strong>卖点矩阵</strong>：表格对比各方卖点覆盖情况</li>
+<li><strong>策略分析</strong>：标题和五点的优势/不足/建议</li>
+<li><strong>行动计划</strong>：5-8 条优先级排序的具体改进建议</li>
+</ul>
+<h2>接口</h2>
+<p><code>POST /api/ai-assistant/amazon/competitor-compare</code>（需登录，不扣积分）</p>
+<hr>
+<h1>第六部分：关键词研究</h1>
+<h2>功能概述</h2>
+<p>输入产品名称，AI 生成系统化关键词策略。<strong>不扣积分</strong>。</p>
+<h2>输出</h2>
+<ul>
+<li><strong>核心搜索词</strong>（1-3 个）：最高搜索量的通用词</li>
+<li><strong>长尾关键词</strong>（15-20 个）：按 5 类分组（功能/场景/受众/问题/对比），点击可复制</li>
+<li><strong>后台关键词建议</strong>（10-15 个）：不与标题/五点重复，可直接粘贴到 Search Terms</li>
+<li><strong>标题排布建议</strong>：前 80 字符优先词 + 推荐结构模板</li>
+<li><strong>趋势分析</strong>：季节性/时间性提示</li>
+<li><strong>差异分析</strong>（可选）：若填写已有关键词，AI 对比分析缺失/冗余/覆盖良好</li>
+</ul>
+<h2>接口</h2>
+<p><code>POST /api/ai-assistant/amazon/keyword-research</code>（需登录，不扣积分）</p>
+<hr>
+<h1>第七部分：eBay 模块</h1>
+<p>路由 <code>/ai-assistant?platform=ebay</code>。流程：分析 → 生成 Listing → 生成产品图，输出规则针对 eBay 定制。</p>
+<h2>平台规格对比（亚马逊 vs eBay）</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>亚马逊</th>
+<th>eBay</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>标题长度</td>
+<td>≤200 字符</td>
+<td><strong>≤80 字符</strong></td>
+</tr>
+<tr>
+<td>结构化属性</td>
+<td>五点描述（Bullet Points）</td>
+<td><strong>Item Specifics</strong>（键值对）</td>
+</tr>
+<tr>
+<td>后台关键词</td>
+<td>Search Terms（≤250 bytes）</td>
+<td>无</td>
+</tr>
+<tr>
+<td>描述长度</td>
+<td>≤2000 字符</td>
+<td>500–2000 字符</td>
+</tr>
+<tr>
+<td>A+ 内容</td>
+<td>支持</td>
+<td>无</td>
+</tr>
+<tr>
+<td>搜索算法</td>
+<td>A9 / Cosmo / Rufus / GEO</td>
+<td><strong>Cassini</strong></td>
+</tr>
+</tbody></table>
+<h2>流程</h2>
+<p><strong>Step 1 — 分析产品</strong>：上传产品图 + 填写类目、品牌、卖点、市场、语言 → <code>POST /api/ai-assistant/ebay/analyze</code> → 返回 <code>productName</code>、<code>productSummary</code>、<code>keyAttributes</code>（含深度产品智能：关键词提取、买家问题、买家画像）。</p>
+<p><strong>Step 2 — 生成标题 · Item Specifics · 描述</strong>：<code>POST /api/ai-assistant/ebay/generate-listing</code>。AI 生成：</p>
+<ul>
+<li>标题 ≤80 字符，前置品牌 + 核心词 + 关键属性</li>
+<li>Item Specifics 10–20 对键值（Brand、MPN、Type、Material、Color、Size 等）</li>
+<li>描述 500–2000 字符，无 HTML</li>
+<li>不扣积分</li>
+</ul>
+<p><strong>Step 3 — 生成产品图</strong>：<code>POST /api/ai-assistant/ebay/generate-product-images</code>。5 种类型：白底主图、场景图、特写图、卖点图、交互图（真人使用/手持）。每种 0～4 张，扣积分，自动入仓库。</p>
+<h2>优化 Listing</h2>
+<p>粘贴现有 Listing（支持<strong>智能粘贴</strong>），<code>POST /api/ai-assistant/ebay/optimize-listing</code>，Cassini 搜索算法诊断，合规自检（三级），双语诊断报告（原文/中文切换），优化后版本。不扣积分。</p>
+<h2>数据存储与接口</h2>
+<p>表 <code>ebay_listing_snapshots</code>，字段：<code>title</code>、<code>item_specifics</code>（JSON）、<code>description</code>、<code>analyze_result</code>、<code>main_image_id</code>、<code>product_image_ids</code>。</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/ebay/analyze</code></td>
+<td>产品分析</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/ebay/generate-listing</code></td>
+<td>生成 Listing（不扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/ebay/generate-product-images</code></td>
+<td>生成产品图（扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/ebay/optimize-listing</code></td>
+<td>优化 Listing（不扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/ebay/save-listing</code></td>
+<td>保存 Listing</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/ai-assistant/ebay/listings</code></td>
+<td>列表</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/ai-assistant/ebay/listings/:id</code></td>
+<td>详情</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/ai-assistant/ebay/listings/:id</code></td>
+<td>删除</td>
+</tr>
+</tbody></table>
+<p>Listing 历史：<code>/dashboard/listings?platform=ebay</code>，支持导出 CSV / JSON。</p>
+<hr>
+<h1>第八部分：速卖通（AliExpress）模块</h1>
+<p>路由 <code>/ai-assistant?platform=aliexpress</code>。流程与 eBay 一致，输出针对速卖通定制。</p>
+<h2>平台规格对比（三平台）</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>亚马逊</th>
+<th>eBay</th>
+<th>速卖通</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>标题长度</td>
+<td>≤200 字符</td>
+<td>≤80 字符</td>
+<td><strong>≤128 字符</strong></td>
+</tr>
+<tr>
+<td>结构化属性</td>
+<td>五点描述</td>
+<td>Item Specifics</td>
+<td><strong>产品属性</strong>（键值对）</td>
+</tr>
+<tr>
+<td>后台关键词</td>
+<td>Search Terms</td>
+<td>无</td>
+<td>无</td>
+</tr>
+<tr>
+<td>描述长度</td>
+<td>≤2000 字符</td>
+<td>500–2000 字符</td>
+<td><strong>500–3000 字符</strong></td>
+</tr>
+<tr>
+<td>A+ 内容</td>
+<td>支持</td>
+<td>无</td>
+<td>无</td>
+</tr>
+<tr>
+<td>搜索算法</td>
+<td>A9/Cosmo/Rufus/GEO</td>
+<td>Cassini</td>
+<td>速卖通搜索</td>
+</tr>
+</tbody></table>
+<h2>速卖通特有规则</h2>
+<p><strong>标题（≤128 字符）</strong>：格式 <code>[品牌] + [核心产品词] + [关键属性/功能]</code>；不全大写（品牌缩写除外），避免过多标点。</p>
+<p><strong>产品属性（10–25 对）</strong>：速卖通搜索和类目筛选的关键。包括 Brand、Material、Type、Color、Size、Weight、Origin、适用场景、适用季节、目标人群等；使用速卖通标准属性名称。</p>
+<p><strong>描述（500–3000 字符）</strong>：主要在移动端浏览，需短段落；包含产品亮点、规格参数、包装内容、使用场景；纯文本 + 换行，无 HTML；不含竞品、外部链接、联系方式。</p>
+<p><strong>目标市场</strong>：全球、美国、俄罗斯、巴西、法国、西班牙、德国、英国、韩国、日本（10 个）。</p>
+<p><strong>输出语言</strong>：English、中文、Русский、Português、Español、Français、Deutsch、한국어、日本語（9 种）。</p>
+<h2>流程</h2>
+<p>与 eBay 模块相同节奏：Step1 分析 → Step2 生成标题/属性/描述（不扣积分）→ Step3 生成产品图（扣积分，自动入仓）。</p>
+<h2>数据存储与接口</h2>
+<p>表 <code>aliexpress_listing_snapshots</code>，字段：<code>title</code>、<code>product_attributes</code>（JSON）、<code>description</code>、<code>analyze_result</code>、<code>main_image_id</code>、<code>product_image_ids</code>。</p>
+<table>
+<thead>
+<tr>
+<th>方法</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/aliexpress/analyze</code></td>
+<td>产品分析</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/aliexpress/generate-listing</code></td>
+<td>生成 Listing（不扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/aliexpress/generate-product-images</code></td>
+<td>生成产品图（扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/aliexpress/optimize-listing</code></td>
+<td>优化 Listing（不扣积分）</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/ai-assistant/aliexpress/save-listing</code></td>
+<td>保存 Listing</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/ai-assistant/aliexpress/listings</code></td>
+<td>列表</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/ai-assistant/aliexpress/listings/:id</code></td>
+<td>详情</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/ai-assistant/aliexpress/listings/:id</code></td>
+<td>删除</td>
+</tr>
+</tbody></table>
+<p>Listing 历史：<code>/dashboard/listings?platform=aliexpress</code>，支持导出 CSV / JSON。</p>
+<hr>
+<h1>附录：侵权风险检测 — 服务构成与费用（客户沟通用）</h1>
+<blockquote>
+<p>本附录整理深度查询所用服务、费用及客户沟通话术。</p>
+</blockquote>
+<hr>
+<h2>SerpApi 与 Google 是什么关系？</h2>
+<p>SerpApi 是一个<strong>第三方付费服务</strong>，它帮你去抓 Google 的搜索结果，整理成干净的 JSON 数据返回。</p>
+<blockquote>
+<p>简单比喻：<strong>Google 是图书馆，SerpApi 是帮你去图书馆查资料、把结果整理好抄回来的「跑腿服务」。</strong></p>
+</blockquote>
+<p><strong>为什么不直接用 Google？</strong></p>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Google 没有免费开放的「搜索 API」</td>
+<td>官方 Custom Search API 每天仅免费 100 次，功能有限</td>
+</tr>
+<tr>
+<td>Google Lens 完全没有公开 API</td>
+<td>想以图搜图，没有官方接口可调</td>
+</tr>
+<tr>
+<td>Google Patents 也没有直接 API</td>
+<td>专利搜索同样没有公开接口</td>
+</tr>
+<tr>
+<td>直接爬 Google 违反服务条款</td>
+<td>自己写爬虫会被封 IP</td>
+</tr>
+</tbody></table>
+<p>SerpApi 的价值：<strong>合法地把 Google Lens / Google Patents / Google 搜索的结果以 API 形式提供给开发者。</strong></p>
+<hr>
+<h2>深度查询：调用了哪些服务？</h2>
+<p>每次深度查询固定调用前 2 项，后 2 项按情况触发：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>服务</th>
+<th>输入</th>
+<th>得到什么</th>
+<th>判断什么</th>
+<th>是否必然触发</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>Google Lens</strong>（以图搜图 + 来源溯源）</td>
+<td>首张产品图</td>
+<td>整网外观相似图片/商品，以及图片主要来源网站</td>
+<td>外观设计侵权风险、图片版权溯源</td>
+<td>每次都有</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Google Patents</strong>（专利检索）</td>
+<td>AI 提取的英文关键词</td>
+<td>主要美国专利库中相关外观/设计专利</td>
+<td>专利侵权风险</td>
+<td>每次都有</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Google 搜索</strong>（商标检索）</td>
+<td>AI 提取的品牌词，组成「USPTO trademark xxx」</td>
+<td>商标相关网页（以美国为主）</td>
+<td>商标/Logo 侵权风险</td>
+<td>图中有可疑品牌词时触发</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Google 搜索</strong>（IP 角色版权检索）</td>
+<td>AI 识别到的 IP 角色/图案英文名</td>
+<td>该 IP 的版权归属方与知识产权持有人信息</td>
+<td>IP 形象版权风险</td>
+<td>图中有疑似 IP 角色时触发</td>
+</tr>
+<tr>
+<td>—</td>
+<td><strong>Gemini</strong>（AI 综合分析）</td>
+<td>上述全部结果 + 初步视觉分析</td>
+<td>分组报告（商标/外观/IP 形象/图片溯源/平台合规/综合等级/建议/免责）</td>
+<td>汇总输出</td>
+<td>每次都有</td>
+</tr>
+</tbody></table>
+<p><strong>SerpApi 实际调用次数：最少 2 次（Lens + Patents），通常 3～4 次（加商标/IP 角色检索）。</strong></p>
+<p>产品内「本次深度查询使用的检索方式」表格与上表实时对应，只展示本次实际执行的项目。</p>
+<hr>
+<h2>费用汇总</h2>
+<h3>当前方案</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>费用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>SerpApi Developer 套餐</td>
+<td>$75/月（约 ¥540/月）</td>
+</tr>
+<tr>
+<td>Gemini API</td>
+<td>已有，不另计</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td><strong>约 ¥540/月</strong></td>
+</tr>
+</tbody></table>
+<p><strong>可支撑量</strong>：SerpApi 每月 5,000 次；每次深度查询消耗 2～4 次（平均约 3 次），约可支撑 <strong>1,200～2,500 次深度查询/月</strong>。向用户每次收取 20 积分，覆盖成本并留有盈利空间。</p>
+<h3>可选升级</h3>
+<p>在当前方案基础上接入专业商标数据库（如 IPRScan，约 €249/年 ≈ €21/月），可明确告知客户「Logo 与哪些已注册商标在视觉/语音/概念上相似（含评分）」。合计约 $96/月（约 ¥690/月）。</p>
+<hr>
+<h2>待开放的检测维度</h2>
+<p>以下功能在技术上可实现，但目前暂未集成，后续可按需开放：</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>工具</th>
+<th>费用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>美国版权局登记查询</td>
+<td>copyright.gov</td>
+<td>免费</td>
+<td>可查询 1978 年后在美国主动登记的版权作品。注意：版权无需登记即自动产生，未找到记录不代表无版权保护。</td>
+</tr>
+<tr>
+<td>专业图片版权溯源</td>
+<td>TinEye API</td>
+<td>约 ¥2,200/年（5,000 次）</td>
+<td>专注图片版权来源追踪，比 Google Lens 更擅长找到图片最早出现的页面，适合核查产品图是否来自有版权摄影师/图库。</td>
+</tr>
+<tr>
+<td>WIPO 全球版权/商标数据库</td>
+<td>WIPO IP Portal</td>
+<td>免费（接口较复杂）</td>
+<td>全球商标、外观设计、版权数据库，覆盖范围比 USPTO 更广，可补充非美国市场检索。</td>
+</tr>
+<tr>
+<td>专业商标相似度比对</td>
+<td>IPRScan</td>
+<td>约 €249/年</td>
+<td>USPTO + EUIPO，含视觉/语音/概念相似度评分，比 Google 搜索更精准。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>建议分步策略</h2>
+<ol>
+<li><strong>已完成</strong>：免费快筛（Gemini AI 图像分析）+ 深度查询（SerpApi：Lens + Patents + 商标 + IP 角色版权）。</li>
+<li><strong>下一步可选</strong>：接入 IPRScan（€249/年），向需要专业商标比对的客户提供更精准的商标相似度报告。</li>
+<li><strong>按需开放</strong>：TinEye 专业图片溯源（¥2,200/年）、WIPO 全球数据库、美国版权局查询，视客户需求决定是否集成。</li>
+</ol>
+<hr>
+<h2>向客户解释时可以说</h2>
+<blockquote>
+<p>「深度查询会做 3～4 项检索：① 以图搜图（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② 专利检索（Google Patents）——主要查美国专利库，辅助判断是否有类似专利；③ 商标检索——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
+</blockquote>
+
+</body>
+</html>

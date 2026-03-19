@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ECOMMERCE GENERAL CREATE PICTURES</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">ECOMMERCE-GENERAL-CREATE-PICTURES.md → 打印版 · 2026/3/19</div>
+  <h1>通用电商生图 · 全品类组图：字段与 AI 传参说明</h1>
+<blockquote>
+<p>本文档说明「全品类组图」页面（<code>src/pages/DetailSet.jsx</code>）中每个用户输入字段，在前端和后端的作用，以及最终如何传给 AI。</p>
+</blockquote>
+<hr>
+<h2>一、输入字段总览</h2>
+<table>
+<thead>
+<tr>
+<th>前端字段</th>
+<th>是否必填</th>
+<th>触发「回到步骤1重新分析」</th>
+<th>作用阶段</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>产品图</td>
+<td>是</td>
+<td>是</td>
+<td>分析 + 生图</td>
+</tr>
+<tr>
+<td>产品名称</td>
+<td>是</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>卖点（1–5 条）</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>目标人群</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>风格</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>其他要求</td>
+<td>否</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>白底主图张数</td>
+<td>是（默认 1）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>场景图张数</td>
+<td>是（默认 1）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>特写图张数</td>
+<td>是（默认 1）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>卖点图张数</td>
+<td>是（默认 0）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>卖点图显示文字</td>
+<td>否（默认不勾）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>交互图张数</td>
+<td>是（默认 0）</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>目标语言</td>
+<td>是（默认英语）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>模型</td>
+<td>是（默认Pro）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>尺寸比例</td>
+<td>是（默认3:4）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+<tr>
+<td>清晰度</td>
+<td>是（默认2K）</td>
+<td>否</td>
+<td>生图</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>逻辑约定</strong>：修改上半部分字段（产品信息/产品图/各类型数量）需重新分析；修改下半部分（语言/模型/尺寸/清晰度/是否显示文字）不影响已有规划，可直接「再次生成」。</p>
+<p><strong>验证</strong>：各类型张数之和必须 ≥ 1 才能点击「分析产品」。卖点图最大张数 = 填写的卖点条数（不能超出）。</p>
+</blockquote>
+<hr>
+<h2>二、图片类型说明</h2>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>type 值</th>
+<th>说明</th>
+<th>每次最多</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>白底主图</td>
+<td><code>main</code></td>
+<td>纯白背景，产品约 85%，无文字/logo</td>
+<td>4 张</td>
+</tr>
+<tr>
+<td>场景图</td>
+<td><code>scene</code></td>
+<td>生活/使用场景背景，有环境氛围</td>
+<td>4 张</td>
+</tr>
+<tr>
+<td>特写图</td>
+<td><code>closeUp</code></td>
+<td>产品细节/材质特写，极近距离微观</td>
+<td>4 张</td>
+</tr>
+<tr>
+<td>卖点图</td>
+<td><code>sellingPoint</code></td>
+<td>每张对应一条卖点，可选是否显示文字</td>
+<td>= 卖点条数</td>
+</tr>
+<tr>
+<td>交互图</td>
+<td><code>interaction</code></td>
+<td>真人使用/手持产品的场景</td>
+<td>4 张</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>三、分析阶段（POST /api/detail-set/analyze）</h2>
+<h3>前端组装逻辑（<code>runAnalyze</code>）</h3>
+<p>五个组图要求输入框在前端拼接成一段结构化文本，再作为 <code>requirements</code> 字段发给后端：</p>
+<pre><code>产品名称：日式抹茶沐浴露
+卖点：天然成分、舒缓放松
+目标人群：25-40 岁女性
+风格：日式极简
+其他要求：...
+</code></pre>
+<p>只有有内容的字段才会加入，空字段不传。</p>
+<h3>发给后端的请求体</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>来源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>image</code></td>
+<td>产品图第一张（压缩后 base64）</td>
+<td>长边 ≤ 1024px，JPEG 0.82</td>
+</tr>
+<tr>
+<td><code>requirements</code></td>
+<td>五个输入框拼接的结构化文本</td>
+<td>有内容才传，否则 <code>undefined</code></td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>模型选择</td>
+<td><strong>后端分析阶段不使用</strong>，固定用 <code>gemini-2.5-flash</code></td>
+</tr>
+<tr>
+<td><code>mainCount</code></td>
+<td>白底主图张数</td>
+<td>0–4</td>
+</tr>
+<tr>
+<td><code>sceneCount</code></td>
+<td>场景图张数</td>
+<td>0–4</td>
+</tr>
+<tr>
+<td><code>closeUpCount</code></td>
+<td>特写图张数</td>
+<td>0–4</td>
+</tr>
+<tr>
+<td><code>sellingPointCount</code></td>
+<td>卖点图张数</td>
+<td>0–卖点条数</td>
+</tr>
+<tr>
+<td><code>sellingPoints</code></td>
+<td>填写的卖点文案数组</td>
+<td>用于卖点图规划与卖点标签</td>
+</tr>
+<tr>
+<td><code>sellingPointShowText</code></td>
+<td>布尔值</td>
+<td>是否在卖点图上叠加文字</td>
+</tr>
+<tr>
+<td><code>interactionCount</code></td>
+<td>交互图张数</td>
+<td>0–4</td>
+</tr>
+</tbody></table>
+<h3>后端如何用（<code>server/index.js</code>）</h3>
+<p>后端识别到 <code>mainCount</code> 等参数后启用「类型模式」，在 prompt 中按类型指定规划要求：</p>
+<pre><code>请按以下类型和数量输出图片规划（共 N 条）：
+- 白底主图（type: &quot;main&quot;）：N1 张，纯白背景，产品约 85%，无文字无 logo
+- 场景图（type: &quot;scene&quot;）：N2 张，生活/使用场景背景
+- 特写图（type: &quot;closeUp&quot;）：N3 张，产品细节、材质特写
+- 卖点图（type: &quot;sellingPoint&quot;）：N4 张，对应卖点：xxx、yyy
+- 交互图（type: &quot;interaction&quot;）：N5 张，真人使用或手持产品的场景
+</code></pre>
+<p>每条 <code>imagePlan</code> 返回必含 <code>type</code> 字段，卖点图额外含 <code>sellingPointText</code>。</p>
+<p>若前端传旧式 <code>quantity</code>（不含各类型数量）则降级为原有逻辑，向后兼容。</p>
+<h3>返回结果</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>designSpecMarkdown</code></td>
+<td>整体设计规范（Markdown，用户可编辑）</td>
+</tr>
+<tr>
+<td><code>imagePlan</code></td>
+<td>图片规划数组，每条含 <code>title</code>、<code>contentMarkdown</code>、<code>type</code>（以及卖点图的 <code>sellingPointText</code>）</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>四、生图阶段（POST /api/detail-set/generate）</h2>
+<h3>发给后端的请求体</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>来源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>designSpecMarkdown</code></td>
+<td>分析结果（可被用户编辑）</td>
+<td>整体设计规范</td>
+</tr>
+<tr>
+<td><code>imagePlan</code></td>
+<td>分析结果（可被用户编辑，含 <code>type</code>）</td>
+<td>图片规划数组</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>模型选择</td>
+<td>用于 <code>getImageModelId()</code> 确定 Gemini 生图模型</td>
+</tr>
+<tr>
+<td><code>clarity</code></td>
+<td>清晰度选择</td>
+<td>转为 <code>imageConfig.imageSize</code>（如 <code>2K</code>）</td>
+</tr>
+<tr>
+<td><code>aspectRatio</code></td>
+<td>尺寸比例选择</td>
+<td>转为 <code>imageConfig.aspectRatio</code>（如 <code>3:4</code>）</td>
+</tr>
+<tr>
+<td><code>targetLanguage</code></td>
+<td>目标语言选择</td>
+<td>转为语言约束规则注入 prompt</td>
+</tr>
+<tr>
+<td><code>sellingPointShowText</code></td>
+<td>是否卖点图显文字</td>
+<td>影响卖点图 prompt 是否含文字叠加要求</td>
+</tr>
+<tr>
+<td><code>quantity</code></td>
+<td><code>imagePlan.length</code></td>
+<td>生图总张数（按规划条数）</td>
+</tr>
+<tr>
+<td><code>image</code></td>
+<td>产品图第一张（压缩后 base64）</td>
+<td>作为参考图传给生图 AI</td>
+</tr>
+</tbody></table>
+<h3>后端生图 prompt 结构（每张图独立调用，按 type 差异化）</h3>
+<p><strong>白底主图（type: &quot;main&quot;）</strong>：</p>
+<pre><code>[类型声明]  纯白背景，产品约 85%，无文字/logo，影棚质量
+[尺寸规则]  aspectRule
+[语言规则]  langRule（此类型通常无文字，但保留约束）
+[整体设计规范] designSpecMarkdown
+[本张图片规划] imagePlan[i]
+[最终提醒]  纯白背景，禁止文字/logo/道具
+</code></pre>
+<p><strong>场景图 / 特写图 / 交互图（type: &quot;scene&quot; / &quot;closeUp&quot; / &quot;interaction&quot;）</strong>：</p>
+<pre><code>[类型声明]  类型特定要求（场景氛围 / 极近特写 / 真人互动）
+[摆放规则]  placementRule（物理正确摆放）
+[尺寸规则]  aspectRule
+[构图规则]  compositionRule（留白 25-35%，产品区与文字区分离）
+[排版规则]  textQualityRule（标题仅一行，精致无衬线字体）
+[色彩和谐] colorHarmonyRule
+[文字安全区] safeAreaRule（整句完整在画面内）
+[语言规则]  langRule
+[整体设计规范] designSpecMarkdown
+[本张图片规划] imagePlan[i]
+</code></pre>
+<p><strong>卖点图（type: &quot;sellingPoint&quot;）</strong>：</p>
+<ul>
+<li>在场景图 prompt 基础上，额外声明需视觉化表达的具体卖点文案</li>
+<li>若 <code>sellingPointShowText=true</code>：要求将卖点文字作为标题叠加在图上</li>
+<li>若 <code>sellingPointShowText=false</code>：只通过视觉构图表达卖点，不含文字</li>
+</ul>
+<h3>返回结果</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>images</code></td>
+<td>生成图片数组，每项含 <code>id</code>、<code>title</code>、<code>type</code>、<code>url</code>（base64 data URL）或 <code>error</code></td>
+</tr>
+</tbody></table>
+<p>前端收到后按 <code>type</code> 分组展示（白底主图一组、场景图一组……），每组显示类型标签和图片网格，每张图有独立「保存到本地」按钮。</p>
+<h3>步骤3图片规划 UI</h3>
+<ul>
+<li>每条规划显示彩色类型标签（白底主图灰色 / 场景图蓝色 / 特写图紫色 / 卖点图橙色 / 交互图绿色）</li>
+<li>卖点图规划额外显示「卖点：xxx」</li>
+<li>用户仍可点击铅笔编辑标题和描述，<code>type</code> 字段在编辑时保留不变</li>
+</ul>
+<hr>
+<h2>五、模型对应关系</h2>
+<table>
+<thead>
+<tr>
+<th>前端展示名</th>
+<th>Gemini 模型 ID</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nano Banana</td>
+<td><code>gemini-2.5-flash-image</code></td>
+</tr>
+<tr>
+<td>Nano Banana 2</td>
+<td><code>gemini-3.1-flash-image-preview</code></td>
+</tr>
+<tr>
+<td>Nano Banana Pro</td>
+<td><code>gemini-3-pro-image-preview</code></td>
+</tr>
+</tbody></table>
+<h2>六、清晰度对应关系</h2>
+<table>
+<thead>
+<tr>
+<th>前端文案</th>
+<th>API imageSize</th>
+<th>支持模型</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0.5K 快速</td>
+<td><code>512</code></td>
+<td>仅 Nano Banana 2</td>
+</tr>
+<tr>
+<td>1K 标准</td>
+<td><code>1K</code></td>
+<td>全部</td>
+</tr>
+<tr>
+<td>2K 高清</td>
+<td><code>2K</code></td>
+<td>Nano Banana 2、Pro</td>
+</tr>
+<tr>
+<td>4K 超清</td>
+<td><code>4K</code></td>
+<td>Nano Banana 2、Pro</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：Nano Banana（<code>gemini-2.5-flash-image</code>）不支持 <code>imageSize</code> 参数，只传 <code>aspectRatio</code>。</p>
+</blockquote>
+<hr>
+<h2>七、分析模型说明</h2>
+<table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>默认模型</td>
+<td><code>gemini-2.5-flash</code></td>
+</tr>
+<tr>
+<td>环境变量覆盖</td>
+<td><code>GEMINI_ANALYSIS_MODEL</code></td>
+</tr>
+<tr>
+<td>503 备用模型</td>
+<td><code>gemini-2.5-flash</code>（当前主备相同，实际不切换）</td>
+</tr>
+<tr>
+<td>环境变量覆盖备用</td>
+<td><code>GEMINI_ANALYSIS_MODEL_FALLBACK</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>八、图片压缩策略</h2>
+<p>前端在发请求前统一压缩产品图（<code>fileToCompressedDataUrl</code>）：</p>
+<ul>
+<li>长边压缩至 ≤ 1024px，保持原始比例</li>
+<li>输出格式：JPEG，质量 0.82</li>
+<li>目的：防止大图导致代理连接关闭或请求超时</li>
+</ul>
+
+</body>
+</html>
