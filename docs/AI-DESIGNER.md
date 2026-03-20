@@ -368,7 +368,7 @@
 | `text-remove` | 文字去除 | `add-remove`（专用 prompt）| 涂抹要去除的文字区域后一键消除；复用 `LocalErase` 组件（`variant="text-remove"`） |
 
 - **默认模型**：文字替换、文字去除默认 Nano Banana；语言转换默认 **Nano Banana 2**。
-- **文字去除示例图**：`public/text-remove-demo-before.png`（含文字原图）、`text-remove-demo-after.png`（去除后）
+- **文字去除示例图**：`public/text-remove-demo-before.png`（含文字原图）、`public/text-remove-demo-after.png`（去除后）
 - **文字去除模型提示**：OutputSettings 在文字去除模式下显示 hint「文字编辑任务建议选择 Nano Banana 2 或 Pro」
 
 **页面排版**：从 ai-designer 进入时，采用与其它模块统一的布局——标题居中、副文案 text-base、主内容 max-w-3xl 白底卡片；上传区文案「上传图片」「从作品库选择」。
@@ -403,7 +403,7 @@
 
 # 第七部分：风格复刻
 
-侧边栏「风格复刻」位于「文字修改」与「官方示例」之间。上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。
+侧边栏「风格变迁」组下含「风格复刻」与「风格改变」，该组位于「文字修改」与「水印添加/去除」之间。**风格复刻**：上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。
 
 - **路由**：`/ai-designer/style-clone`
 - **文件**：`src/pages/StyleClone.jsx`

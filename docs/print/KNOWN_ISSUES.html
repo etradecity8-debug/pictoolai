@@ -127,11 +127,12 @@
 </tbody></table>
 <hr>
 <h2>待后续改进</h2>
-<h3>生成 Listing Step 4 A+（暂锁）</h3>
+<h3>A+ 模块（暂不实现）</h3>
 <ul>
-<li><strong>现状</strong>：Step 4「A+ 文案与图片」已暂时锁定（<code>APLUS_STEP_ENABLED = false</code>），界面显示「功能优化中，每位用户对 A+ 的要求不同，我们正在研究如何更好地满足个性化需求，敬请期待」。</li>
-<li><strong>原因</strong>：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案。</li>
-<li><strong>恢复方式</strong>：前端 <code>src/pages/AiAssistant.jsx</code> 中改 <code>APLUS_STEP_ENABLED = true</code> 即可。</li>
+<li><strong>决策</strong>：A+ 模块整体<strong>暂不实现</strong>，包括：① 生成 Listing Step 4「A+ 文案与图片」；② 独立 A+ 详情页（<code>/amazon-aplus</code>）。</li>
+<li><strong>当前状态</strong>：生成 Listing Step 4 已锁定（<code>APLUS_STEP_ENABLED = false</code>），界面显示「功能优化中，敬请期待」；独立 A+ 页面导航已隐藏（<code>Header.jsx</code> 中 <code>hidden: true</code>），路由仍存在但不对用户开放。</li>
+<li><strong>原因</strong>：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案后再考虑上线。</li>
+<li><strong>恢复方式</strong>（若后续决定上线）：① 前端 <code>src/pages/AiAssistant.jsx</code> 中改 <code>APLUS_STEP_ENABLED = true</code>；② <code>Header.jsx</code> 中移除 A+ 的 <code>hidden: true</code>。</li>
 </ul>
 <h3>角色一致性：360° 全景 · 女模特指令执行偏差</h3>
 <ul>
@@ -198,9 +199,9 @@
 <li>打开 <strong><a href="https://serpapi.com">https://serpapi.com</a></strong> ，点击右上角 <strong>Sign up</strong> 用邮箱或 Google/GitHub 注册。</li>
 <li>登录后进入 <strong>Dashboard</strong>（或 <strong><a href="https://serpapi.com/manage-api-key">https://serpapi.com/manage-api-key</a></strong>），在页面上复制你的 <strong>API Key</strong>。</li>
 <li>在项目 <strong><code>server/.env</code></strong> 中增加一行：<code>SERPAPI_KEY=你的API_Key</code>，保存后重启后端（如 <code>pm2 restart</code>）。未配置时前端深度查询会提示「深度查询暂未开放」。</li>
-<li>套餐说明：<strong>Free</strong> 约 250 次/月可试用；正式使用建议 <strong>Developer</strong>（约 $75/月，约 5000 次/月）。每次深度查询约消耗 3 次 SerpApi（1 次 Google Lens + 1 次 Google Patents + 1 次 Google 商标检索）。</li>
+<li>套餐说明：<strong>当前使用 SerpApi Free 版</strong>（约 250 次/月）；正式运营可升级 Developer（约 $75/月，约 5000 次/月）。<strong>专利汇当前也使用免费版</strong>。每次深度查询约消耗 2～4 次 SerpApi（Lens + Patents 必选，商标/IP 角色检索按需）。</li>
 </ol>
-<p><strong>客户沟通用</strong>：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 <strong>docs/IP-RISK.md</strong>（主文档）或 docs/ECOMMERCE-AI-ASSISTANT.md 附录。</p>
+<p><strong>客户沟通用</strong>：方案 B 费用汇总、如何向客户解释「我们查了什么」，见 <strong>docs/IP-RISK.md</strong>。</p>
 <hr>
 <h2>推送到服务器（执行步骤）</h2>
 <p><strong>完整步骤</strong>：按 <code>docs/DEPLOY.md</code> 第二节执行（本机 <code>git add</code> / <code>commit</code> / <code>push</code> → 服务器 <code>git pull</code> / <code>npm install</code> / <code>npm run build</code> / <code>pm2 restart</code>）。</p>
@@ -216,7 +217,7 @@ git push
 <ul>
 <li><strong>问题</strong>：「从作品库选择」弹窗里缩略图加载慢（尤其未配 COS 时每张都请求服务器）。</li>
 <li><strong>实现</strong>：抽公共组件 <code>src/components/GalleryThumb.jsx</code>。当 <code>item.url</code> 为<strong>绝对 URL（COS 签名）<strong>时</strong>直接用 <code>&lt;img src={url} /&gt;</code></strong>，不 fetch，与仓库页一致、加载更快；为相对路径时仍带 Token fetch 转 blob 展示。</li>
-<li><strong>使用处</strong>：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 <code>docs/DEPLOY.md</code> 第四节前端约定。</li>
+<li><strong>使用处</strong>：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 <code>docs/DEPLOY.md</code> 第四节（COS 时 COS URL 直接 img src，相对路径带 Token fetch）。</li>
 </ul>
 <h3>2. AI 美工输出设置统一（与官方示例一致）</h3>
 <ul>
@@ -415,7 +416,7 @@ git push
 </ul>
 <h3>文档</h3>
 <ul>
-<li><strong>IP-RISK.md</strong>：侵权风险检测独立文档（功能、检测维度、费用、客户沟通话术）。</li>
+<li><strong>IP-RISK.md</strong>：侵权风险检测完整说明（功能、费用、漏检分析、外部数据源集成可行性）。</li>
 <li><strong>PRODUCT-INTRO.md</strong>：网站功能介绍（对外宣传，发给客户用）。</li>
 <li><strong>PRICING-COST.md</strong>：积分规则、API 成本、固定成本（含 Cursor $60/月）、盈利分析、竞品对比（Midjourney、PicSetAI）、试用用户影响评估。</li>
 </ul>
@@ -544,23 +545,13 @@ git push
 </tbody></table>
 <hr>
 <h2>今日完成（2026-03-07）</h2>
-<h3>亚马逊 A+ 详情页生成（MVP）</h3>
-<p><strong>已完成：</strong></p>
+<h3>亚马逊 A+ 详情页生成（MVP，代码已有，暂不对用户开放）</h3>
+<p><strong>说明</strong>：A+ 模块整体暂不实现（见上文「A+ 模块（暂不实现）」）。以下为历史开发记录，代码与接口仍在，但导航已隐藏，不对用户开放。</p>
+<p><strong>已完成（代码层面）：</strong></p>
 <ul>
-<li>前端新增 <code>src/pages/AmazonAPlus.jsx</code>，4 步流程：填写信息 → 确认文案 → 生成图片 → 查看结果</li>
-<li>后端新增两个接口：<ul>
-<li><code>POST /api/amazon-aplus/analyze</code>：调用文本模型生成文案（不扣积分），返回 heroTagline/heroSubtext/3 个特点/品牌故事</li>
-<li><code>POST /api/amazon-aplus/generate</code>：根据确认后的文案生图（顺序生成 4 张，避免并发限速）、扣积分、自动存图库</li>
-</ul>
-</li>
-<li>支持 10 种语言选择（英/德/法/意/西/日/中/荷/瑞/波），文案和图片 prompt 均注入语言指令</li>
-<li>3 种视觉风格：白底简洁 / 场景生活 / 高端黑金</li>
-<li>文案和图片一一对应展示，所有文字字段支持一键复制（<code>CopyableText</code>）</li>
-<li>图片自动存图库，成功后显示消耗积分数</li>
-<li>后端全程调试日志（文案生成、每张图状态、积分扣除、图库保存）</li>
-<li>图片 prompt 加入最高优先级禁文字规则，防止 AI 将产品名/参考图中的文字渲染到图上</li>
-<li>导航栏新增「A+ 页面」入口（<code>/amazon-aplus</code>）</li>
-<li>隐藏「服装组图」「风格复刻」「万能画布」导航入口（暂不开放）</li>
+<li>前端 <code>src/pages/AmazonAPlus.jsx</code>，4 步流程：填写信息 → 确认文案 → 生成图片 → 查看结果</li>
+<li>后端 <code>POST /api/amazon-aplus/analyze</code>（文案，不扣积分）、<code>POST /api/amazon-aplus/generate</code>（4 张图，扣积分、存图库）</li>
+<li>10 种语言、3 种风格，文案与图片一一对应；导航栏「A+ 页面」入口已 <code>hidden: true</code></li>
 </ul>
 <p><strong>A+ 完整方案（尚未实现，记录备用）：</strong></p>
 <table>

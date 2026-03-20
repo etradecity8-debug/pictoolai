@@ -164,9 +164,12 @@ export default function IpRisk() {
                   type="text"
                   value={productName}
                   onChange={(e) => setProductName(e.target.value)}
-                  placeholder="如：蓝牙耳机 TWS-X1"
+                  placeholder="如：蓝牙耳机 TWS-X1、三齿烤串架"
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
+                {mode === 'deep' && (
+                  <p className="text-xs text-amber-600 mt-0.5">填写产品名称有助于提高专利检索准确率</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">品类（选填）</label>
@@ -236,7 +239,7 @@ export default function IpRisk() {
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-gray-900">侵权风险报告</h3>
                 {result.mode === 'deep' && (
-                  <span className="text-xs text-amber-600">深度查询 · 已消耗 {result.pointsUsed ?? 10} 积分{result.newBalance != null ? ` · 剩余 ${result.newBalance}` : ''}</span>
+                  <span className="text-xs text-amber-600">深度查询 · 已消耗 {result.pointsUsed ?? 20} 积分{result.newBalance != null ? ` · 剩余 ${result.newBalance}` : ''}</span>
                 )}
               </div>
 
@@ -333,11 +336,18 @@ export default function IpRisk() {
                     { key: 'suggestions', title: '建议' },
                     { key: 'disclaimer', title: '免责声明' },
                   ].map(({ key, title }) => {
-                    const content = result.sections[key]
-                    if (!content) return null
+                    let content = result.sections[key]
+                    if (content == null) return null
+                    // AI 可能返回对象，需转为字符串（避免显示 [object Object]）
+                    if (typeof content !== 'string') {
+                      content = typeof content === 'object' ? JSON.stringify(content, null, 2) : String(content)
+                    }
+                    if (!content.trim()) return null
                     const riskMatch = content.match(/^(高|中高|中|中低|低)([。、\s\-—]*)/)
                     const level = riskMatch ? riskMatch[1] : null
-                    const restContent = riskMatch ? content.slice(riskMatch[0].length).trim() : content
+                    let restContent = riskMatch ? content.slice(riskMatch[0].length).trim() : content
+                    // 去除 AI 输出中多余的开头片段（标题已含「xxx风险」，正文勿重复；「等。」多为截断残片）
+                    restContent = restContent.replace(/^(风险[。：、\s]+)/, '').replace(/^(等[。、\s]+)/, '').trim()
                     const isHigh = level === '高'
                     return (
                       <div key={key} className="rounded-xl border border-gray-200 bg-white overflow-hidden">

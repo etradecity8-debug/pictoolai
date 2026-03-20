@@ -45,9 +45,9 @@
 | 速卖通 Listing | 电商AI运营助手 → 速卖通 | 生成/优化；128 字符标题、产品属性，详见 `ECOMMERCE-AI-ASSISTANT.md` 第八部分 |
 | 侵权风险检测 | 导航「侵权风险检测」`/ip-risk` | 免费快筛（Gemini）/ 深度查询（SerpApi：Lens+Patents+商标+IP角色版权，20 积分）；`POST /api/ai-assistant/ip-risk-check` |
 | AI 美工 | 导航「AI美工」`/ai-designer` | 局部重绘、局部消除、一键换色、智能扩图、提升质感、添加人/物、**生成场景（多场景批量，最多6个）**、风格复刻、文字修改（替换/语言转换/去除）、水印、官方示例 |
-| 修改图片（官方示例） | AI美工 → 官方示例 | 9 种模式（添加/移除、局部重绘、风格迁移、多图合成、高保真、草图生动、角色一致、文字替换、语言转换），`POST /api/image-edit` |
+| 官方示例 | AI美工 → 官方示例 | 7 种模式（添加/移除、局部重绘、风格迁移、多图合成、高保真、草图生动、角色一致），`POST /api/image-edit`；文字替换、语言转换、文字去除在「文字修改」下 |
 | 风格复刻 | AI美工 → 风格复刻 | 参考图（最多 14 张）+ 产品图 → 两阶段（分析风格 → 生图），`POST /api/style-clone` |
-| 亚马逊 A+ | `/amazon-aplus`（导航已隐藏） | 4 步：填写信息 → 确认文案 → 生成 4 张图 → 查看结果 |
+| 亚马逊 A+ | **暂不实现**（`/amazon-aplus` 路由与页面存在，导航已隐藏） | 4 步：填写信息 → 确认文案 → 生成 4 张图 → 查看结果 |
 | 仓库 | 侧栏「仓库」`/dashboard/gallery` | 生图成功即**自动入仓**；多选、批量保存/删除；每张图可「用AI编辑」跳转 AI 美工并自动带图 |
 | Listing 历史 | 侧栏「Listing 历史」`/dashboard/listings` | 已保存的 Listing 快照，支持查看/删除 |
 | 管理后台 | `/admin`（仅 admin 角色） | 用户列表、充值积分、查流水、编辑备注、删除用户（含图片与所有数据），详见 `DEPLOY.md` 第五节 |
@@ -58,7 +58,7 @@
 
 - 前端在**项目根**：`npm run dev`；后端在 **`server`**：`cd server && npm start`。
 - 后端需 `.env` 中 `GEMINI_API_KEY`；需代理时设 `HTTPS_PROXY`；开放深度查询需 `SERPAPI_KEY`。
-- 数据库：首次使用自动创建 `server/pictoolai.db`；备份只需复制 `pictoolai.db` 与 `server/gallery/` 即可。
+- 数据库：首次使用自动创建 `server/pictoolai.db`；备份只需复制 `server/pictoolai.db` 与 `server/gallery/` 即可。
 - 管理员账号：在 `server/.env` 中配置 `ADMIN_EMAIL` + `ADMIN_PASSWORD`，启动时自动创建/提升为 admin。
 
 更多：部署与每次更新上线见 [DEPLOY.md](./DEPLOY.md)；已知问题见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。

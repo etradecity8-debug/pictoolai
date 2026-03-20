@@ -21,8 +21,7 @@ alwaysApply: true
 - **PROJECT-OVERVIEW.md**：项目结构、技术栈、功能一览。
 - **ECOMMERCE-GENERAL-CREATE-PICTURES.md**：通用电商生图（全品类组图）字段与 AI 传参。
 - **ECOMMERCE-AI-ASSISTANT.md**：电商 AI 运营助手（亚马逊 / eBay / 速卖通 Listing）。
-- **IP-RISK.md**：侵权风险检测独立模块——功能说明、检测维度、服务费用、客户沟通话术。
-- **IP-RISK-INTEGRATION-FEASIBILITY.md**：专利汇/美国版权局集成可行性分析（供客户决策）。
+- **IP-RISK.md**：侵权风险检测完整说明——功能、费用、漏检分析、外部数据源集成可行性（含专利汇/美国版权局）。
 - **AI-DESIGNER.md**：AI 美工全部功能（局部重绘/消除/换色/服装/场景/文字修改/风格/水印/官方示例等）。
 - **DEPLOY.md**：运维手册（首次部署、更新上线、SerpApi、COS 加速、用户管理与数据库操作）。
 - **KNOWN_ISSUES.md**：已知问题与待办。
@@ -63,8 +62,7 @@ alwaysApply: true
 - **组图要求**已拆分为 5 个独立输入框（产品名称必填/卖点/目标人群/风格/其他），前端组装后发给后端。**生成数量**已升级为 5 种图片类型分别选张数（白底主图/场景图/特写图/卖点图/交互图），详细字段与 AI 传参说明见 `docs/ECOMMERCE-GENERAL-CREATE-PICTURES.md`。
 - **AI美工 - 生成场景**：已支持**多场景批量生成**（最多 6 个场景，每场景一张图）。用户输入多条场景描述，前端顺序调用接口（不并行），实时进度条+已完成图片实时展示，结果网格展示，每张图独立「保存到本地」。风格（8种预设+自定义）所有场景共用。
 - **修改图片**（`/image-edit`）：现有 **9 种**模式——添加/移除元素、局部重绘、风格迁移、高级合成（多图）、高保真细节保留、让草图变生动、角色一致性360°、文字替换、语言转换。后端接口 `/api/image-edit` 含重试逻辑（Pro/Nano2 最多3次）。每种模式顶部有真实 before→after 可视化示例（`ModeDemo` 组件）。修改后图片自动入图库，显示积分消耗，支持从仓库选图（`GalleryThumb` 组件 fetch+blob URL 认证加载）。
-- **亚马逊 A+ 详情页**（`/amazon-aplus`）：**MVP 阶段**，4步流程：填写信息→确认文案→生成图片→查看结果。两个后端接口：`/api/amazon-aplus/analyze`（文案，不扣积分）+ `/api/amazon-aplus/generate`（顺序生成4张图，扣积分，存图库）。支持10种语言、3种风格。图文一一对应，所有文案一键复制。**完整方案待后续迭代**（A/B对比模块、规格图、导出ZIP等），详见 `docs/KNOWN_ISSUES.md`。
-- **A+ 图片生成注意**：4张图顺序生成（非并行），避免 Nano Banana 2 并发限速；prompt 中加最高优先级禁文字规则，防止 AI 将产品名渲染到图上（尤其中文产品名）；积分按实际成功张数扣除；图库标题与实际生成图绑定（不因失败导致标题错位）。
+- **亚马逊 A+ 详情页**（`/amazon-aplus`）：**暂不实现**。代码与接口仍在（4步流程、`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate`），但导航已隐藏，不对用户开放。详见 `docs/KNOWN_ISSUES.md`。
 - **导航栏**：当前显示「**通用电商生图**」「AI美工」「电商AI运营助手」「**侵权风险检测**」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「服装组图」「万能画布」。
 - **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测已独立**为顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；深度查询（SerpApi：Google Lens+来源溯源、Google Patents、商标检索、IP 角色版权检索，20 积分）；**可选专利汇**（`PATENTHUB_TOKEN`）补充中国+全球专利检索。报告含 copyrightSourceRisk（图片版权溯源）。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。服务构成与费用、客户沟通话术见 `docs/IP-RISK.md`。
 - **亚马逊 Listing 工具链**：
@@ -82,8 +80,7 @@ alwaysApply: true
 - **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除（快捷按钮改为 30天/180天/1年，默认 1年）。**新用户注册默认赠送 150 积分**（30 天有效期，`grantSignupBonus`）；注册页有「新注册用户赠送 150 积分供您体验」提示。**删除用户**：`DELETE /api/admin/users/:email` 会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`；**删除后该邮箱可重新注册**（注册只查 users 表）。**管理员客户备注**：`users` 表有 `admin_notes` 字段（启动时自动迁移）；管理后台客户列表有「备注」列与「编辑备注」按钮，`PATCH /api/admin/users/:email/notes` 请求体 `{ adminNotes: "..." }`。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。**安全**：已移除旧的 `/api/points/credit` 自助充值端点和前端按钮，积分充值仅限管理员 `/api/admin/users/:email/grant`。**积分预估**：`src/lib/pointsEstimate.js` 的 `getEstimatedPointsForDimensions` 已模拟前端压缩（compressMaxSize=1024），与后端实际扣费一致。**定价**：¥200/1000积分/购买之日起1年有效（`SUBSCRIPTION_PLANS` 单一标准套餐）；积分扣费新规：Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Nano Banana Pro 各挡 12/12/20、侵权深度查询=20 积分/次。`grantPoints` 默认有效期改为 365 天；Admin 充值快捷按钮改为 30天/180天/1年，默认1年。待后续：支付接入、到期提醒邮件、注册审批。详见 `docs/PRICING-COST.md`。
 - **部署**：美国硅谷已部署完成（腾讯云轻量，43.162.87.60，域名 pictoolai.studio，Nginx 反代 + **HTTPS**）；**HTTPS** 已启用（Let's Encrypt/certbot，免费且自动续期）；腾讯云轻量**防火墙须放行 TCP 443**；PM2 需 `--cwd /home/ubuntu/app/server` 以正确加载 .env；香港已暂停（Gemini 不可用）。SSH 空闲断线常见，重连不影响 Nginx/PM2 等服务。详见 `docs/DEPLOY.md`、`docs/KNOWN_ISSUES.md`。
 - **品牌与数据**：品牌名统一 **PicToolAI**，技术标识 **pictoolai**（`pictoolai.db`、`pictoolai_token`/`pictoolai_user`、PM2 示例 `pictoolai-server`）。旧 picaitool.db 与旧 gallery 已清理，仅用新库与新 gallery 目录。
-- **亚马逊 Listing 生成与合规**：电商AI运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant` 选亚马逊）。**流程**：Step 1 仅做分析（按钮「分析产品」）→ 展示分析结果，用户**确认分析结果**后才可进行 Step 2；不认可则「重新分析」返回输入界面；分析结果页只显示分析结果与按钮，不显示表单。Step 2 标题/后台关键词/五点/描述（不扣积分）整体放在与步骤 3、4 同款白底框内；**保存到 Listing / 导出 CSV** 放在所有步骤结束后单独一块。Step 3 产品图（主图白底，扣积分）、Step 4 A+（复用 amazon-aplus 接口）。**合规**：prompt 与后端已按 `docs/ECOMMERCE-AI-ASSISTANT.md` 约束；generate-listing prompt 已增补五类违禁与替代（促销/IP/医疗/杀虫剂与生物杀灭/环保等）；标题返回后去除 `! $ ? _ { } ^ ¬ ¦` 并截断。
-- **生成 Listing Step 4 A+**：**当前已锁定**（`APLUS_STEP_ENABLED = false`），界面显示「功能优化中，敬请期待」。恢复方式：`AiAssistant.jsx` 中改 `APLUS_STEP_ENABLED = true`。原逻辑：用户点「生成 A+ 文案和图片」，背后先调 A+ 文案接口、再调 A+ 图片接口；步骤 3 与 4 可并行。
+- **亚马逊 Listing 生成与合规**：电商AI运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant` 选亚马逊）。**流程**：Step 1 分析 → Step 2 标题/后台关键词/五点/描述（不扣积分）→ Step 3 产品图（主图白底，扣积分）；**保存到 Listing / 导出 CSV** 放在所有步骤结束后单独一块。**A+ 模块（Step 4 + 独立 A+ 页面）暂不实现**：Step 4 已锁定（`APLUS_STEP_ENABLED = false`），独立 A+ 页面导航已隐藏，详见 `KNOWN_ISSUES.md`。**合规**：prompt 与后端已按 `docs/ECOMMERCE-AI-ASSISTANT.md` 约束；标题返回后去除 `! $ ? _ { } ^ ¬ ¦` 并截断。
 - **生成 Listing prompt 优化**：analyze 要求提取 Rufus 可用的具体参数（尺寸、重量、材质、认证等）写入 productSummary/keyAttributes；generate-listing 要求标题前 50–80 字符含核心词与属性、五点每条对应一个利益或买家问题并可含痛点→方案/场景/硬数据，并含五类违禁与替代说明。
 - **Gemini 智能体/指令参考**：用户自有若干 Gemini 搭建 Listing 智能体相关文档（含工作流、指令模板、合规与违禁词等）；用户已删除此前转成的 txt，计划自行阅读后截取有用部分再提供给 AI 做后续优化。
 - **保存 Listing**：所有步骤结束后有「保存到我的 Listing」「导出 CSV」「导出 JSON」；导出统一实现在 `src/lib/exportListingCsv.js`（支持亚马逊/eBay/速卖通）。保存时传 `mainImageId`/`aplusImageIds`，Listing 历史详情可展示关联主图与 A+ 图。Logo 已接入（`public/logo.png`），Header 内不溢出、与导航栏同底。

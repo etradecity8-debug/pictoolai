@@ -10,8 +10,8 @@ const POINTS_MAP = {
 
 export function getPointsPerImage(model, clarity) {
   const byModel = POINTS_MAP[model]
-  if (!byModel) return 3
-  return byModel[clarity] ?? 3
+  if (!byModel) return 4
+  return byModel[clarity] ?? 4
 }
 
 /** 获取积分余额，若订阅已过期则惰性清零 */
@@ -67,7 +67,7 @@ export function deductPoints(email, totalPoints, description) {
 }
 
 /**
- * 管理员授予积分，同时设置有效期（默认 30 天）。
+ * 管理员授予积分，同时设置有效期（默认 365 天 = 1 年）。
  * 每次授予都会重置有效期：新到期时间 = 现在 + days 天。
  * 若当前积分未到期，新余额 = 旧余额 + amount；若已过期，新余额 = amount。
  */

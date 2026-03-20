@@ -266,6 +266,23 @@ function fixNewlinesInJsonStrings(str) {
 // 从模型回复中尝试提取 JSON（支持 ```json ... ``` 包裹；取到最后一个 ``` 避免内容里的 ``` 截断）
 const stripMarkdown = (s) => String(s || '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1').replace(/_{1,2}([^_]+)_{1,2}/g, '$1').trim()
 
+// 将任意值转为可展示字符串（AI 可能返回对象，String(obj) 会变成 [object Object]）
+function ensureSectionString(val) {
+  if (val == null) return ''
+  if (typeof val === 'string') return val.trim()
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    return Object.entries(val)
+      .filter(([, v]) => v != null && v !== '')
+      .map(([k, v]) => {
+        const str = typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)
+        return `**${k}**\n\n${str}`
+      })
+      .join('\n\n')
+  }
+  if (Array.isArray(val)) return val.map((i) => (typeof i === 'object' ? JSON.stringify(i, null, 2) : String(i))).join('\n')
+  return String(val)
+}
+
 function extractAnalyzeJson(text, logError) {
   if (!text || typeof text !== 'string') return null
   const trimmed = text.trim()
@@ -3927,7 +3944,7 @@ ${hintText || '（无文字说明）'}
 
 请输出唯一一个 JSON 对象，包含：
 - "quickReport": "2-4 段简短文字，概括商标/外观/IP 形象/平台合规的初步判断与风险等级（高/中/低）"
-- "patentSearchTerms": ["关键词1", "关键词2", "关键词3"]  // 用于在美国专利库中检索外观或设计相关专利，用英文，3-5 个词
+- "patentSearchTerms": ["关键词1", "关键词2", "关键词3", "关键词4"]  // 【重要】用于在 Google Patents / 专利汇 检索外观或设计专利。必须包含：①具体英文品类词（如 barbecue skewer, water bottle）；②显著结构/设计特征词（如 three prong, sliding pusher, multi-prong 用于烤串类；insulated, leak-proof 用于水瓶类）。示例：烤串架→["barbecue skewer", "grill skewer", "three prong", "sliding pusher"]；水瓶→["water bottle", "drinking bottle", "tumbler design"]。绝不使用 product design、consumer product、consumer goods 等泛化词。若用户填写了产品名称/品类，务必据此输出。3-5 个词。
 - "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标
 - "ipCharacterNames": ["角色名1"]  // 若图中出现疑似受版权保护的角色、卡通形象、艺术图案（如 Mickey Mouse、Pikachu、Hello Kitty 等），列出英文名称；若无可疑 IP 元素则为空数组 []`
 
@@ -3956,6 +3973,36 @@ ${hintText || '（无文字说明）'}
       }
     } catch (_) {}
 
+    // 当 AI 返回泛化词时，基于图片二次识别产品品类（纯 AI，无人工映射表）
+    const genericTerms = ['product design', 'consumer product', 'consumer goods', 'product']
+    const isGeneric = patentSearchTerms.length <= 2 && patentSearchTerms.every((t) => genericTerms.includes(t.toLowerCase()))
+    if (isGeneric) {
+      try {
+        const imgFallbackPrompt = `Look at this product image. Output ONLY a JSON object (no other text): {"patentSearchTerms": ["term1", "term2", "term3"]}
+Rules: patentSearchTerms must be 3-5 specific English product/design terms for searching design patents. Examples: ["barbecue skewer", "grill skewer", "BBQ skewer"] for grilling skewers; ["water bottle", "drinking bottle"] for bottles. NEVER use: product design, consumer product, consumer goods.`
+        const imgFallbackResp = await ai.models.generateContent({
+          model: ANALYSIS_MODEL_ID,
+          contents: [
+            ...parsedImages.slice(0, 2).map((p) => ({ inlineData: { mimeType: p.mimeType, data: p.data } })),
+            { text: imgFallbackPrompt },
+          ],
+        })
+        const imgFallbackText = imgFallbackResp?.text ?? (imgFallbackResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
+        const imgParsed = extractAnalyzeJson(imgFallbackText, false)
+        if (Array.isArray(imgParsed?.patentSearchTerms) && imgParsed.patentSearchTerms.length > 0) {
+          const derived = imgParsed.patentSearchTerms.slice(0, 5).map((t) => String(t).trim()).filter(Boolean)
+          const stillGeneric = derived.every((t) => genericTerms.includes(t.toLowerCase()))
+          if (!stillGeneric) {
+            patentSearchTerms = derived
+            console.log('[IP Risk] 专利检索词兜底：纯图二次识别，使用', patentSearchTerms.join(', '))
+          }
+        }
+      } catch (e) {
+        console.warn('[IP Risk] 纯图兜底 AI 调用失败', e?.message)
+      }
+    }
+    console.log('[IP Risk] 专利检索词:', patentSearchTerms.join(' '))
+
     ensureTempIpRiskDir()
     tempToken = createHash('sha256').update(Date.now() + Math.random().toString()).digest('hex').slice(0, 24)
     const tempPath = join(tempIpRiskDir, `${tempToken}.jpg`)
@@ -3980,7 +4027,7 @@ ${hintText || '（无文字说明）'}
       console.error('[IP Risk] SerpApi Google Lens 失败', e.message)
     }
     try {
-      const q = patentSearchTerms.slice(0, 2).join(' ')
+      const q = patentSearchTerms.slice(0, 3).join(' ')
       const patentRes = await fetch(
         `https://serpapi.com/search.json?engine=google_patents&q=${encodeURIComponent(q)}&api_key=${serpApiKey}`
       )
@@ -4127,15 +4174,15 @@ ${ipCopyrightSummary}
         const parsed = extractAnalyzeJson(rawDeepText, true)
         if (parsed && (parsed.trademarkRisk != null || parsed.overallLevel != null)) {
           deepSections = {
-            trademarkRisk: String(parsed.trademarkRisk ?? '').trim(),
-            patentRisk: String(parsed.patentRisk ?? '').trim(),
-            designRisk: String(parsed.designRisk ?? '').trim(),
-            ipImageRisk: String(parsed.ipImageRisk ?? '').trim(),
-            copyrightSourceRisk: String(parsed.copyrightSourceRisk ?? '').trim(),
-            platformRisk: String(parsed.platformRisk ?? '').trim(),
-            overallLevel: String(parsed.overallLevel ?? '').trim(),
-            suggestions: String(parsed.suggestions ?? '').trim(),
-            disclaimer: String(parsed.disclaimer ?? '').trim(),
+            trademarkRisk: ensureSectionString(parsed.trademarkRisk),
+            patentRisk: ensureSectionString(parsed.patentRisk),
+            designRisk: ensureSectionString(parsed.designRisk),
+            ipImageRisk: ensureSectionString(parsed.ipImageRisk),
+            copyrightSourceRisk: ensureSectionString(parsed.copyrightSourceRisk),
+            platformRisk: ensureSectionString(parsed.platformRisk),
+            overallLevel: ensureSectionString(parsed.overallLevel),
+            suggestions: ensureSectionString(parsed.suggestions),
+            disclaimer: ensureSectionString(parsed.disclaimer),
           }
         }
       } catch (_) {}

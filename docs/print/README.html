@@ -47,6 +47,7 @@
 </blockquote>
 <hr>
 <h2>快速找文档（按「我想做什么」查）</h2>
+<h3>项目与功能</h3>
 <table>
 <thead>
 <tr>
@@ -63,7 +64,7 @@
 <td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
 </tr>
 <tr>
-<td>做亚马逊 Listing（生成/优化/竞品/关键词）、合规规则、A+</td>
+<td>做亚马逊 Listing（生成/优化/竞品/关键词）、合规规则（A+ 暂不实现）</td>
 <td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a> — 第一至六部分</td>
 </tr>
 <tr>
@@ -75,18 +76,23 @@
 <td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a> — 第八部分</td>
 </tr>
 <tr>
-<td>了解侵权风险检测（快筛/深度），向客户解释查了什么</td>
+<td>了解侵权风险检测（功能/费用/漏检分析/外部数据源可行性）</td>
 <td><a href="./IP-RISK.md">IP-RISK.md</a></td>
-</tr>
-<tr>
-<td>评估专利汇/美国版权局集成可行性（给客户决策参考）</td>
-<td><a href="./IP-RISK-INTEGRATION-FEASIBILITY.md">IP-RISK-INTEGRATION-FEASIBILITY.md</a></td>
 </tr>
 <tr>
 <td>用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/风格复刻）</td>
 <td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
 </tr>
+</tbody></table>
+<h3>运维与部署</h3>
+<table>
+<thead>
 <tr>
+<th>我想…</th>
+<th>看这里</th>
+</tr>
+</thead>
+<tbody><tr>
 <td><strong>首次</strong>把项目部署到服务器（VPS 安装/克隆/配置/启动）</td>
 <td><a href="./DEPLOY.md">DEPLOY.md</a> — 第一节</td>
 </tr>
@@ -107,14 +113,19 @@
 <td><a href="./DEPLOY.md">DEPLOY.md</a> — 第五节</td>
 </tr>
 <tr>
-<td>查看用户列表（sqlite3 命令）</td>
-<td><a href="./DEPLOY.md">DEPLOY.md</a> — 第五节 5.4</td>
+<td>查看用户列表、sqlite3 卡住出不去</td>
+<td><a href="./DEPLOY.md">DEPLOY.md</a> — 第五节 5.4、5.2</td>
 </tr>
+</tbody></table>
+<h3>其他</h3>
+<table>
+<thead>
 <tr>
-<td>sqlite3 卡住出不去</td>
-<td><a href="./DEPLOY.md">DEPLOY.md</a> — 第五节 5.2（Ctrl+C）</td>
+<th>我想…</th>
+<th>看这里</th>
 </tr>
-<tr>
+</thead>
+<tbody><tr>
 <td>查已知问题、功能待办、数据隐私说明</td>
 <td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
 </tr>
@@ -128,55 +139,62 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>文档目录（11 个文件）</h2>
+<h2>文档目录（按类型）</h2>
 <table>
 <thead>
 <tr>
+<th>类型</th>
 <th>文件</th>
 <th>内容</th>
 </tr>
 </thead>
 <tbody><tr>
+<td>概览</td>
 <td><a href="./PROJECT-OVERVIEW.md">PROJECT-OVERVIEW.md</a></td>
 <td>技术栈、目录结构、主要功能一览、本地运行要点</td>
 </tr>
 <tr>
+<td>功能</td>
 <td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
 <td>全品类组图：5 个输入字段、AI 传参、分析→确认→生图数据流</td>
 </tr>
 <tr>
+<td>功能</td>
 <td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a></td>
 <td>AI 运营助手：亚马逊（第1-6部分）+ eBay（第7部分）+ 速卖通（第8部分）</td>
 </tr>
 <tr>
+<td>功能</td>
 <td><a href="./IP-RISK.md">IP-RISK.md</a></td>
-<td>侵权风险检测：功能说明、检测维度、费用、客户沟通话术</td>
+<td>侵权风险检测：功能、费用、漏检分析、外部数据源集成可行性（含专利汇/美国版权局）</td>
 </tr>
 <tr>
-<td><a href="./IP-RISK-INTEGRATION-FEASIBILITY.md">IP-RISK-INTEGRATION-FEASIBILITY.md</a></td>
-<td>专利汇/美国版权局集成可行性分析（供客户决策）</td>
-</tr>
-<tr>
+<td>功能</td>
 <td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
 <td>AI 美工：局部重绘/消除/换色/扩图/提升质感/添加人物/服装3D/生成场景/风格复刻/文字修改/官方示例</td>
 </tr>
 <tr>
+<td>运维</td>
 <td><a href="./DEPLOY.md">DEPLOY.md</a></td>
 <td>运维手册：首次部署 + 每次更新 + SerpApi + COS + 用户管理（删除/查询/SQL） + Gemini 地区限制</td>
 </tr>
 <tr>
+<td>参考</td>
 <td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
 <td>已知问题、功能待办、数据隐私说明</td>
 </tr>
 <tr>
+<td>参考</td>
 <td><a href="./PRICING-COST.md">PRICING-COST.md</a></td>
 <td>积分规则、API 成本核算、固定成本、盈利分析（内部参考）</td>
 </tr>
 <tr>
+<td>对外</td>
 <td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
 <td>网站功能介绍（对外宣传，可直接发给客户）</td>
 </tr>
 <tr>
+<td>—</td>
 <td><a href="./README.md">README.md</a>（本文件）</td>
 <td>文档总索引</td>
 </tr>

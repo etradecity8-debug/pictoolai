@@ -69,12 +69,13 @@ ADMIN_EMAIL=你的管理员邮箱
 ADMIN_PASSWORD=你的管理员密码
 
 # 以下可选：
+# JWT_SECRET=随机长字符串               # 生产环境建议设置，否则用默认值（有安全风险）
 # HTTPS_PROXY=http://127.0.0.1:7890        # 若服务器访问 Gemini 需代理则填
 # SERPAPI_KEY=你的SerpApi密钥               # 侵权风险深度查询，见第三节
 # COS_SECRET_ID=                            # 腾讯云 COS 加速，见第四节
 # COS_SECRET_KEY=
 # COS_BUCKET=pictoolai-1234567890
-# COS_REGION=na-siliconvalley
+# COS_REGION=ap-guangzhou
 # COS_CDN_DOMAIN=img.pictoolai.studio       # 可选 CDN 加速域名
 ```
 
@@ -112,12 +113,12 @@ pm2 logs pictoolai-server
 sudo nano /etc/nginx/sites-available/pictoolai
 ```
 
-粘贴以下配置（**不要带 ` ```nginx ` 等 Markdown 符号**）：
+粘贴以下配置（**不要带 ` ```nginx ` 等 Markdown 符号**；`server_name` 将域名换成你的，若域名尚未解析可先只填 IP）：
 
 ```nginx
 server {
     listen 80;
-    server_name 43.162.87.60;
+    server_name 43.162.87.60 pictoolai.studio;
 
     root /home/ubuntu/app/dist;
     index index.html;
@@ -279,7 +280,7 @@ pm2 logs pictoolai-server
 
 **获取 Key**：访问 https://serpapi.com/ → 注册/登录 → Dashboard → 复制 API Key。
 
-**套餐参考**：Free 约 250 次/月；正式使用建议 Developer（$75/月，5000 次/月）。每次深度查询约消耗 3 次（1 次 Lens + 1 次 Patents + 1 次商标）。
+**套餐参考**：**当前使用 Free 版**（约 250 次/月）；正式运营可升级 Developer（$75/月，5000 次/月）。每次深度查询约消耗 2～4 次（Lens + Patents 必选，商标/IP 角色检索按需）。
 
 **在服务器上配置**（一步步执行）：
 
@@ -297,7 +298,7 @@ nano server/.env
 SERPAPI_KEY=你的SerpApi密钥
 ```
 
-**可选：专利汇（补充中国+全球专利）**：在 [patenthub.cn/api/open](https://www.patenthub.cn/api/open) 申请 TOKEN，于 `.env` 中追加 `PATENTHUB_TOKEN=你的TOKEN`。配置后深度查询将同时检索专利汇（中国/全球专利库），与 Google Patents（美国为主）互补。不配置则仅用 Google Patents。
+**可选：专利汇（补充中国+全球专利）**：在 [patenthub.cn/api/open](https://www.patenthub.cn/api/open) 申请免费 TOKEN，于 `.env` 中追加 `PATENTHUB_TOKEN=你的TOKEN`。**当前使用专利汇免费版**。配置后深度查询将同时检索专利汇（中国/全球专利库），与 Google Patents（美国为主）互补。不配置则仅用 Google Patents。
 
 保存退出（`Ctrl+O` 回车 → `Ctrl+X`）。
 

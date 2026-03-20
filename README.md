@@ -1,6 +1,6 @@
 # PicToolAI
 
-对 PicSet AI 官网的前端复刻，品牌名 **PicToolAI**。React + Tailwind + Express，含登录/注册、电商生图（全品类组图）、修改图片、亚马逊 A+、**电商AI运营助手 → 亚马逊 Listing 生成** 等。
+对 PicSet AI 官网的前端复刻，品牌名 **PicToolAI**。React + Tailwind + Express，含登录/注册、电商生图（全品类组图）、修改图片、**电商AI运营助手 → 亚马逊 Listing 生成**、AI 美工、侵权风险检测等（亚马逊 A+ 暂不实现）。
 
 ---
 

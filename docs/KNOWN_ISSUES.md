@@ -42,11 +42,12 @@
 
 ## 待后续改进
 
-### 生成 Listing Step 4 A+（暂锁）
+### A+ 模块（暂不实现）
 
-- **现状**：Step 4「A+ 文案与图片」已暂时锁定（`APLUS_STEP_ENABLED = false`），界面显示「功能优化中，每位用户对 A+ 的要求不同，我们正在研究如何更好地满足个性化需求，敬请期待」。
-- **原因**：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案。
-- **恢复方式**：前端 `src/pages/AiAssistant.jsx` 中改 `APLUS_STEP_ENABLED = true` 即可。
+- **决策**：A+ 模块整体**暂不实现**，包括：① 生成 Listing Step 4「A+ 文案与图片」；② 独立 A+ 详情页（`/amazon-aplus`）。
+- **当前状态**：生成 Listing Step 4 已锁定（`APLUS_STEP_ENABLED = false`），界面显示「功能优化中，敬请期待」；独立 A+ 页面导航已隐藏（`Header.jsx` 中 `hidden: true`），路由仍存在但不对用户开放。
+- **原因**：生图效果暂不满意；不同用户对 A+ 的需求差异大，需研究个性化方案后再考虑上线。
+- **恢复方式**（若后续决定上线）：① 前端 `src/pages/AiAssistant.jsx` 中改 `APLUS_STEP_ENABLED = true`；② `Header.jsx` 中移除 A+ 的 `hidden: true`。
 
 ### 角色一致性：360° 全景 · 女模特指令执行偏差
 
@@ -117,9 +118,9 @@
 1. 打开 **https://serpapi.com** ，点击右上角 **Sign up** 用邮箱或 Google/GitHub 注册。
 2. 登录后进入 **Dashboard**（或 **https://serpapi.com/manage-api-key**），在页面上复制你的 **API Key**。
 3. 在项目 **`server/.env`** 中增加一行：`SERPAPI_KEY=你的API_Key`，保存后重启后端（如 `pm2 restart`）。未配置时前端深度查询会提示「深度查询暂未开放」。
-4. 套餐说明：**Free** 约 250 次/月可试用；正式使用建议 **Developer**（约 $75/月，约 5000 次/月）。每次深度查询约消耗 3 次 SerpApi（1 次 Google Lens + 1 次 Google Patents + 1 次 Google 商标检索）。
+4. 套餐说明：**当前使用 SerpApi Free 版**（约 250 次/月）；正式运营可升级 Developer（约 $75/月，约 5000 次/月）。**专利汇当前也使用免费版**。每次深度查询约消耗 2～4 次 SerpApi（Lens + Patents 必选，商标/IP 角色检索按需）。
 
-**客户沟通用**：方案 B 费用汇总、轻量版/完整版对比、如何向客户解释「我们查了什么」，见 **docs/IP-RISK.md**（主文档）或 docs/ECOMMERCE-AI-ASSISTANT.md 附录。
+**客户沟通用**：方案 B 费用汇总、如何向客户解释「我们查了什么」，见 **docs/IP-RISK.md**。
 
 ---
 
@@ -143,7 +144,7 @@ git push
 
 - **问题**：「从作品库选择」弹窗里缩略图加载慢（尤其未配 COS 时每张都请求服务器）。
 - **实现**：抽公共组件 `src/components/GalleryThumb.jsx`。当 `item.url` 为**绝对 URL（COS 签名）**时**直接用 `<img src={url} />`**，不 fetch，与仓库页一致、加载更快；为相对路径时仍带 Token fetch 转 blob 展示。
-- **使用处**：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 `docs/DEPLOY.md` 第四节前端约定。
+- **使用处**：ImageEdit、StyleClone、LocalRedraw、LocalErase、OneClickRecolor、SmartExpansion、ProductRefinement、Clothing3D、ClothingFlatlay、BodyShape、SceneGeneration 的「从作品库选择」弹窗均改用该组件。详见 `docs/DEPLOY.md` 第四节（COS 时 COS URL 直接 img src，相对路径带 Token fetch）。
 
 ### 2. AI 美工输出设置统一（与官方示例一致）
 
@@ -330,7 +331,7 @@ git push
 - **独立模块**：从 AI 运营助手侧栏迁出，主导航新增「侵权风险检测」，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`。
 
 ### 文档
-- **IP-RISK.md**：侵权风险检测独立文档（功能、检测维度、费用、客户沟通话术）。
+- **IP-RISK.md**：侵权风险检测完整说明（功能、费用、漏检分析、外部数据源集成可行性）。
 - **PRODUCT-INTRO.md**：网站功能介绍（对外宣传，发给客户用）。
 - **PRICING-COST.md**：积分规则、API 成本、固定成本（含 Cursor $60/月）、盈利分析、竞品对比（Midjourney、PicSetAI）、试用用户影响评估。
 
@@ -426,21 +427,14 @@ git push
 
 ## 今日完成（2026-03-07）
 
-### 亚马逊 A+ 详情页生成（MVP）
+### 亚马逊 A+ 详情页生成（MVP，代码已有，暂不对用户开放）
 
-**已完成：**
-- 前端新增 `src/pages/AmazonAPlus.jsx`，4 步流程：填写信息 → 确认文案 → 生成图片 → 查看结果
-- 后端新增两个接口：
-  - `POST /api/amazon-aplus/analyze`：调用文本模型生成文案（不扣积分），返回 heroTagline/heroSubtext/3 个特点/品牌故事
-  - `POST /api/amazon-aplus/generate`：根据确认后的文案生图（顺序生成 4 张，避免并发限速）、扣积分、自动存图库
-- 支持 10 种语言选择（英/德/法/意/西/日/中/荷/瑞/波），文案和图片 prompt 均注入语言指令
-- 3 种视觉风格：白底简洁 / 场景生活 / 高端黑金
-- 文案和图片一一对应展示，所有文字字段支持一键复制（`CopyableText`）
-- 图片自动存图库，成功后显示消耗积分数
-- 后端全程调试日志（文案生成、每张图状态、积分扣除、图库保存）
-- 图片 prompt 加入最高优先级禁文字规则，防止 AI 将产品名/参考图中的文字渲染到图上
-- 导航栏新增「A+ 页面」入口（`/amazon-aplus`）
-- 隐藏「服装组图」「风格复刻」「万能画布」导航入口（暂不开放）
+**说明**：A+ 模块整体暂不实现（见上文「A+ 模块（暂不实现）」）。以下为历史开发记录，代码与接口仍在，但导航已隐藏，不对用户开放。
+
+**已完成（代码层面）：**
+- 前端 `src/pages/AmazonAPlus.jsx`，4 步流程：填写信息 → 确认文案 → 生成图片 → 查看结果
+- 后端 `POST /api/amazon-aplus/analyze`（文案，不扣积分）、`POST /api/amazon-aplus/generate`（4 张图，扣积分、存图库）
+- 10 种语言、3 种风格，文案与图片一一对应；导航栏「A+ 页面」入口已 `hidden: true`
 
 **A+ 完整方案（尚未实现，记录备用）：**
 
