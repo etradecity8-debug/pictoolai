@@ -516,7 +516,7 @@ export default function DetailSet() {
                     type="text"
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="例如：日式抹茶沐浴露"
+                    placeholder="例如：便携式咖啡机、无线蓝牙耳机"
                     value={productName}
                     onChange={(e) => {
                       setProductName(e.target.value)
@@ -534,7 +534,7 @@ export default function DetailSet() {
                         type="text"
                         readOnly={step >= 3}
                         className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder={i === 1 ? '例如：天然成分（可选）' : `第 ${i} 条卖点（可选）`}
+                        placeholder={i === 1 ? '例如：一键萃取、便携易带（选填）' : `卖点 ${i}（选填）`}
                         value={val}
                         onChange={(e) => {
                           setVal(e.target.value)
@@ -550,7 +550,7 @@ export default function DetailSet() {
                     type="text"
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="例如：25-40 岁女性、注重生活品质"
+                    placeholder="例如：都市白领、咖啡爱好者"
                     value={targetAudience}
                     onChange={(e) => {
                       setTargetAudience(e.target.value)
@@ -564,7 +564,7 @@ export default function DetailSet() {
                     type="text"
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="例如：日式极简、清新自然、高端质感"
+                    placeholder="例如：简约现代、科技感、北欧风"
                     value={styleDesc}
                     onChange={(e) => {
                       setStyleDesc(e.target.value)
@@ -578,7 +578,7 @@ export default function DetailSet() {
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     rows={3}
-                    placeholder="其他补充说明，如特殊场景、禁忌元素等"
+                    placeholder="补充拍摄场景、需避开的元素等（选填）"
                     value={otherRequirements}
                     onChange={(e) => {
                       setOtherRequirements(e.target.value)

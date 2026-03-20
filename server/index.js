@@ -394,7 +394,7 @@ ${itr > 0 ? `- 交互图（type: "interaction"）：${itr} 张，真人使用或
   "designSpecMarkdown": "上述整体设计规范的完整 Markdown，换行用\\\\n",
   "imagePlan": [
     { "type": "main", "title": "白底主图 1", "contentMarkdown": "按上述结构写的该图完整规划，换行用\\\\n" },
-    { "type": "sellingPoint", "sellingPointText": "天然成分", "title": "卖点图 - 天然成分", "contentMarkdown": "..." }
+    { "type": "sellingPoint", "sellingPointText": "一键萃取", "title": "卖点图 - 一键萃取", "contentMarkdown": "..." }
   ]
 }
 imagePlan 数组长度必须为 ${planCount}。`
@@ -3944,7 +3944,8 @@ ${hintText || '（无文字说明）'}
 
 请输出唯一一个 JSON 对象，包含：
 - "quickReport": "2-4 段简短文字，概括商标/外观/IP 形象/平台合规的初步判断与风险等级（高/中/低）"
-- "patentSearchTerms": ["关键词1", "关键词2", "关键词3", "关键词4"]  // 【重要】用于在 Google Patents / 专利汇 检索外观或设计专利。必须包含：①具体英文品类词（如 barbecue skewer, water bottle）；②显著结构/设计特征词（如 three prong, sliding pusher, multi-prong 用于烤串类；insulated, leak-proof 用于水瓶类）。示例：烤串架→["barbecue skewer", "grill skewer", "three prong", "sliding pusher"]；水瓶→["water bottle", "drinking bottle", "tumbler design"]。绝不使用 product design、consumer product、consumer goods 等泛化词。若用户填写了产品名称/品类，务必据此输出。3-5 个词。
+- "patentSearchTerms": ["英文词1", "英文词2", "英文词3", "英文词4", "英文词5"]  // 【重要】用于 Google Patents（美国专利）与专利汇（全球专利）检索外观/设计专利。①无论用户填中文还是英文，都必须输出英文检索词；②必须包含：具体品类词（如 barbecue skewer, water bottle, coffee maker）+ 显著结构/设计特征词（如 three prong, sliding pusher, insulated, leak-proof）；③避免泛化词：禁止 product design、consumer product、consumer goods；④若用户填写了产品名称/品类，据此输出；⑤建议 4-5 个词，覆盖品类、结构、材质等不同维度，提高检索全面性。示例：烤串架→["barbecue skewer", "grill skewer", "three prong", "sliding pusher", "BBQ skewer holder"]；水瓶→["water bottle", "drinking bottle", "insulated tumbler", "leak-proof design"]
+- "patentSearchTermsZH": ["中文词1", "中文词2"]  // 可选，用于专利汇中国专利库检索。当产品有中国专利时，输出 2-4 个中文检索词（如 烤串架、烧烤签、推料器）。若无相关中文专利预期可填空数组 []。用户填英文时也可输出对应中文同义词以增强中国专利覆盖。
 - "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标
 - "ipCharacterNames": ["角色名1"]  // 若图中出现疑似受版权保护的角色、卡通形象、艺术图案（如 Mickey Mouse、Pikachu、Hello Kitty 等），列出英文名称；若无可疑 IP 元素则为空数组 []`
 
@@ -3957,6 +3958,7 @@ ${hintText || '（无文字说明）'}
     const analysisText = analysisResp?.text ?? (analysisResp?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '')
     let quickReport = ''
     let patentSearchTerms = ['product design', 'consumer product']
+    let patentSearchTermsZH = [] // 中文检索词，用于专利汇中国专利库
     let trademarkSearchTerms = []
     let ipCharacterNames = []
     try {
@@ -3964,6 +3966,9 @@ ${hintText || '（无文字说明）'}
       if (parsed?.quickReport) quickReport = String(parsed.quickReport)
       if (Array.isArray(parsed?.patentSearchTerms) && parsed.patentSearchTerms.length > 0) {
         patentSearchTerms = parsed.patentSearchTerms.slice(0, 5).map((t) => String(t).trim()).filter(Boolean)
+      }
+      if (Array.isArray(parsed?.patentSearchTermsZH) && parsed.patentSearchTermsZH.length > 0) {
+        patentSearchTermsZH = parsed.patentSearchTermsZH.slice(0, 4).map((t) => String(t).trim()).filter(Boolean)
       }
       if (Array.isArray(parsed?.trademarkSearchTerms) && parsed.trademarkSearchTerms.length > 0) {
         trademarkSearchTerms = parsed.trademarkSearchTerms.slice(0, 3).map((t) => String(t).trim()).filter(Boolean)
@@ -4027,7 +4032,7 @@ Rules: patentSearchTerms must be 3-5 specific English product/design terms for s
       console.error('[IP Risk] SerpApi Google Lens 失败', e.message)
     }
     try {
-      const q = patentSearchTerms.slice(0, 3).join(' ')
+      const q = patentSearchTerms.slice(0, 4).join(' ') // 使用前 4 个词，提高检索全面性
       const patentRes = await fetch(
         `https://serpapi.com/search.json?engine=google_patents&q=${encodeURIComponent(q)}&api_key=${serpApiKey}`
       )
@@ -4037,14 +4042,16 @@ Rules: patentSearchTerms must be 3-5 specific English product/design terms for s
     }
 
     // ── 专利汇 API：补充中国+全球专利检索（可选）────────────────────────────────────
+    // 专利汇支持中英文：优先用中文词检索中国专利，无中文词时用英文
     let patenthubData = null
     let patenthubCalled = false
     let patenthubStatus = '' // 用于前端展示：已调用但无结果时的说明
     const patenthubToken = process.env.PATENTHUB_TOKEN
-    if (patenthubToken && patentSearchTerms.length > 0) {
+    const patenthubQueryTerms = patentSearchTermsZH.length > 0 ? patentSearchTermsZH : patentSearchTerms
+    if (patenthubToken && patenthubQueryTerms.length > 0) {
       patenthubCalled = true
       try {
-        const phq = patentSearchTerms.slice(0, 3).join(' ')
+        const phq = patenthubQueryTerms.slice(0, 4).join(' ') // 使用前 4 个词
         const phUrl = `https://www.patenthub.cn/api/s?ds=all&t=${encodeURIComponent(patenthubToken)}&q=${encodeURIComponent(phq)}&v=1&ps=5&p=1`
         const phRes = await fetch(phUrl)
         let phJson = null
@@ -4221,7 +4228,7 @@ ${ipCopyrightSummary}
       retrievalDetails.push({
         method: '专利检索',
         service: '专利汇',
-        query: patentSearchTerms.slice(0, 3).join(' '),
+        query: patenthubQueryTerms.slice(0, 4).join(' '),
         results: patenthubData?.patents?.length
           ? (patenthubData.patents.slice(0, 5) || []).map((p) => {
               const id = p.id || p.documentNumber || ''

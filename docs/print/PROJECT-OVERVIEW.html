@@ -40,128 +40,498 @@
 </style>
 </head>
 <body>
-  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/20</div>
-  <h1>项目概览（结构 + 功能）</h1>
-<p>根目录 README 只做入口；这里是项目结构与主要功能的简要说明。</p>
+  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/21</div>
+  <h1>PicToolAI 项目概览</h1>
+<blockquote>
+<p>技术栈、目录结构、功能一览、数据与配置。详细设计见各专项文档。</p>
+</blockquote>
 <hr>
-<h2>技术栈</h2>
+<h2>一、项目简介</h2>
+<p><strong>PicToolAI</strong> 是专为跨境电商卖家打造的 AI 视觉与运营平台，覆盖产品图生成、图片精修、Listing 创作、侵权风险检测等全流程。核心能力基于 Google Gemini 多模态模型（Nano Banana / Nano Banana 2 / Nano Banana Pro）。</p>
+<p><strong>技术架构</strong>：前后端分离，React 18 + Vite 前端，Express 后端，SQLite 数据库，JWT 认证。</p>
+<hr>
+<h2>二、技术栈</h2>
 <table>
 <thead>
 <tr>
 <th>层级</th>
 <th>技术</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>前端</td>
 <td>React 18、Vite、React Router 6、Tailwind CSS</td>
+<td>SPA，打包输出至 <code>dist/</code></td>
 </tr>
 <tr>
 <td>后端</td>
-<td>Node.js、Express、JWT、bcrypt、SQLite（<code>server/db.js</code> + <code>pictoolai.db</code>）</td>
+<td>Node.js、Express</td>
+<td>单体 API 服务</td>
+</tr>
+<tr>
+<td>认证</td>
+<td>JWT、bcrypt</td>
+<td>登录态存 localStorage，密钥可配 <code>JWT_SECRET</code></td>
+</tr>
+<tr>
+<td>数据库</td>
+<td>SQLite（better-sqlite3）</td>
+<td><code>server/pictoolai.db</code>，单文件</td>
 </tr>
 <tr>
 <td>AI</td>
-<td>Google Gemini（分析：文+图→文；生图：Nano Banana / 2 / Pro）</td>
+<td>Google Gemini</td>
+<td>分析：<code>gemini-2.5-flash</code>；生图：Nano Banana / 2 / Pro</td>
+</tr>
+<tr>
+<td>外部服务</td>
+<td>SerpApi、专利汇</td>
+<td>侵权深度查询（可选）</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>关键目录与文件</h2>
+<h2>三、目录结构</h2>
 <pre><code>项目根/
-├── docs/                  # 全部详细文档，入口为 docs/README.md
+├── docs/                     # 全部文档，入口 docs/README.md
+│   ├── README.md             # 文档总索引
+│   ├── PROJECT-OVERVIEW.md   # 本文件
+│   ├── ECOMMERCE-GENERAL-CREATE-PICTURES.md
+│   ├── ECOMMERCE-AI-ASSISTANT.md
+│   ├── AI-DESIGNER.md
+│   ├── IP-RISK.md
+│   ├── DEPLOY.md
+│   ├── KNOWN_ISSUES.md
+│   ├── PRICING-COST.md
+│   ├── PRODUCT-INTRO.md
+│   └── print/                # 打印版 HTML，npm run docs:print 生成
+├── public/                   # 静态资源（demo 图、logo 等）
 ├── src/
 │   ├── App.jsx
-│   ├── pages/             # DetailSet（组图）、AiDesigner（AI美工）、AiAssistant（运营助手）、Admin（管理后台）等
-│   ├── pages/ai-designer/ # 各 AI 美工子页面（局部重绘/消除/换色/扩图/场景/添加人物 等）
-│   └── components/
+│   ├── main.jsx
+│   ├── pages/                # 页面组件
+│   │   ├── DetailSet.jsx     # 通用电商生图（全品类组图）
+│   │   ├── AiDesigner.jsx    # AI 美工入口
+│   │   ├── ai-designer/      # AI 美工各子页（LocalRedraw、SmartExpansion 等）
+│   │   ├── ImageEdit.jsx     # 修改图片（9 种模式）
+│   │   ├── AiAssistant.jsx   # 电商 AI 运营助手
+│   │   ├── IpRisk.jsx        # 侵权风险检测
+│   │   ├── StyleClone.jsx    # 风格复刻
+│   │   ├── Admin.jsx         # 管理后台
+│   │   └── dashboard/        # Gallery、ListingHistory
+│   ├── components/
+│   │   ├── layout/           # Header、DashboardLayout 等
+│   │   ├── OutputSettings.jsx # 输出设置（模型/比例/清晰度）
+│   │   ├── GalleryThumb.jsx  # 从作品库选择缩略图
+│   │   └── ...
+│   ├── lib/
+│   │   ├── loadGalleryImage.js   # 从仓库 URL 加载图片
+│   │   ├── pointsEstimate.js     # 积分预估
+│   │   ├── clarityByModel.js     # 模型与清晰度
+│   │   ├── aspectByModel.js      # 模型与比例
+│   │   └── exportListingCsv.js   # 导出 CSV/JSON
+│   └── context/AuthContext.jsx
 ├── server/
-│   ├── index.js           # 注册/登录、分析、生图、仓库、image-edit、ai-assistant（Amazon/eBay/AliExpress/侵权）、管理员接口
-│   ├── db.js              # SQLite：users、gallery、user_points、points_transactions、各平台 listing_snapshots
-│   ├── points.js          # 积分规则、grantPoints、getBalance、grantSignupBonus
-│   ├── gemini-models.js   # 生图模型 ID、分析模型 ID
-│   └── .env               # GEMINI_API_KEY、SERPAPI_KEY（深度查询）、COS_*（可选）、ADMIN_EMAIL/PASSWORD
-└── README.md              # 入口：快速开始 + 指向 docs
+│   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、admin
+│   ├── db.js                 # SQLite 表结构与初始化
+│   ├── points.js             # 积分规则、getBalance、grantPoints、grantSignupBonus
+│   ├── gemini-models.js      # 生图模型 ID、分析模型 ID
+│   ├── gallery/              # 图片文件存储（未配 COS 时）
+│   ├── .env                  # 环境变量（从 .env.example 复制）
+│   └── pictoolai.db          # SQLite 数据库（首次运行自动创建）
+├── scripts/md-to-print-html.js
+├── package.json
+└── README.md
 </code></pre>
 <hr>
-<h2>主要功能</h2>
+<h2>四、功能与路由</h2>
+<h3>4.1 主导航</h3>
 <table>
 <thead>
 <tr>
 <th>功能</th>
-<th>路由/入口</th>
+<th>路由</th>
 <th>说明</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>全品类组图</td>
-<td>通用电商生图 <code>/detail-set</code></td>
-<td>上传图 + 5 个要求字段 + <strong>5 种图片类型分别选张数</strong>（白底主图/场景图/特写图/卖点图/交互图）→ 分析（按类型生成规划）→ 确认规划 → 按类型差异化生图，详见 <code>ECOMMERCE-GENERAL-CREATE-PICTURES.md</code></td>
-</tr>
-<tr>
-<td>亚马逊 Listing</td>
-<td>电商AI运营助手 → 亚马逊</td>
-<td>生成/优化/竞品/关键词；Step1 分析 → Step2 文案 → Step3 主图，详见 <code>ECOMMERCE-AI-ASSISTANT.md</code></td>
-</tr>
-<tr>
-<td>eBay Listing</td>
-<td>电商AI运营助手 → eBay</td>
-<td>生成/优化；Cassini、80 字符标题、Item Specifics，详见 <code>ECOMMERCE-AI-ASSISTANT.md</code> 第七部分</td>
-</tr>
-<tr>
-<td>速卖通 Listing</td>
-<td>电商AI运营助手 → 速卖通</td>
-<td>生成/优化；128 字符标题、产品属性，详见 <code>ECOMMERCE-AI-ASSISTANT.md</code> 第八部分</td>
-</tr>
-<tr>
-<td>侵权风险检测</td>
-<td>导航「侵权风险检测」<code>/ip-risk</code></td>
-<td>免费快筛（Gemini）/ 深度查询（SerpApi：Lens+Patents+商标+IP角色版权，20 积分）；<code>POST /api/ai-assistant/ip-risk-check</code></td>
+<td>通用电商生图</td>
+<td><code>/detail-set</code></td>
+<td>全品类组图：5 种图片类型分别选张数，分析→确认→生图</td>
 </tr>
 <tr>
 <td>AI 美工</td>
-<td>导航「AI美工」<code>/ai-designer</code></td>
-<td>局部重绘、局部消除、一键换色、智能扩图、提升质感、添加人/物、<strong>生成场景（多场景批量，最多6个）</strong>、风格复刻、文字修改（替换/语言转换/去除）、水印、官方示例</td>
+<td><code>/ai-designer</code>、<code>/ai-designer/:toolId</code></td>
+<td>局部重绘/消除/换色、智能扩图、提升质感、服装 3D/平铺/调整身材、生成场景、添加人/物、文字修改、风格变迁、水印、官方示例</td>
 </tr>
 <tr>
-<td>官方示例</td>
-<td>AI美工 → 官方示例</td>
-<td>7 种模式（添加/移除、局部重绘、风格迁移、多图合成、高保真、草图生动、角色一致），<code>POST /api/image-edit</code>；文字替换、语言转换、文字去除在「文字修改」下</td>
+<td>电商 AI 运营助手</td>
+<td><code>/ai-assistant</code></td>
+<td>亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究</td>
 </tr>
 <tr>
-<td>风格复刻</td>
-<td>AI美工 → 风格复刻</td>
-<td>参考图（最多 14 张）+ 产品图 → 两阶段（分析风格 → 生图），<code>POST /api/style-clone</code></td>
+<td>侵权风险检测</td>
+<td><code>/ip-risk</code></td>
+<td>免费快筛 + 深度查询（20 积分）</td>
 </tr>
 <tr>
-<td>亚马逊 A+</td>
-<td><strong>暂不实现</strong>（<code>/amazon-aplus</code> 路由与页面存在，导航已隐藏）</td>
-<td>4 步：填写信息 → 确认文案 → 生成 4 张图 → 查看结果</td>
+<td>订阅</td>
+<td><code>/pricing</code></td>
+<td>定价与套餐</td>
 </tr>
 <tr>
+<td>联系我们</td>
+<td><code>/contact</code></td>
+<td>微信联系方式</td>
+</tr>
+</tbody></table>
+<h3>4.2 侧栏 / 工作台</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>路由</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
 <td>仓库</td>
-<td>侧栏「仓库」<code>/dashboard/gallery</code></td>
-<td>生图成功即<strong>自动入仓</strong>；多选、批量保存/删除；每张图可「用AI编辑」跳转 AI 美工并自动带图</td>
+<td><code>/dashboard/gallery</code></td>
+<td>生图自动入仓，多选批量保存/删除，每张可「用AI编辑」跳转</td>
 </tr>
 <tr>
 <td>Listing 历史</td>
-<td>侧栏「Listing 历史」<code>/dashboard/listings</code></td>
-<td>已保存的 Listing 快照，支持查看/删除</td>
+<td><code>/dashboard/listings</code></td>
+<td>已保存 Listing，支持查看/删除/导出 CSV</td>
+</tr>
+</tbody></table>
+<h3>4.3 管理后台</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>路由</th>
+<th>权限</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>管理后台</td>
+<td><code>/admin</code></td>
+<td>仅 admin 角色</td>
+</tr>
+</tbody></table>
+<h3>4.4 功能明细</h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>子功能</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>通用电商生图</strong></td>
+<td>5 种图片类型</td>
+<td>白底主图、场景图、特写图、卖点图、交互图，各 0～4 张（卖点图最多 5 张）</td>
 </tr>
 <tr>
-<td>管理后台</td>
-<td><code>/admin</code>（仅 admin 角色）</td>
-<td>用户列表、充值积分、查流水、编辑备注、删除用户（含图片与所有数据），详见 <code>DEPLOY.md</code> 第五节</td>
+<td><strong>AI 美工</strong></td>
+<td>图片编辑</td>
+<td>局部重绘、局部消除、一键换色、服装 3D、服装平铺、调整身材、生成场景、添加人/物</td>
+</tr>
+<tr>
+<td></td>
+<td>质量提升</td>
+<td>智能扩图、提升质感</td>
+</tr>
+<tr>
+<td></td>
+<td>文字修改</td>
+<td>文字替换、语言转换、文字去除</td>
+</tr>
+<tr>
+<td></td>
+<td>风格变迁</td>
+<td>风格复刻、风格改变</td>
+</tr>
+<tr>
+<td></td>
+<td>水印</td>
+<td>添加水印（去除待开发）</td>
+</tr>
+<tr>
+<td></td>
+<td>官方示例</td>
+<td>7 种修改图片模式</td>
+</tr>
+<tr>
+<td><strong>亚马逊</strong></td>
+<td>生成 Listing</td>
+<td>Step 1 分析 → Step 2 文案 → Step 3 产品图</td>
+</tr>
+<tr>
+<td></td>
+<td>优化 Listing</td>
+<td>诊断 + 优化，A9/Cosmo/Rufus/GEO，合规自检 9 类</td>
+</tr>
+<tr>
+<td></td>
+<td>竞品对比</td>
+<td>1～5 个竞品，关键词/卖点/策略分析</td>
+</tr>
+<tr>
+<td></td>
+<td>关键词研究</td>
+<td>核心词、长尾词、后台关键词、标题排布</td>
+</tr>
+<tr>
+<td></td>
+<td>A/B 变体</td>
+<td>2～3 套不同策略文案</td>
+</tr>
+<tr>
+<td><strong>eBay / 速卖通</strong></td>
+<td>生成/优化</td>
+<td>平台专属算法与规则</td>
+</tr>
+<tr>
+<td><strong>侵权检测</strong></td>
+<td>快筛</td>
+<td>Gemini 视觉分析，免费</td>
+</tr>
+<tr>
+<td></td>
+<td>深度查询</td>
+<td>Google Lens、Patents、专利汇、商标、IP 角色，20 积分</td>
+</tr>
+</tbody></table>
+<p><strong>暂不开放</strong>：亚马逊 A+ 模块（Step 4 + 独立 A+ 页）、服装组图、万能画布。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
+<hr>
+<h2>五、数据库</h2>
+<p><strong>SQLite</strong>，文件 <code>server/pictoolai.db</code>。表结构由 <code>server/db.js</code> 启动时自动创建/迁移。</p>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>users</td>
+<td>用户账号（email、password_hash、role、admin_notes）</td>
+</tr>
+<tr>
+<td>gallery</td>
+<td>仓库图片元数据（id、user_email、file_path、points_used 等）</td>
+</tr>
+<tr>
+<td>user_points</td>
+<td>积分余额、到期时间</td>
+</tr>
+<tr>
+<td>points_transactions</td>
+<td>积分流水</td>
+</tr>
+<tr>
+<td>amazon_listing_snapshots</td>
+<td>亚马逊 Listing 快照</td>
+</tr>
+<tr>
+<td>ebay_listing_snapshots</td>
+<td>eBay Listing 快照</td>
+</tr>
+<tr>
+<td>aliexpress_listing_snapshots</td>
+<td>速卖通 Listing 快照</td>
+</tr>
+</tbody></table>
+<p>图片文件：未配 COS 时存 <code>server/gallery/</code>；配置 COS 后新图上传腾讯云，数据库存 <code>cos_key</code>。</p>
+<hr>
+<h2>六、环境变量</h2>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GEMINI_API_KEY</td>
+<td>✅</td>
+<td>Gemini API 密钥</td>
+</tr>
+<tr>
+<td>ADMIN_EMAIL</td>
+<td>✅</td>
+<td>管理员邮箱，启动时自动提升</td>
+</tr>
+<tr>
+<td>ADMIN_PASSWORD</td>
+<td>✅</td>
+<td>管理员密码</td>
+</tr>
+<tr>
+<td>JWT_SECRET</td>
+<td>建议</td>
+<td>生产环境设随机长字符串</td>
+</tr>
+<tr>
+<td>HTTPS_PROXY</td>
+<td>可选</td>
+<td>代理访问 Gemini（如 <code>http://127.0.0.1:7890</code>）</td>
+</tr>
+<tr>
+<td>SERPAPI_KEY</td>
+<td>深度查询</td>
+<td>侵权深度查询必需</td>
+</tr>
+<tr>
+<td>PATENTHUB_TOKEN</td>
+<td>可选</td>
+<td>专利汇中国+全球专利检索</td>
+</tr>
+<tr>
+<td>COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET / COS_REGION</td>
+<td>可选</td>
+<td>腾讯云 COS 仓库加速</td>
+</tr>
+<tr>
+<td>GEMINI_ANALYSIS_MODEL</td>
+<td>可选</td>
+<td>覆盖分析模型（默认 gemini-2.5-flash）</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>本地运行要点</h2>
+<h2>七、主要 API</h2>
+<table>
+<thead>
+<tr>
+<th>分类</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>认证</td>
+<td>POST /api/register, /api/login</td>
+<td>注册、登录</td>
+</tr>
+<tr>
+<td>组图</td>
+<td>POST /api/detail-set/analyze, /api/detail-set/generate</td>
+<td>分析、生图</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>POST /api/image-edit</td>
+<td>修改图片（mode: inpainting/add-remove/recolor 等）</td>
+</tr>
+<tr>
+<td>风格复刻</td>
+<td>POST /api/style-clone</td>
+<td>两阶段生图</td>
+</tr>
+<tr>
+<td>仓库</td>
+<td>GET/POST/DELETE /api/gallery/*</td>
+<td>列表、上传、删除、下载</td>
+</tr>
+<tr>
+<td>亚马逊</td>
+<td>POST /api/ai-assistant/amazon/*</td>
+<td>analyze、generate-listing、optimize-listing、competitor-compare、keyword-research、generate-variants</td>
+</tr>
+<tr>
+<td>eBay</td>
+<td>POST /api/ai-assistant/ebay/*</td>
+<td>analyze、generate-listing、optimize-listing</td>
+</tr>
+<tr>
+<td>速卖通</td>
+<td>POST /api/ai-assistant/aliexpress/*</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>侵权</td>
+<td>POST /api/ai-assistant/ip-risk-check</td>
+<td>快筛/深度查询</td>
+</tr>
+<tr>
+<td>智能粘贴</td>
+<td>POST /api/ai-assistant/smart-paste</td>
+<td>从粘贴文本提取 Listing 字段</td>
+</tr>
+<tr>
+<td>管理员</td>
+<td>GET/POST/DELETE/PATCH /api/admin/users/*</td>
+<td>用户列表、充值、删除、备注</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>八、本地运行</h2>
+<pre><code class="language-bash"># 终端一：前端
+npm install &amp;&amp; npm run dev
+
+# 终端二：后端
+cd server
+cp .env.example .env   # 配置 GEMINI_API_KEY 等
+npm install &amp;&amp; npm start
+</code></pre>
 <ul>
-<li>前端在<strong>项目根</strong>：<code>npm run dev</code>；后端在 <strong><code>server</code></strong>：<code>cd server &amp;&amp; npm start</code>。</li>
-<li>后端需 <code>.env</code> 中 <code>GEMINI_API_KEY</code>；需代理时设 <code>HTTPS_PROXY</code>；开放深度查询需 <code>SERPAPI_KEY</code>。</li>
-<li>数据库：首次使用自动创建 <code>server/pictoolai.db</code>；备份只需复制 <code>server/pictoolai.db</code> 与 <code>server/gallery/</code> 即可。</li>
-<li>管理员账号：在 <code>server/.env</code> 中配置 <code>ADMIN_EMAIL</code> + <code>ADMIN_PASSWORD</code>，启动时自动创建/提升为 admin。</li>
+<li>前端：<a href="http://localhost:5173">http://localhost:5173</a></li>
+<li>后端：<a href="http://localhost:3001">http://localhost:3001</a></li>
 </ul>
-<p>更多：部署与每次更新上线见 <a href="./DEPLOY.md">DEPLOY.md</a>；已知问题见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
+<p><strong>首次使用</strong>：数据库自动创建；新用户注册送 150 积分（30 天）；配置 <code>ADMIN_EMAIL</code> 后该账号自动为管理员。</p>
+<hr>
+<h2>九、部署与运维</h2>
+<ul>
+<li><strong>首次部署</strong>：见 <a href="./DEPLOY.md">DEPLOY.md</a> 第一节（VPS 环境、克隆、配置、Nginx、PM2）</li>
+<li><strong>每次更新</strong>：见 <a href="./DEPLOY.md">DEPLOY.md</a> 第二节（git pull、build、restart）</li>
+<li><strong>当前线上</strong>：美国硅谷，域名 pictoolai.studio，HTTPS 已启用</li>
+</ul>
+<hr>
+<h2>十、相关文档</h2>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>文档</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>全品类组图设计</td>
+<td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
+</tr>
+<tr>
+<td>电商 AI 助手</td>
+<td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a></td>
+</tr>
+<tr>
+<td>AI 美工</td>
+<td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
+</tr>
+<tr>
+<td>侵权风险检测</td>
+<td><a href="./IP-RISK.md">IP-RISK.md</a></td>
+</tr>
+<tr>
+<td>运维部署</td>
+<td><a href="./DEPLOY.md">DEPLOY.md</a></td>
+</tr>
+<tr>
+<td>已知问题</td>
+<td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
+</tr>
+<tr>
+<td>积分与成本</td>
+<td><a href="./PRICING-COST.md">PRICING-COST.md</a></td>
+</tr>
+<tr>
+<td>对外宣传</td>
+<td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
+</tr>
+</tbody></table>
 
 </body>
 </html>

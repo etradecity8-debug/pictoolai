@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">IP-RISK.md → 打印版 · 2026/3/20</div>
+  <div class="meta">IP-RISK.md → 打印版 · 2026/3/21</div>
   <h1>侵权风险检测完整说明</h1>
 <blockquote>
 <p>路由：<code>/ip-risk</code>（主导航独立模块）<br>文件：<code>src/pages/IpRisk.jsx</code>，后端接口：<code>POST /api/ai-assistant/ip-risk-check</code></p>
@@ -136,7 +136,7 @@
 <tr>
 <td>3</td>
 <td><strong>专利汇</strong>（专利检索）</td>
-<td>AI 提取关键词</td>
+<td>AI 提取中/英文关键词（中文优先查中国专利）</td>
 <td>专利侵权风险（中国+全球专利库）</td>
 <td>已配置 PATENTHUB_TOKEN 时</td>
 </tr>
@@ -217,7 +217,170 @@
 <li><strong>检索结果明细（按来源）</strong>（<code>retrievalDetails</code>）：各查询实际返回结果，便于区分 Google Patents 与专利汇等不同来源</li>
 </ul>
 <hr>
-<h2>四、SerpApi 与 Google 的关系</h2>
+<h2>四、实现原理与完整流程</h2>
+<h3>4.1 入口与流程分支</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>入口</td>
+<td>路由 <code>/ip-risk</code>，页面 <code>src/pages/IpRisk.jsx</code></td>
+</tr>
+<tr>
+<td>接口</td>
+<td><code>POST /api/ai-assistant/ip-risk-check</code>（需登录）</td>
+</tr>
+<tr>
+<td>模式</td>
+<td><strong>快速筛查</strong>（免费）/ <strong>深度查询</strong>（20 积分/次）</td>
+</tr>
+</tbody></table>
+<p>用户上传产品图，可选填产品名称、品类、目标市场等，选择模式后发起请求。</p>
+<h3>4.2 快速筛查（Quick）</h3>
+<p><strong>纯 Gemini，不联网检索。</strong></p>
+<ol>
+<li><strong>输入</strong>：多张产品图 + 可选文字说明（产品名称、品类等）</li>
+<li><strong>调用</strong>：一次 Gemini API，图片 + 文本 prompt</li>
+<li><strong>输出</strong>：解析 JSON，得到各 section（商标、外观、IP、平台、综合等级等）</li>
+<li><strong>局限</strong>：仅 AI 视觉推断，不做专利/商标/图库检索</li>
+</ol>
+<h3>4.3 深度查询（Deep）— 六阶段流程</h3>
+<h4>阶段 1：Gemini 初析（第 1 次 AI 调用）</h4>
+<p><strong>目的</strong>：从图+文提取检索词，供后续外部检索用。</p>
+<ul>
+<li><strong>输入</strong>：产品图 + 用户填写信息</li>
+<li><strong>输出</strong>：JSON 含 <code>quickReport</code>、<code>patentSearchTerms</code>（英文）、<code>patentSearchTermsZH</code>（中文可选）、<code>trademarkSearchTerms</code>、<code>ipCharacterNames</code></li>
+<li><strong>兜底</strong>：若专利词过于泛化，再调一次 AI 纯看图识别品类词</li>
+</ul>
+<h4>阶段 2：临时图落地</h4>
+<ul>
+<li>首张图写入临时目录，生成可访问 URL</li>
+<li>SerpApi 的 Google Lens 需要图片 URL</li>
+</ul>
+<h4>阶段 3：并行外部检索</h4>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>服务</th>
+<th>输入</th>
+<th>触发条件</th>
+<th>接口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Google Lens</td>
+<td>首张图 URL</td>
+<td>每次必做</td>
+<td>SerpApi <code>engine=google_lens</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Google Patents</td>
+<td>英文 patentSearchTerms（前 4 个）</td>
+<td>每次必做</td>
+<td>SerpApi <code>engine=google_patents</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>专利汇</td>
+<td>中文优先、无则英文</td>
+<td>配置了 PATENTHUB_TOKEN</td>
+<td>专利汇 <code>/api/s</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>商标检索</td>
+<td><code>USPTO trademark + 品牌词</code></td>
+<td>trademarkSearchTerms 非空</td>
+<td>SerpApi <code>engine=google</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>IP 角色版权检索</td>
+<td><code>角色名 + copyright owner...</code></td>
+<td>ipCharacterNames 非空</td>
+<td>SerpApi <code>engine=google</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>SerpApi 将 Google Lens、Patents、搜索等封装成 API，一次深度查询会调用 2～5 次 SerpApi。</p>
+</blockquote>
+<h4>阶段 4：结果汇总</h4>
+<p>把各检索原始结果整理成文本摘要，供阶段 5 使用：</p>
+<ul>
+<li>Lens：视觉相似结果 + 图片来源（版权溯源）</li>
+<li>专利：Google Patents + 专利汇</li>
+<li>商标、IP 版权：各自网页摘要</li>
+</ul>
+<h4>阶段 5：Gemini 综合报告（第 2 次 AI 调用）</h4>
+<ul>
+<li><strong>输入</strong>：阶段 1 的 quickReport + 各检索结果汇总</li>
+<li><strong>输出</strong>：结构化 JSON（trademarkRisk、patentRisk、designRisk、ipImageRisk、copyrightSourceRisk、platformRisk、overallLevel、suggestions、disclaimer）</li>
+</ul>
+<h4>阶段 6：扣费与返回</h4>
+<ul>
+<li>扣 20 积分</li>
+<li>返回 sections、retrievalDetails、searchSummary</li>
+</ul>
+<h3>4.4 数据流示意</h3>
+<pre><code>用户上传图 + 可选说明
+        │
+        ▼
+┌───────────────────────────────────────┐
+│  Gemini 初析（1）                      │
+│  → patentSearchTerms（英）             │
+│  → patentSearchTermsZH（中，可选）     │
+│  → trademarkSearchTerms               │
+│  → ipCharacterNames                   │
+└───────────────────────────────────────┘
+        │
+        ├──────────────────┬──────────────────┬──────────────────┐
+        ▼                  ▼                  ▼                  ▼
+  Google Lens         Google Patents      专利汇           商标/IP 检索
+  （图搜图）          （英文词）        （中文优先）       （按需）
+        │                  │                  │                  │
+        └──────────────────┴──────────────────┴──────────────────┘
+                                        │
+                                        ▼
+                    ┌───────────────────────────────────────┐
+                    │  Gemini 综合报告（2）                  │
+                    │  综合全部检索结果 → 结构化风险报告     │
+                    └───────────────────────────────────────┘
+</code></pre>
+<h3>4.5 外部依赖一览</h3>
+<table>
+<thead>
+<tr>
+<th>依赖</th>
+<th>用途</th>
+<th>配置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Gemini API</td>
+<td>图像理解 + 文本生成</td>
+<td><code>GEMINI_API_KEY</code></td>
+</tr>
+<tr>
+<td>SerpApi</td>
+<td>Google Lens、Patents、搜索</td>
+<td><code>SERPAPI_KEY</code>（深度查询必备）</td>
+</tr>
+<tr>
+<td>专利汇</td>
+<td>中国+全球专利</td>
+<td><code>PATENTHUB_TOKEN</code>（可选）</td>
+</tr>
+</tbody></table>
+<p>未配置 <code>SERPAPI_KEY</code> 时，深度查询按钮会提示「深度查询暂未开放」。</p>
+<hr>
+<h2>五、SerpApi 与 Google 的关系</h2>
 <p>SerpApi 是一个<strong>第三方付费服务</strong>，合法地把 Google Lens / Google Patents / Google 搜索的结果以 API 形式提供给开发者。</p>
 <blockquote>
 <p><strong>比喻</strong>：Google 是图书馆，SerpApi 是帮你去图书馆查资料、整理好抄回来的「跑腿服务」。</p>
@@ -248,7 +411,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>五、费用构成</h2>
+<h2>六、费用构成</h2>
 <h3>运营成本</h3>
 <table>
 <thead>
@@ -286,12 +449,12 @@
 <li><strong>深度查询</strong>：20 积分/次（¥200 套餐下 = ¥4.00/次）</li>
 </ul>
 <hr>
-<h2>六、功能配置（服务器端）</h2>
+<h2>七、功能配置（服务器端）</h2>
 <p>深度查询依赖 <code>SERPAPI_KEY</code> 环境变量。未配置时，深度查询按钮报错「深度查询暂未开放」。</p>
 <p><strong>可选</strong>：配置 <code>PATENTHUB_TOKEN</code> 后，专利检索将同时调用专利汇（中国+全球专利库），与 Google Patents（美国为主）互补。<strong>当前使用专利汇免费版</strong>。不配置则仅用 Google Patents。</p>
 <p>配置方式见 <a href="./DEPLOY.md">DEPLOY.md</a> — 第三节。</p>
 <hr>
-<h2>七、待开放的检测维度</h2>
+<h2>八、待开放的检测维度</h2>
 <p>以下功能技术上可实现，暂未集成，后续可按需开放：</p>
 <table>
 <thead>
@@ -334,12 +497,12 @@
 <li><strong>按需开放</strong>：TinEye 专业图片溯源（¥2,200/年）、WIPO 全球数据库、美国版权局查询。</li>
 </ol>
 <hr>
-<h2>八、向客户解释时可以说</h2>
+<h2>九、向客户解释时可以说</h2>
 <blockquote>
 <p>「深度查询会做 4～5 项检索：① 以图搜图（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② 专利检索（Google Patents + 专利汇）——Google Patents 查美国专利库，专利汇查中国及全球专利库（已配置时），辅助判断是否有类似专利；③ 商标检索——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告，含<strong>专利综合风险</strong>（美国专利、中国/全球专利关键发现与需关注专利清单）。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
 </blockquote>
 <hr>
-<h2>九、漏检分析与已实施改进</h2>
+<h2>十、漏检分析与已实施改进</h2>
 <p>针对「三齿烤串架（带滑轨推料）」等已确认侵权产品未被系统识别的案例，根因主要为<strong>专利检索关键词过于泛化</strong>（如 AI 返回 <code>product design</code>、<code>consumer product</code> 等泛词，检索不到具体产品类别的专利）。已实施以下改进：</p>
 <table>
 <thead>
@@ -350,7 +513,15 @@
 </thead>
 <tbody><tr>
 <td>强化 prompt</td>
-<td>明确禁止泛化词，要求输出具体品类词+结构特征词（如 barbecue skewer、three prong、sliding pusher）</td>
+<td>明确禁止泛化词，要求输出具体品类词+结构特征词+同义扩展，4-5 个词覆盖品类/结构/材质等维度</td>
+</tr>
+<tr>
+<td>双语检索词</td>
+<td><strong>patentSearchTerms</strong>（英文）用于 Google Patents；<strong>patentSearchTermsZH</strong>（中文，可选）用于专利汇中国专利库，提高中国专利命中率</td>
+</tr>
+<tr>
+<td>语言说明</td>
+<td>无论用户填中文还是英文，AI 均输出英文检索词；专利汇支持中英文，有中文词时优先用中文查中国专利</td>
 </tr>
 <tr>
 <td>泛词时 AI 二次识别</td>
@@ -358,7 +529,7 @@
 </tr>
 <tr>
 <td>检索词数量</td>
-<td>Google Patents 与专利汇均使用前 3 个词（<code>slice(0, 3)</code>）</td>
+<td>Google Patents 与专利汇均使用前 4 个词，提高检索全面性</td>
 </tr>
 <tr>
 <td>前端引导</td>
@@ -371,8 +542,28 @@
 </tbody></table>
 <p><strong>使用建议</strong>：尽量填写「产品名称」和「品类」（如「三齿烤串架」「烧烤用具」），有助于提高专利检索命中率。</p>
 <p><strong>后续可考虑</strong>：多组专利查询、CPC 分类号补充、Lens 强相似时增加醒目提示。</p>
+<h3>检索词语言与数据源</h3>
+<table>
+<thead>
+<tr>
+<th>数据源</th>
+<th>使用语言</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Google Patents（美国专利）</td>
+<td>英文</td>
+<td>AI 始终输出英文 patentSearchTerms，用户填中文或英文均可</td>
+</tr>
+<tr>
+<td>专利汇（中国+全球）</td>
+<td>中文优先、英文兜底</td>
+<td>有 patentSearchTermsZH 时用中文查中国专利；否则用英文。专利汇 API 支持中英文查询</td>
+</tr>
+</tbody></table>
 <hr>
-<h2>十、外部数据源集成可行性（供决策参考）</h2>
+<h2>十一、外部数据源集成可行性（供决策参考）</h2>
 <p>客户常咨询：能否将美国版权局与专利汇的查询能力集成到 PicToolAI？</p>
 <h3>专利汇（patenthub.cn）— 已集成 ✅</h3>
 <ul>
@@ -407,7 +598,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>十一、重要免责说明</h2>
+<h2>十二、重要免责说明</h2>
 <ul>
 <li>本工具的检测结果<strong>仅供参考</strong>，不构成法律意见。</li>
 <li>侵权判定是复杂的法律问题，涉及地域、使用方式、相似程度等多重因素。</li>

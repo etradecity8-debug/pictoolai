@@ -40,22 +40,48 @@
 </style>
 </head>
 <body>
-  <div class="meta">ECOMMERCE-AI-ASSISTANT.md → 打印版 · 2026/3/20</div>
+  <div class="meta">ECOMMERCE-AI-ASSISTANT.md → 打印版 · 2026/3/21</div>
   <h1>电商 AI 运营助手完整说明</h1>
 <p>本文档涵盖「电商 AI 运营助手」全平台内容：<strong>亚马逊</strong>（Listing 生成/优化/竞品/关键词）、<strong>eBay</strong>（生成/优化）、<strong>速卖通</strong>（生成/优化）。<strong>侵权风险检测</strong>已拆分为独立主导航模块，详见 <a href="./IP-RISK.md">IP-RISK.md</a>。</p>
 <blockquote>
 <p><strong>说明</strong>：<strong>A+ 模块（生成 Listing Step 4 + 独立 A+ 详情页）暂不实现</strong>，界面与导航均已隐藏，详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
 </blockquote>
 <hr>
-<h1>第一部分：Listing 生成产品设计</h1>
+<h2>目录</h2>
+<table>
+<thead>
+<tr>
+<th>大分类</th>
+<th>小分类</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="#%E4%B8%80%E4%BA%9A%E9%A9%AC%E9%80%8A">一、亚马逊</a></td>
+<td>1.1 生成 Listing · 1.2 生图提示词 · 1.3 A+ 模块定义 · 1.4 优化 Listing · 1.5 竞品对比 · 1.6 关键词研究</td>
+</tr>
+<tr>
+<td><a href="#%E4%BA%8Cebay">二、eBay</a></td>
+<td>2.1 平台规格 · 2.2 流程 · 2.3 优化 Listing · 2.4 数据存储与接口</td>
+</tr>
+<tr>
+<td><a href="#%E4%B8%89%E9%80%9F%E5%8D%96%E9%80%9Aaliexpress">三、速卖通</a></td>
+<td>3.1 平台规格 · 3.2 速卖通规则 · 3.3 流程 · 3.4 数据存储与接口</td>
+</tr>
+<tr>
+<td><a href="#%E9%99%84%E5%BD%95%E4%BE%B5%E6%9D%83%E9%A3%8E%E9%99%A9%E6%A3%80%E6%B5%8B">附录</a></td>
+<td>侵权风险检测</td>
+</tr>
+</tbody></table>
+<hr>
+<h1>一、亚马逊</h1>
+<h2>1.1 生成 Listing（产品设计）</h2>
 <p><strong>版本</strong>：v0.2 已确认<br><strong>日期</strong>：2026-03-08<br><strong>状态</strong>：已确认，开发中</p>
 <p><strong>合规承诺</strong>：本模块的生成/优化功能严格遵守亚马逊平台规则，并智能符合 A9（传统搜索）、Cosmo（语义搜索）、Rufus（AI 购物助手）、GEO（AI 搜索引擎优化）等原则。</p>
-<hr>
-<h2>一、功能概述</h2>
+<h3>1.1.1 功能概述</h3>
 <p>在「电商AI运营助手 → 亚马逊」模块中新增「生成 Listing」功能。<br>用户填写产品信息后，AI 分多步自动生成符合亚马逊规则的完整 Listing，包括标题、后台关键词、五点描述、产品描述，并可进一步生成 A+ 页面文案和产品图。</p>
 <hr>
-<h2>二、输入设计</h2>
-<h3>必填项（缺少任一项不允许提交）</h3>
+<h3>1.1.2 输入设计</h3>
+<h4>必填项（缺少任一项不允许提交）</h4>
 <table>
 <thead>
 <tr>
@@ -90,7 +116,7 @@
 <td>美国、英国、德国、法国、日本、加拿大、澳大利亚、墨西哥等</td>
 </tr>
 </tbody></table>
-<h3>可选项（填写后 AI 输出质量更高）</h3>
+<h4>可选项（填写后 AI 输出质量更高）</h4>
 <table>
 <thead>
 <tr>
@@ -112,9 +138,9 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>三、产品类别设计（二级联动下拉）</h2>
+<h3>1.1.3 产品类别设计（二级联动下拉）</h3>
 <p><strong>设计决策</strong>：不抓取亚马逊完整类目树。原因：类目层级过深（叶子节点达数千个）、维护成本高，且对 Listing 文案生成而言，一二级大类已足够指导 AI 的写作风格和关键词策略。</p>
-<h3>一级 → 二级示例</h3>
+<h4>一级 → 二级示例</h4>
 <table>
 <thead>
 <tr>
@@ -180,8 +206,8 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>四、输出设计</h2>
-<h3>4.1 输出内容与字符限制</h3>
+<h3>1.1.4 输出设计</h3>
+<h4>输出内容与字符限制</h4>
 <table>
 <thead>
 <tr>
@@ -228,7 +254,7 @@
 <td>第 1 张为主图（白底），第 2～9 张为附加图</td>
 </tr>
 </tbody></table>
-<h3>4.2 四大优化维度</h3>
+<h4>四大优化维度</h4>
 <table>
 <thead>
 <tr>
@@ -259,7 +285,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>五、AI 调用流程（多步生成）</h2>
+<h3>1.1.5 AI 调用流程（多步生成）</h3>
 <table>
 <thead>
 <tr>
@@ -298,41 +324,41 @@
 <p>注：Step 3 产品图与 Step 4 A+ 可并行；A+ 恢复方式见 <code>KNOWN_ISSUES.md</code>。</p>
 </blockquote>
 <hr>
-<h2>六、亚马逊规则与合规约束</h2>
-<h3>6.1 标题（Title）</h3>
+<h3>1.1.6 亚马逊规则与合规约束</h3>
+<h4>标题（Title）</h4>
 <ul>
 <li><strong>长度</strong>：多数类目 ≤200 字符；部分类目更短（如 80/50）。</li>
 <li><strong>禁止</strong>：全大写、堆砌无关关键词、竞品/他人品牌名；<strong>同一单词不得重复超过 2 次</strong>；<strong>禁止使用</strong> <code>! $ ? _ { } ^ ¬ ¦</code> 等符号。</li>
 <li><strong>建议结构</strong>：<code>品牌 + 核心产品词 + 关键属性（材质/尺寸/数量等）+ 主要卖点</code>；<strong>前 80 字符含核心搜索词</strong>。</li>
 </ul>
-<h3>6.2 五点描述（Bullet Points）</h3>
+<h4>五点描述（Bullet Points）</h4>
 <ul>
 <li><strong>长度</strong>：每条 ≤500 字符，共 5 条，须全部使用且内容不重复。</li>
 <li><strong>禁止</strong>：价格、促销、站外链接；夸大/绝对化/医疗未证宣称；<strong>特殊符号</strong>（™ ® €）与 <strong>emoji</strong>；<strong>跨条重复</strong>；ASIN、「N/A」「TBD」；公司信息、联系方式、网址；退款/质保承诺用语；类目禁用营销用语。</li>
 <li><strong>建议</strong>：每条对应一个卖点或一个买家常见问题；信息具体、可验证。</li>
 </ul>
-<h3>6.3 产品描述（Product Description）</h3>
+<h4>产品描述（Product Description）</h4>
 <ul>
 <li><strong>长度</strong>：通常 ≤2000 字符。</li>
 <li><strong>禁止</strong>：与五点逐句重复堆砌、站外链接、联系方式、违禁词；<strong>不得出现竞品对比、「best seller」「top-rated」等宣称</strong>。</li>
 </ul>
-<h3>6.4 后台关键词（Search Terms）</h3>
+<h4>后台关键词（Search Terms）</h4>
 <ul>
 <li>总长 ≤250 bytes（多字节语言占更多 bytes）。</li>
 <li>禁止：重复标题/五点中已有的词、竞品品牌、无关词堆砌。</li>
 </ul>
-<h3>6.5 图片（主图要求）</h3>
+<h4>图片（主图要求）</h4>
 <ul>
 <li><strong>主图</strong>：纯白底 <strong>RGB(255,255,255)</strong>；产品占画面 <strong>≥85%</strong>、完整可见、居中；<strong>无文字/logo/水印/边框/多角度拼图</strong>；<strong>长边 ≥1000px</strong>；比例建议 1:1。</li>
 <li><strong>注意</strong>：亚马逊政策要求主图为「实际拍摄」照片；AI 生成图在严格解读下可能不符合主图要求，建议用户将本工具生成图用作参考或附加图。</li>
 </ul>
-<h3>6.6 A+ 内容（Enhanced Brand Content）</h3>
+<h4>A+ 内容（Enhanced Brand Content）</h4>
 <ul>
 <li><strong>禁止</strong>：提及竞品名称；使用「best seller」「top-rated」「Amazon&#39;s Choice」；保证/质保类表述；外部链接、社媒、二维码；联系方式或配送细节；医疗或未经支持的宣称；特殊符号（™ ® €）或 emoji。</li>
 </ul>
 <hr>
-<h2>七、实现细节（开发记录）</h2>
-<h3>前端</h3>
+<h3>1.1.7 实现细节（开发记录）</h3>
+<h4>前端</h4>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/AiAssistant.jsx</code>。</li>
 <li><strong>流程</strong>：提交 → Step 1 分析 → Step 2 标题·关键词·五点·描述 → 展示结果；结果页内可继续 Step 3 产品图、Step 4 A+ 文案与图片。</li>
@@ -340,7 +366,7 @@
 <li><strong>导出 CSV / JSON</strong>：实现见 <code>src/lib/exportListingCsv.js</code>（统一导出，支持亚马逊/eBay/速卖通）。</li>
 <li><strong>输出纯文本</strong>：后端 <code>stripMarkdown</code> 函数自动清除 AI 返回的 <code>**粗体**</code>、<code>_斜体_</code> 等 Markdown 格式，确保五点描述和产品描述可直接粘贴到平台后台。</li>
 </ul>
-<h3>后端接口</h3>
+<h4>后端接口</h4>
 <ul>
 <li><strong>Step 1</strong>：<code>POST /api/ai-assistant/amazon/analyze</code> — 分析，不扣积分。</li>
 <li><strong>Step 2</strong>：<code>POST /api/ai-assistant/amazon/generate-listing</code> — 文案，不扣积分。</li>
@@ -348,8 +374,8 @@
 <li><strong>Step 4 A+</strong>：复用 <code>POST /api/amazon-aplus/analyze</code>（文案）、<code>POST /api/amazon-aplus/generate</code>（4 张 A+ 图，扣积分）。</li>
 </ul>
 <hr>
-<h1>第二部分：生图提示词与准则</h1>
-<h2>一、通用规则（所有生图均遵守）</h2>
+<h2>1.2 生图提示词与准则</h2>
+<h3>1.2.1 通用规则（所有生图均遵守）</h3>
 <ul>
 <li><strong>禁止图中出现任何文字</strong>：不渲染英文、中文、日文、韩文、数字、标签、品牌名、产品名。</li>
 <li><strong>纯商业摄影</strong>：无文字、无水印、无 logo。</li>
@@ -358,7 +384,7 @@
 <pre><code>CRITICAL: This must be a pure product PHOTO with absolutely NO text, NO words, NO letters, NO numbers, NO logos, NO watermarks. Product name and brand below are CONTEXT ONLY — do NOT render them in the image. Pure clean commercial photography, zero text.
 </code></pre>
 <hr>
-<h2>二、Step 3 产品图（白底主图 / 场景图 / 特写图 / 卖点图）</h2>
+<h3>1.2.2 Step 3 产品图（白底主图 / 场景图 / 特写图 / 卖点图）</h3>
 <ul>
 <li><strong>白底主图</strong>：<code>noTextRule</code> + <code>--- Amazon main image: Pure white background only (RGB 255,255,255). Product: {productName}. Brand context: {brand}. Product must fill approximately 85% of the frame, centered.</code></li>
 <li><strong>场景图</strong>：<code>noTextRule</code> + <code>--- Amazon scene/lifestyle image: Same product in a realistic use case or lifestyle setting.</code></li>
@@ -366,7 +392,7 @@
 <li><strong>卖点图</strong>：每张对应一条用户填写的卖点，视觉化展示；可选是否在图上显示文字。</li>
 </ul>
 <hr>
-<h2>三、Step 4 A+ 图片（4 张）</h2>
+<h3>1.2.3 Step 4 A+ 图片（4 张）</h3>
 <ul>
 <li><strong>用途</strong>：Hero 横幅（16:9）+ 3 张特点图（1:1）。</li>
 <li><strong>Hero</strong>：<code>--- Amazon A+ hero banner. Product context: {product} by {brand}. Visual style: {styleDesc}.</code></li>
@@ -375,7 +401,7 @@
 <li><strong>生成顺序</strong>：后端按顺序生成 4 张，避免并发限速。</li>
 </ul>
 <hr>
-<h2>四、与亚马逊官方要求对照</h2>
+<h3>1.2.4 与亚马逊官方要求对照</h3>
 <table>
 <thead>
 <tr>
@@ -409,7 +435,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h1>第三部分：A+ 模块定义</h1>
+<h2>1.3 A+ 模块定义</h2>
 <p>亚马逊标准 A+ 有 <strong>17 种模块</strong>，每个 listing 最多约 5 个模块。本系统<strong>全部支持 17 种</strong>。</p>
 <h2>17 种模块 ID 与规格</h2>
 <table>
@@ -569,11 +595,11 @@
 </tbody></table>
 <p><strong>自定义</strong>：从 17 种中勾选，最多 5 个，按选择顺序生成。</p>
 <hr>
-<h1>第四部分：优化 Listing</h1>
-<h2>功能概述</h2>
+<h2>1.4 优化 Listing</h2>
+<h3>功能概述</h3>
 <p>在「电商AI运营助手 → 亚马逊」模块中，「优化 Listing」功能允许卖家粘贴已有的 Listing 文案，AI 自动诊断问题并生成优化版本。<strong>不扣积分</strong>。</p>
 <p>支持<strong>智能粘贴</strong>：用户可在 Listing 页面全选复制后一次性粘贴，AI 自动识别并拆分到标题、五点、描述等字段。</p>
-<h2>输入</h2>
+<h3>输入</h3>
 <table>
 <thead>
 <tr>
@@ -613,26 +639,26 @@
 <td>中/英/德/法/日/西（支持跨语言转换）</td>
 </tr>
 </tbody></table>
-<h2>输出</h2>
-<h3>诊断报告（双语）</h3>
+<h3>输出</h3>
+<h4>诊断报告（双语）</h4>
 <ul>
 <li><strong>综合评分</strong>（1–10）及一句话总结</li>
 <li><strong>各项评分</strong>：标题、五点、描述、后台关键词各 1–10 分，附具体问题列表</li>
 <li><strong>合规自检</strong>：9 大类检测（标题格式、五点格式、描述规则、促销用语、IP/品牌、医疗声明、农药/杀菌、环保声明、其他），每项带三级严重度（error/warning/info）、位置、问题文本和修改建议</li>
 <li><strong>双语切换</strong>：诊断报告支持「原文语言 / 中文」切换显示</li>
 </ul>
-<h3>优化后版本</h3>
+<h4>优化后版本</h4>
 <ul>
 <li>优化后的标题（≤200 字符）、五点（各 ≤500 字符）、描述（≤2000 字符）、后台关键词（≤250 字节）</li>
 <li>每个字段均可单独复制，也可一键复制全部</li>
 </ul>
-<h3>A/B 文案变体</h3>
+<h4>A/B 文案变体</h4>
 <ul>
 <li>优化完成后可点击「生成 A/B 变体」，生成 2-3 套不同策略角度的文案版本（功能参数型、场景情感型等）</li>
 <li>Tab 切换对比各版本，每版含标题、五点、描述、后台关键词、策略说明</li>
 <li>不扣积分</li>
 </ul>
-<h2>评估标准</h2>
+<h3>评估标准</h3>
 <p>优化基于以下维度：</p>
 <ul>
 <li><strong>A9</strong>（传统搜索）：标题前 50–80 字符含核心词、关键词分布、Search Terms 不重复</li>
@@ -641,7 +667,7 @@
 <li><strong>GEO</strong>（结构化内容）：精确数据（尺寸、重量、材质）、市场对应单位</li>
 <li><strong>合规</strong>：九大类违禁检测与替代建议</li>
 </ul>
-<h2>接口</h2>
+<h3>接口</h3>
 <table>
 <thead>
 <tr>
@@ -663,24 +689,24 @@
 </tr>
 </tbody></table>
 <hr>
-<h1>第五部分：竞品对比</h1>
-<h2>功能概述</h2>
+<h2>1.5 竞品对比</h2>
+<h3>功能概述</h3>
 <p>粘贴自己的 Listing 和 1-5 个竞品 Listing（Tab 切换输入，可增删），AI 对比关键词覆盖、卖点差异、标题/五点策略，输出行动计划。<strong>不扣积分</strong>。</p>
 <p>支持<strong>智能粘贴</strong>：「我的 Listing」和每个竞品块均可使用智能粘贴，一次性粘贴整页内容自动拆分。</p>
-<h2>输出</h2>
+<h3>输出</h3>
 <ul>
 <li><strong>关键词差异</strong>：我的优势词 / 待补充词 / 共有词</li>
 <li><strong>卖点矩阵</strong>：表格对比各方卖点覆盖情况</li>
 <li><strong>策略分析</strong>：标题和五点的优势/不足/建议</li>
 <li><strong>行动计划</strong>：5-8 条优先级排序的具体改进建议</li>
 </ul>
-<h2>接口</h2>
+<h3>接口</h3>
 <p><code>POST /api/ai-assistant/amazon/competitor-compare</code>（需登录，不扣积分）</p>
 <hr>
-<h1>第六部分：关键词研究</h1>
-<h2>功能概述</h2>
+<h2>1.6 关键词研究</h2>
+<h3>功能概述</h3>
 <p>输入产品名称，AI 生成系统化关键词策略。<strong>不扣积分</strong>。</p>
-<h2>输出</h2>
+<h3>输出</h3>
 <ul>
 <li><strong>核心搜索词</strong>（1-3 个）：最高搜索量的通用词</li>
 <li><strong>长尾关键词</strong>（15-20 个）：按 5 类分组（功能/场景/受众/问题/对比），点击可复制</li>
@@ -689,12 +715,12 @@
 <li><strong>趋势分析</strong>：季节性/时间性提示</li>
 <li><strong>差异分析</strong>（可选）：若填写已有关键词，AI 对比分析缺失/冗余/覆盖良好</li>
 </ul>
-<h2>接口</h2>
+<h3>接口</h3>
 <p><code>POST /api/ai-assistant/amazon/keyword-research</code>（需登录，不扣积分）</p>
 <hr>
-<h1>第七部分：eBay 模块</h1>
+<h1>二、eBay</h1>
 <p>路由 <code>/ai-assistant?platform=ebay</code>。流程：分析 → 生成 Listing → 生成产品图，输出规则针对 eBay 定制。</p>
-<h2>平台规格对比（亚马逊 vs eBay）</h2>
+<h2>2.1 平台规格对比（亚马逊 vs eBay）</h2>
 <table>
 <thead>
 <tr>
@@ -734,7 +760,7 @@
 <td><strong>Cassini</strong></td>
 </tr>
 </tbody></table>
-<h2>流程</h2>
+<h2>2.2 流程</h2>
 <p><strong>Step 1 — 分析产品</strong>：上传产品图 + 填写类目、品牌、卖点、市场、语言 → <code>POST /api/ai-assistant/ebay/analyze</code> → 返回 <code>productName</code>、<code>productSummary</code>、<code>keyAttributes</code>（含深度产品智能：关键词提取、买家问题、买家画像）。</p>
 <p><strong>Step 2 — 生成标题 · Item Specifics · 描述</strong>：<code>POST /api/ai-assistant/ebay/generate-listing</code>。AI 生成：</p>
 <ul>
@@ -744,9 +770,9 @@
 <li>不扣积分</li>
 </ul>
 <p><strong>Step 3 — 生成产品图</strong>：<code>POST /api/ai-assistant/ebay/generate-product-images</code>。5 种类型：白底主图、场景图、特写图、卖点图、交互图（真人使用/手持）。每种 0～4 张，扣积分，自动入仓库。</p>
-<h2>优化 Listing</h2>
+<h2>2.3 优化 Listing</h2>
 <p>粘贴现有 Listing（支持<strong>智能粘贴</strong>），<code>POST /api/ai-assistant/ebay/optimize-listing</code>，Cassini 搜索算法诊断，合规自检（三级），双语诊断报告（原文/中文切换），优化后版本。不扣积分。</p>
-<h2>数据存储与接口</h2>
+<h2>2.4 数据存储与接口</h2>
 <p>表 <code>ebay_listing_snapshots</code>，字段：<code>title</code>、<code>item_specifics</code>（JSON）、<code>description</code>、<code>analyze_result</code>、<code>main_image_id</code>、<code>product_image_ids</code>。</p>
 <table>
 <thead>
@@ -799,9 +825,9 @@
 </tbody></table>
 <p>Listing 历史：<code>/dashboard/listings?platform=ebay</code>，支持导出 CSV / JSON。</p>
 <hr>
-<h1>第八部分：速卖通（AliExpress）模块</h1>
+<h1>三、速卖通（AliExpress）</h1>
 <p>路由 <code>/ai-assistant?platform=aliexpress</code>。流程与 eBay 一致，输出针对速卖通定制。</p>
-<h2>平台规格对比（三平台）</h2>
+<h2>3.1 平台规格对比（三平台）</h2>
 <table>
 <thead>
 <tr>
@@ -848,15 +874,15 @@
 <td>速卖通搜索</td>
 </tr>
 </tbody></table>
-<h2>速卖通特有规则</h2>
+<h2>3.2 速卖通特有规则</h2>
 <p><strong>标题（≤128 字符）</strong>：格式 <code>[品牌] + [核心产品词] + [关键属性/功能]</code>；不全大写（品牌缩写除外），避免过多标点。</p>
 <p><strong>产品属性（10–25 对）</strong>：速卖通搜索和类目筛选的关键。包括 Brand、Material、Type、Color、Size、Weight、Origin、适用场景、适用季节、目标人群等；使用速卖通标准属性名称。</p>
 <p><strong>描述（500–3000 字符）</strong>：主要在移动端浏览，需短段落；包含产品亮点、规格参数、包装内容、使用场景；纯文本 + 换行，无 HTML；不含竞品、外部链接、联系方式。</p>
 <p><strong>目标市场</strong>：全球、美国、俄罗斯、巴西、法国、西班牙、德国、英国、韩国、日本（10 个）。</p>
 <p><strong>输出语言</strong>：English、中文、Русский、Português、Español、Français、Deutsch、한국어、日本語（9 种）。</p>
-<h2>流程</h2>
+<h2>3.3 流程</h2>
 <p>与 eBay 模块相同节奏：Step1 分析 → Step2 生成标题/属性/描述（不扣积分）→ Step3 生成产品图（扣积分，自动入仓）。</p>
-<h2>数据存储与接口</h2>
+<h2>3.4 数据存储与接口</h2>
 <p>表 <code>aliexpress_listing_snapshots</code>，字段：<code>title</code>、<code>product_attributes</code>（JSON）、<code>description</code>、<code>analyze_result</code>、<code>main_image_id</code>、<code>product_image_ids</code>。</p>
 <table>
 <thead>

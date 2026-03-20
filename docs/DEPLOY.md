@@ -72,6 +72,7 @@ ADMIN_PASSWORD=你的管理员密码
 # JWT_SECRET=随机长字符串               # 生产环境建议设置，否则用默认值（有安全风险）
 # HTTPS_PROXY=http://127.0.0.1:7890        # 若服务器访问 Gemini 需代理则填
 # SERPAPI_KEY=你的SerpApi密钥               # 侵权风险深度查询，见第三节
+# PATENTHUB_TOKEN=你的专利汇TOKEN            # 专利汇补充中国+全球专利检索，见第三节（不配置则仅用 Google Patents）
 # COS_SECRET_ID=                            # 腾讯云 COS 加速，见第四节
 # COS_SECRET_KEY=
 # COS_BUCKET=pictoolai-1234567890

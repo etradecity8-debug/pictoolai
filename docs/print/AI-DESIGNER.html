@@ -40,118 +40,144 @@
 </style>
 </head>
 <body>
-  <div class="meta">AI-DESIGNER.md → 打印版 · 2026/3/20</div>
+  <div class="meta">AI-DESIGNER.md → 打印版 · 2026/3/21</div>
   <h1>AI 美工完整说明</h1>
 <p>本文档说明 AI 美工（<code>/ai-designer</code>）下<strong>全部功能</strong>：图片编辑（局部重绘、局部消除、一键换色、<strong>服装3D</strong>、<strong>服装平铺</strong>、<strong>调整身材</strong>、<strong>生成场景</strong>、<strong>添加人/物</strong>）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换、<strong>文字去除</strong>）、<strong>风格变迁</strong>（<strong>风格复刻</strong>、<strong>风格改变</strong>）、<strong>水印添加</strong>、官方示例（7 种修改图片模式）。</p>
 <p><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>。侧边栏分为：图片编辑、质量提升、图像修复、抠图工具、<strong>文字修改</strong>（文字替换、语言转换、文字去除）、<strong>风格变迁</strong>（风格复刻、风格改变）、水印添加/去除、官方示例。</p>
 <p><strong>从仓库进入</strong>：仓库页每张图提供「用AI编辑」按钮，点击后弹窗以<strong>一二级菜单</strong>（与侧栏一致：图片编辑、质量提升、文字修改、风格变迁、水印添加/去除、官方示例）选择功能，跳转到对应页面并<strong>自动将该图加载为待编辑图片</strong>（<code>initialImageFromGallery</code> + <code>src/lib/loadGalleryImage.js</code>），无需再次上传。</p>
-<p><strong>输出设置（与官方示例一致）</strong>：局部重绘、局部消除、一键换色、智能扩图、提升质感、服装3D、服装平铺、调整身材、生成场景、添加人/物均提供「输出设置」折叠区：<strong>模型</strong>（Nano Banana 2 / Pro / Nano Banana）、<strong>输出尺寸比例</strong>、<strong>清晰度</strong>，以及本次预计消耗积分。客人选择后按所选参数出图；组件 <code>src/components/OutputSettings.jsx</code>，请求时传 <code>model</code>、<code>aspectRatio</code>、<code>clarity</code>，后端优先使用请求参数。</p>
+<p><strong>输出设置（与官方示例一致）</strong>：局部重绘、局部消除、一键换色、智能扩图、提升质感、服装3D、服装平铺、调整身材、生成场景、添加人/物均提供「输出设置」折叠区：<strong>模型</strong>（可选 Nano Banana 2 / Pro / Nano Banana）、<strong>输出尺寸比例</strong>、<strong>清晰度</strong>，以及本次预计消耗积分。<strong>默认模型</strong>：除语言转换（默认 Nano Banana 2）外，其余模块均为 <strong>Nano Banana</strong>。组件 <code>src/components/OutputSettings.jsx</code>，请求时传 <code>model</code>、<code>aspectRatio</code>、<code>clarity</code>，后端优先使用请求参数。</p>
 <hr>
 <h2>UI 布局与广告词（2026-03 统一）</h2>
-<p>五个功能模块（局部重绘、局部消除、一键换色、智能扩图、提升质感）采用统一排版规范：</p>
+<p>全部功能模块采用统一排版规范：标题 <code>text-2xl font-bold</code>，副文案 <code>text-base text-gray-600</code>，示例图 <code>w-72 h-72</code> 或 <code>w-56 h-56</code>、<code>rounded-lg</code>，主内容卡片 <code>max-w-3xl mx-auto p-4</code>，主操作按钮 <code>max-w-xs mx-auto py-2.5 rounded-lg text-sm</code>，保存按钮紧贴生成结果放置。</p>
+<p><strong>各模块广告词（与前端一致）</strong>：</p>
 <table>
 <thead>
 <tr>
-<th>元素</th>
-<th>规范</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>标题</td>
-<td><code>text-2xl font-bold</code></td>
-</tr>
-<tr>
-<td>副文案</td>
-<td><code>text-base text-gray-600</code></td>
-</tr>
-<tr>
-<td>示例图</td>
-<td><code>w-72 h-72</code>（288px）、<code>rounded-lg</code></td>
-</tr>
-<tr>
-<td>主内容卡片</td>
-<td><code>max-w-3xl mx-auto p-4</code></td>
-</tr>
-<tr>
-<td>主操作按钮</td>
-<td><code>max-w-xs mx-auto py-2.5 rounded-lg text-sm</code></td>
-</tr>
-<tr>
-<td>保存按钮</td>
-<td>紧贴生成结果放置</td>
-</tr>
-</tbody></table>
-<p><strong>各模块广告词</strong>：</p>
-<table>
-<thead>
-<tr>
+<th>分类</th>
 <th>模块</th>
-<th>第一行</th>
-<th>第二行</th>
+<th>第一行（标题）</th>
+<th>第二行（副文案）</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>提升质感</td>
-<td>提升质感</td>
-<td>内置专业材质引擎，一键让你的产品图从「地摊货」变身「奢侈品」。</td>
-</tr>
-<tr>
-<td>智能扩图</td>
-<td>智能扩图，视界大开。</td>
-<td>不再受限于快门的瞬间，PicToolAI 自动识别你的构图，智能补全缺失的肩膀、延伸的花海、广阔的星空。 / 每一像素的扩展，都与原图浑然一体。</td>
-</tr>
-<tr>
-<td>一键换色</td>
-<td>一键换色</td>
-<td>无论是时装还是产品，一键精准换色，效率提升 10 倍</td>
-</tr>
-<tr>
+<td>图片编辑</td>
 <td>局部重绘</td>
 <td>局部重绘</td>
 <td>上传图片，涂抹需要改变的区域并输入想要改变的内容，即可重新对该区域进行绘制</td>
 </tr>
 <tr>
+<td>图片编辑</td>
 <td>局部消除</td>
 <td>局部消除</td>
 <td>上传需要消除的图片，使用画笔涂抹即可实现一键消除</td>
 </tr>
+<tr>
+<td>图片编辑</td>
+<td>文字去除</td>
+<td>文字去除</td>
+<td>上传含文字的图片，使用画笔涂抹需要去除的文字区域，一键清除</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>一键换色</td>
+<td>一键换色</td>
+<td>无论是时装还是产品，一键精准换色，效率提升 10 倍</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>服装3D</td>
+<td>服装 3D</td>
+<td>上传平铺服装图片，一键生成立体 3D 展示效果</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>服装平铺</td>
+<td>服装平铺</td>
+<td>上传服装图片，自动生成带配饰的精美平铺展示图</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>调整身材</td>
+<td>调整身材</td>
+<td>上传模特穿搭图，调整模特体重，展示服装在不同身材上的效果</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>生成场景</td>
+<td>生成场景</td>
+<td>一张产品图，千种生活场景 —— 让买家看见拥有它的样子</td>
+</tr>
+<tr>
+<td>图片编辑</td>
+<td>添加人/物</td>
+<td>添加人/物</td>
+<td>在照片上指定添加人物或物品，并选择放置位置</td>
+</tr>
+<tr>
+<td>质量提升</td>
+<td>智能扩图</td>
+<td>智能扩图，视界大开。</td>
+<td>不再受限于快门的瞬间，PicToolAI 自动识别你的构图，智能补全缺失的肩膀、延伸的花海、广阔的星空。第二行：每一像素的扩展，都与原图浑然一体。</td>
+</tr>
+<tr>
+<td>质量提升</td>
+<td>提升质感</td>
+<td>提升质感</td>
+<td>内置专业材质引擎，一键让你的产品图从「地摊货」变身「奢侈品」。</td>
+</tr>
+<tr>
+<td>风格变迁</td>
+<td>风格改变</td>
+<td>风格改变</td>
+<td>上传一张照片，选择目标风格（如二次元、日漫、水彩等），一键生成该风格下的新图</td>
+</tr>
+<tr>
+<td>水印</td>
+<td>水印添加</td>
+<td>添加水印</td>
+<td>上传图片，设置水印文字、位置与透明度，一键生成带水印图（本地处理，不消耗积分）</td>
+</tr>
 </tbody></table>
 <hr>
-<h1>第一部分：局部重绘</h1>
+<h1>一、图片编辑</h1>
+<h2>1.1 局部重绘</h2>
 <p>上传图片 → 用画笔在画布上涂出要修改的区域（紫色半透明遮罩）→ 填写文字 prompt 描述希望该区域变成什么 → 生成。AI 根据遮罩与 prompt 重绘该区域，保留原图其余部分。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/LocalRedraw.jsx</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;inpainting&#39;</code>（遮罩 + prompt）</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>支持从仓库选图</strong>：<code>GalleryThumb</code> 认证加载；生成后自动入图库。</li>
 <li><strong>示例图</strong>：<code>public/local-redraw-demo-original.png</code>、<code>local-redraw-demo-edited.png</code>、<code>local-redraw-demo-comparison.png</code></li>
 </ul>
 <hr>
-<h1>第二部分：局部消除</h1>
+<h2>1.2 局部消除</h2>
 <p>上传图片 → 用画笔涂出要消除的区域 → 生成。AI 自动修补/消除该区域（如去掉桌面上的杂物、水印等）。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/LocalErase.jsx</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;add-remove&#39;</code>（遮罩区域 + 消除类 prompt，移除选中内容）</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>示例图</strong>：<code>public/local-erase-demo-original.png</code>、<code>local-erase-demo-edited.png</code></li>
 </ul>
 <hr>
-<h1>第三部分：一键换色</h1>
+<h2>1.3 一键换色</h2>
 <p>用户上传图片，用<strong>文字描述</strong>要换色的物体（如「鼠标」「裙子」「头发」），从色卡或自定义取色中选择 1–9 种颜色，即可批量生成多种配色图。</p>
 <ul>
 <li><strong>文字描述</strong>：不采用圈图/遮罩，AI 根据语义识别目标并换色。</li>
 <li><strong>颜色选择</strong>：色卡 24 种预设 + 自定义 hex/取色器；最多 9 种颜色，每种生成一张图。</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/OneClickRecolor.jsx</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;recolor&#39;</code>，<code>textDescription</code>，<code>targetColor</code>（hex），<code>images: [dataUrl]</code></li>
 <li><strong>逻辑</strong>：从输入图推断比例与清晰度；prompt 由 <code>textDescription</code> + <code>targetColor</code> 构建。</li>
 <li><strong>示例图</strong>：<code>public/recolor-demo-original.png</code>、<code>recolor-demo-edited.png</code></li>
 </ul>
 <hr>
-<h1>第三·A 部分：服装3D</h1>
+<h2>1.4 服装3D</h2>
 <p>上传平铺/2D 服装图片，一键生成立体 3D 展示效果（隐形人台 / ghost mannequin 效果）。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/Clothing3D.jsx</code></li>
 <li><strong>路由</strong>：<code>/ai-designer/clothing-3d</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;clothing-3d&#39;</code>，<code>images: [dataUrl]</code>，可选 <code>prompt</code>（补充说明）</li>
-<li><strong>模型</strong>：Nano Banana 2（自动选择，保留原图比例与清晰度）</li>
+<li><strong>默认模型</strong>：Nano Banana（用户可在输出设置中切换）</li>
 <li><strong>prompt 要点</strong>：<ul>
 <li>设计保留为最高优先级：颜色、印花、Logo、刺绣等不可更改</li>
 <li>保持原图视角（通常正视图），肩膀圆润、袖子圆润张开、领口自然撑开</li>
@@ -163,13 +189,13 @@
 <li><strong>示例图</strong>：<code>public/demo-clothing3d-before.png</code>、<code>demo-clothing3d-after.png</code></li>
 </ul>
 <hr>
-<h1>第三·B 部分：服装平铺</h1>
+<h2>1.5 服装平铺</h2>
 <p>上传服装图片，自动生成带配饰的精美平铺展示图（Flat lay / Knolling 风格）。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/ClothingFlatlay.jsx</code></li>
 <li><strong>路由</strong>：<code>/ai-designer/clothing-flatlay</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;clothing-flatlay&#39;</code>，<code>images: [dataUrl]</code>，<code>surface</code>（放置表面描述），可选 <code>prompt</code></li>
-<li><strong>模型</strong>：Nano Banana 2</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>放置表面预设</strong>（前端 7 个 + 自定义）：</li>
 </ul>
 <table>
@@ -224,13 +250,13 @@
 <li><strong>示例图</strong>：<code>public/demo-flatlay-before.png</code>、<code>demo-flatlay-after.png</code></li>
 </ul>
 <hr>
-<h1>第三·C 部分：调整身材</h1>
+<h2>1.6 调整身材</h2>
 <p>上传模特穿搭图，调整模特体重/身材，展示同一服装在不同身材上的效果。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/BodyShape.jsx</code></li>
 <li><strong>路由</strong>：<code>/ai-designer/body-shape</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;body-shape&#39;</code>，<code>images: [dataUrl]</code>，<code>targetWeight</code>（kg），<code>targetHeight</code>（cm），可选 <code>prompt</code></li>
-<li><strong>模型</strong>：Nano Banana 2</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>前端交互</strong>：<ul>
 <li>6 个快速预设：纤瘦(45kg) / 偏瘦(55kg) / 标准(65kg) / 微胖(80kg) / 丰满(95kg) / 大码(115kg)</li>
 <li>体重滑块 35-150kg，身高滑块 140-200cm</li>
@@ -247,13 +273,13 @@
 <li><strong>示例图</strong>：<code>public/demo-bodyshape-before.png</code>、<code>demo-bodyshape-after.png</code></li>
 </ul>
 <hr>
-<h1>第三·D 部分：生成场景</h1>
+<h2>1.7 生成场景</h2>
 <p>上传产品图，输入多个场景描述，选择整体风格，AI 批量将产品融入不同真实使用场景（生活方式图 / Lifestyle 图）。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/SceneGeneration.jsx</code></li>
 <li><strong>路由</strong>：<code>/ai-designer/scene-generation</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>（每张图独立调用），<code>mode: &#39;scene-generation&#39;</code>，<code>images: [dataUrl]</code>，<code>productName</code>（产品名称，必填），<code>sceneDescription</code>（场景描述，必填），<code>styleDescription</code>（风格描述，可选）</li>
-<li><strong>模型</strong>：Nano Banana 2</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 <li><strong>前端交互</strong>：<ul>
 <li>产品名称输入（必填）：告诉 AI 产品是什么</li>
 <li><strong>多场景描述</strong>（必填，最多 6 个）：每个场景对应一张图；可动态添加/删除；按钮文案实时显示「生成 N 张场景图」</li>
@@ -287,7 +313,7 @@
 <li><strong>示例图</strong>：<code>public/demo-scene-gen-before.png</code>、<code>demo-scene-gen-after.png</code></li>
 </ul>
 <hr>
-<h1>第三·E 部分：添加人/物</h1>
+<h2>1.8 添加人/物</h2>
 <p>在照片上指定添加人物或物品，并选择放置位置。支持仅添加人物、仅添加物品（文字描述或上传产品图）、或人物+物品组合。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/AddPersonObject.jsx</code></li>
@@ -302,26 +328,28 @@
 <li><strong>真实比例</strong>：prompt 中强调所有添加物须为<strong>真实世界比例</strong>（如香水瓶在桌上应为手部大小，不得巨大化）。</li>
 <li><strong>占位图</strong>：<code>public/demo-add-person-object-before.png</code>、<code>demo-add-person-object-after.png</code>；页面顶部有示例对比区。</li>
 <li><strong>输出设置</strong>：与生成场景等一致；生成后自动入图库。</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 </ul>
 <hr>
-<h1>第四部分：智能扩图</h1>
-<h2>官方建议摘要</h2>
+<h1>二、质量提升</h1>
+<h2>2.1 智能扩图</h2>
+<h3>官方建议摘要</h3>
 <ol>
 <li><strong>核心原则</strong>：不要描述已有内容，要描述「缺失」的内容。AI 需要知道边缘之外应该出现什么，并保持与原图的逻辑统一。</li>
 <li><strong>1+N 模板</strong>：<code>[固定前缀] + [视觉反推内容] + [质量控制词]</code></li>
 <li><strong>内容延续</strong>：主体延伸（如 complete the person&#39;s shoulders）、虚化延续（maintain shallow depth of field and bokeh）。</li>
-<li><strong>推荐模型</strong>：Nano Banana 2（扩图对全局逻辑、背景补全要求高于微观纹理）。</li>
+<li><strong>推荐模型</strong>：扩图对全局逻辑、背景补全要求高，用户可切换 Nano Banana 2 获得更好效果。</li>
 </ol>
-<h2>当前实现</h2>
+<h3>当前实现</h3>
 <ul>
-<li><strong>生图模型</strong>：Nano Banana 2</li>
+<li><strong>默认模型</strong>：Nano Banana（用户可在输出设置中切换，推荐扩图场景优先尝试 Nano Banana 2）</li>
 <li><strong>第一步（视觉分析）</strong>：使用 <code>ANALYSIS_MODEL_ID</code>（gemini-2.5-flash）分析原图，提取 5–10 个关键词（主体、背景元素、光照风格）</li>
-<li><strong>第二步（生图）</strong>：将关键词注入 <code>[CONTENT TO ADD] Extend the following elements: {keywords}.</code> 模板，调用 Nano Banana 2 生图</li>
+<li><strong>第二步（生图）</strong>：将关键词注入 <code>[CONTENT TO ADD] Extend the following elements: {keywords}.</code> 模板，调用所选模型生图</li>
 <li><strong>降级</strong>：若分析失败，自动回退为通用描述，不影响生图</li>
 </ul>
 <hr>
-<h1>第五部分：提升质感</h1>
-<h2>一、模型选择（Pro vs 2）</h2>
+<h2>2.2 提升质感</h2>
+<h3>2.2.1 模型选择（Pro vs 2）</h3>
 <table>
 <thead>
 <tr>
@@ -383,8 +411,9 @@
 <li>金属、珠宝、精密件 → 选 Pro</li>
 <li>美食、风景、人像 → 选 2</li>
 </ul>
+<p><strong>默认模型</strong>：Nano Banana，用户可在输出设置中切换 Pro 或 Nano Banana 2。</p>
 <hr>
-<h2>二、材质预设体系</h2>
+<h3>2.2.2 材质预设体系</h3>
 <p>前端 <code>ProductRefinement.jsx</code> 中材质预设 Tab 顺序：<strong>电子 / 塑料 / 纺织 / 木质 / 玻璃 / 工业 / 自然 / 轻奢</strong>。<strong>悬停</strong>预设标签可查看效果说明（hint）。</p>
 <h3>电子</h3>
 <table>
@@ -717,7 +746,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>三、塑料「黑科技」强制增强</h2>
+<h3>2.2.3 塑料「黑科技」强制增强</h3>
 <p>当用户选择或输入的材质中包含塑料相关词汇时，后端会<strong>自动追加</strong>以下 3 个关键提示词：</p>
 <table>
 <thead>
@@ -743,13 +772,14 @@
 <p>后端通过正则检测 <code>materialPrompt</code> 是否包含：<code>plastic</code>、<code>resin</code>、<code>acrylic</code>、<code>matte satin</code>、<code>translucent frosted</code>、<code>high-gloss polished</code>（不区分大小写）。</p>
 <p>命中时追加：<code>CRITICAL for plastic realism: emphasize Subsurface Scattering (SSS), Soft-touch tactile texture, and Beveled edges.</code></p>
 <hr>
-<h2>五、数据流</h2>
+<h3>2.2.4 数据流</h3>
 <ol>
 <li><strong>前端</strong>：用户点击预设标签或自定义输入 → 将英文 prompt 写入 <code>materialPrompt</code> → 随请求体发送给后端。</li>
 <li><strong>后端</strong>：收到非空 <code>materialPrompt</code> 时，生成 <code>The subject is made of {materialPrompt}.</code>；若检测到塑料 → 追加塑料增强句；最后追加 <code>Apply macro-photography style and material-appropriate lighting.</code></li>
 </ol>
 <hr>
-<h1>第六部分：文字修改</h1>
+<h1>三、文字修改</h1>
+<h2>3.1 文字替换、语言转换、文字去除</h2>
 <p>侧边栏「文字修改」位于「质量提升」与「风格变迁」之间，提供 3 种模式，均调用 <code>POST /api/image-edit</code>。</p>
 <table>
 <thead>
@@ -786,16 +816,19 @@
 </ul>
 <p><strong>页面排版</strong>：从 ai-designer 进入时，采用与其它模块统一的布局——标题居中、副文案 text-base、主内容 max-w-3xl 白底卡片；上传区文案「上传图片」「从作品库选择」。</p>
 <hr>
-<h1>第六·A 部分：风格改变</h1>
+<h1>四、风格变迁</h1>
+<h2>4.1 风格改变</h2>
 <p>侧边栏「风格变迁 → 风格改变」，路由 <code>/ai-designer/style-change</code>。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/StyleChange.jsx</code></li>
 <li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;style-transfer&#39;</code>（复用风格迁移模式）</li>
 <li><strong>前端交互</strong>：上传图片 + 文字描述目标风格（如「赛博朋克」「水彩画」）→ 生成新风格图</li>
 <li><strong>生成后</strong>：自动入仓库，显示积分消耗。</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 </ul>
 <hr>
-<h1>第六·B 部分：水印添加</h1>
+<h1>五、水印</h1>
+<h2>5.1 水印添加</h2>
 <p>侧边栏「水印添加/去除 → 添加水印」，路由 <code>/ai-designer/watermark-add</code>。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/AddWatermark.jsx</code></li>
@@ -810,7 +843,7 @@
 <li><strong>「去除水印」</strong>（<code>watermark-remove</code>）：侧边栏占位，当前 <code>available: false</code>，显示灰色不可点击，功能待后续实现。</li>
 </ul>
 <hr>
-<h1>第七部分：风格复刻</h1>
+<h2>4.2 风格复刻</h2>
 <p>侧边栏「风格变迁」组下含「风格复刻」与「风格改变」，该组位于「文字修改」与「水印添加/去除」之间。<strong>风格复刻</strong>：上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。</p>
 <ul>
 <li><strong>路由</strong>：<code>/ai-designer/style-clone</code></li>
@@ -818,10 +851,11 @@
 <li><strong>接口</strong>：<code>POST /api/style-clone</code>（需登录）</li>
 <li><strong>提示</strong>：参考图「最好只上传一种风格」；产品图「只上传一个产品」。</li>
 <li>详见 <code>docs/KNOWN_ISSUES.md</code> 风格复刻功能说明。</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
 </ul>
 <hr>
-<h1>第八部分：官方示例（7 种修改图片模式）</h1>
-<p>AI 美工侧边栏「官方示例」下提供 7 种修改图片模式（与风格复刻同级），与主导航「修改图片」功能相同，均调用 <code>POST /api/image-edit</code>。每种模式有真实 before→after 示例（<code>ModeDemo</code> 组件）。</p>
+<h1>六、官方示例（7 种修改图片模式）</h1>
+<p>AI 美工侧边栏「官方示例」下提供 7 种修改图片模式（与风格复刻同级），与主导航「修改图片」功能相同，均调用 <code>POST /api/image-edit</code>。每种模式有真实 before→after 示例（<code>ModeDemo</code> 组件）。<strong>默认模型</strong>：Nano Banana。</p>
 <table>
 <thead>
 <tr>
