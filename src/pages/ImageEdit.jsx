@@ -653,7 +653,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
   const [fontStyle, setFontStyle] = useState('original')
   const [fontSizeDir, setFontSizeDir] = useState('original')
   const [fontSizePercent, setFontSizePercent] = useState(30)
-  const [model, setModel] = useState('Nano Banana 2')
+  const [model, setModel] = useState(() => (initialMode === 'text-translate' ? 'Nano Banana 2' : 'Nano Banana'))
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
   const [generating, setGenerating] = useState(false)
@@ -675,6 +675,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
   useEffect(() => {
     if (initialMode && VALID_MODE_IDS.has(initialMode)) {
       setSelectedMode(initialMode)
+      setModel(initialMode === 'text-translate' ? 'Nano Banana 2' : 'Nano Banana')
       if (hideModeSelector) {
         setImages([])
         setPrompt('')
@@ -705,6 +706,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
 
   const handleModeChange = (id) => {
     setSelectedMode(id)
+    setModel(id === 'text-translate' ? 'Nano Banana 2' : 'Nano Banana')
     setImages([])
     setPrompt('')
     setTextOriginal('')

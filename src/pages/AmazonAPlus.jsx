@@ -169,7 +169,7 @@ export default function AmazonAPlus() {
   const [story, setStory]     = useState('')
   const [language, setLanguage] = useState('English')
   const [style, setStyle]     = useState('minimal')
-  const [model, setModel]     = useState('Nano Banana 2')
+  const [model, setModel]     = useState('Nano Banana')
   const [productImageFile, setProductImageFile] = useState(null)
   const [productImagePreview, setProductImagePreview] = useState(null)
   const fileRef = useRef()

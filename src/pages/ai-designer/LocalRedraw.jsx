@@ -43,7 +43,7 @@ export default function LocalRedraw({ initialImageFromGallery }) {
   const [galleryPicker, setGalleryPicker] = useState({ open: false })
   const [galleryItems, setGalleryItems] = useState([])
   const [galleryLoading, setGalleryLoading] = useState(false)
-  const [model, setModel] = useState('Nano Banana 2')
+  const [model, setModel] = useState('Nano Banana')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
   const canvasRef = useRef(null)

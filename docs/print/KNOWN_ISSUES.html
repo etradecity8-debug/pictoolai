@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/19</div>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/3/20</div>
   <h1>已知问题与待办（后续再改）</h1>
 <h2>运营须知：数据隐私与客户信任</h2>
 <h3>技术层面：管理员能看到什么</h3>
@@ -151,6 +151,14 @@
 <li><strong>拉图失败处理</strong>：相对路径 fetch 失败时，仓库页显示「加载失败」+「点击重试」（而非永远「加载中」），控制台打日志 <code>[仓库] 拉图失败</code>，便于排查（常见原因：Token 过期 → 重新登录）。</li>
 </ul>
 <hr>
+<h2>今日完成（2026-03-19）</h2>
+<h3>1. 文字修改模块优化</h3>
+<ul>
+<li><strong>语言转换默认模型</strong>：改为 <strong>Nano Banana 2</strong>（Nano Banana 经常无法处理语言转换任务）。<code>ImageEdit.jsx</code> 中 <code>initialMode === &#39;text-translate&#39;</code> 时默认选中 Nano Banana 2；切换模式时同步更新。</li>
+<li><strong>文字去除</strong>：① 增加占位图 <code>public/text-remove-demo-before.png</code>、<code>text-remove-demo-after.png</code>（流浪猫救援海报 before/after 示例）；② OutputSettings 在文字去除模式下显示 hint「文字编辑任务建议选择 Nano Banana 2 或 Pro」。</li>
+<li><strong>文档</strong>：<code>docs/AI-DESIGNER.md</code> 第六部分已更新；<code>.cursor/rules/project-context.mdc</code> 已同步记忆。</li>
+</ul>
+<hr>
 <h2>今日完成（2026-03-18）</h2>
 <h3>1. 添加人/物（完善）</h3>
 <ul>
@@ -196,9 +204,9 @@
 <hr>
 <h2>推送到服务器（执行步骤）</h2>
 <p><strong>完整步骤</strong>：按 <code>docs/DEPLOY.md</code> 第二节执行（本机 <code>git add</code> / <code>commit</code> / <code>push</code> → 服务器 <code>git pull</code> / <code>npm install</code> / <code>npm run build</code> / <code>pm2 restart</code>）。</p>
-<p><strong>本次（2026-03-18）建议提交说明</strong>：</p>
+<p><strong>本次（2026-03-19）建议提交说明</strong>：</p>
 <pre><code class="language-bash">git add .
-git commit -m &quot;feat: 添加人/物完善(多物品/自定义位置/真实比例/占位图)+仓库用AI编辑(一二级菜单/自动带图)+文档同步&quot;
+git commit -m &quot;feat: 文字修改优化-语言转换默认Nano Banana2+文字去除占位图与hint+文档同步&quot;
 git push
 </code></pre>
 <p>然后到服务器执行 <code>docs/DEPLOY.md</code> 第二节的步骤。</p>

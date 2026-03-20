@@ -14,6 +14,7 @@
 | 做 eBay Listing（80字符标题、Item Specifics、Cassini） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第七部分 |
 | 做速卖通 Listing（128字符标题、产品属性、移动端描述） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 第八部分 |
 | 了解侵权风险检测（快筛/深度），向客户解释查了什么 | [IP-RISK.md](./IP-RISK.md) |
+| 评估专利汇/美国版权局集成可行性（给客户决策参考） | [IP-RISK-INTEGRATION-FEASIBILITY.md](./IP-RISK-INTEGRATION-FEASIBILITY.md) |
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/风格复刻） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | **首次**把项目部署到服务器（VPS 安装/克隆/配置/启动） | [DEPLOY.md](./DEPLOY.md) — 第一节 |
 | **每次**发版更新线上（git push → 服务器 pull/build/restart） | [DEPLOY.md](./DEPLOY.md) — 第二节 |
@@ -28,7 +29,7 @@
 
 ---
 
-## 文档目录（10 个文件）
+## 文档目录（11 个文件）
 
 | 文件 | 内容 |
 |------|------|
@@ -36,6 +37,7 @@
 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) | 全品类组图：5 个输入字段、AI 传参、分析→确认→生图数据流 |
 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | AI 运营助手：亚马逊（第1-6部分）+ eBay（第7部分）+ 速卖通（第8部分） |
 | [IP-RISK.md](./IP-RISK.md) | 侵权风险检测：功能说明、检测维度、费用、客户沟通话术 |
+| [IP-RISK-INTEGRATION-FEASIBILITY.md](./IP-RISK-INTEGRATION-FEASIBILITY.md) | 专利汇/美国版权局集成可行性分析（供客户决策） |
 | [AI-DESIGNER.md](./AI-DESIGNER.md) | AI 美工：局部重绘/消除/换色/扩图/提升质感/添加人物/服装3D/生成场景/风格复刻/文字修改/官方示例 |
 | [DEPLOY.md](./DEPLOY.md) | 运维手册：首次部署 + 每次更新 + SerpApi + COS + 用户管理（删除/查询/SQL） + Gemini 地区限制 |
 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、功能待办、数据隐私说明 |

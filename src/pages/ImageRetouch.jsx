@@ -13,7 +13,7 @@ const SparkIcon = ({ className = 'h-5 w-5' }) => (
 
 export default function ImageRetouch() {
   const [uploadCount, setUploadCount] = useState(0)
-  const [model, setModel] = useState('Nano Banana Pro')
+  const [model, setModel] = useState('Nano Banana')
   const [clarity, setClarity] = useState('2K 高清')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const maxImages = 50

@@ -39,7 +39,7 @@
 
 | 功能 | 路由/入口 | 说明 |
 |------|-----------|------|
-| 全品类组图 | 通用电商生图 `/` | 上传图 + 5 个要求字段 + **5 种图片类型分别选张数**（白底主图/场景图/特写图/卖点图/交互图）→ 分析（按类型生成规划）→ 确认规划 → 按类型差异化生图，详见 `ECOMMERCE-GENERAL-CREATE-PICTURES.md` |
+| 全品类组图 | 通用电商生图 `/detail-set` | 上传图 + 5 个要求字段 + **5 种图片类型分别选张数**（白底主图/场景图/特写图/卖点图/交互图）→ 分析（按类型生成规划）→ 确认规划 → 按类型差异化生图，详见 `ECOMMERCE-GENERAL-CREATE-PICTURES.md` |
 | 亚马逊 Listing | 电商AI运营助手 → 亚马逊 | 生成/优化/竞品/关键词；Step1 分析 → Step2 文案 → Step3 主图，详见 `ECOMMERCE-AI-ASSISTANT.md` |
 | eBay Listing | 电商AI运营助手 → eBay | 生成/优化；Cassini、80 字符标题、Item Specifics，详见 `ECOMMERCE-AI-ASSISTANT.md` 第七部分 |
 | 速卖通 Listing | 电商AI运营助手 → 速卖通 | 生成/优化；128 字符标题、产品属性，详见 `ECOMMERCE-AI-ASSISTANT.md` 第八部分 |
@@ -49,7 +49,7 @@
 | 风格复刻 | AI美工 → 风格复刻 | 参考图（最多 14 张）+ 产品图 → 两阶段（分析风格 → 生图），`POST /api/style-clone` |
 | 亚马逊 A+ | `/amazon-aplus`（导航已隐藏） | 4 步：填写信息 → 确认文案 → 生成 4 张图 → 查看结果 |
 | 仓库 | 侧栏「仓库」`/dashboard/gallery` | 生图成功即**自动入仓**；多选、批量保存/删除；每张图可「用AI编辑」跳转 AI 美工并自动带图 |
-| Listing 历史 | 侧栏「Listing 历史」 | 已保存的 Listing 快照，支持查看/删除 |
+| Listing 历史 | 侧栏「Listing 历史」`/dashboard/listings` | 已保存的 Listing 快照，支持查看/删除 |
 | 管理后台 | `/admin`（仅 admin 角色） | 用户列表、充值积分、查流水、编辑备注、删除用户（含图片与所有数据），详见 `DEPLOY.md` 第五节 |
 
 ---

@@ -47,7 +47,7 @@ export default function ApparelSet() {
   const [mannequin, setMannequin] = useState(true)
   const [detailCount, setDetailCount] = useState(1)
   const [sellingCount, setSellingCount] = useState(0)
-  const [model, setModel] = useState('Nano Banana Pro')
+  const [model, setModel] = useState('Nano Banana')
   const [clarity, setClarity] = useState('2K 高清')
   const [aspectRatio, setAspectRatio] = useState('3:4 竖版')
   const maxImages = 6

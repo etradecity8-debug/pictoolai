@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">IP-RISK.md → 打印版 · 2026/3/19</div>
+  <div class="meta">IP-RISK.md → 打印版 · 2026/3/20</div>
   <h1>侵权风险检测 · 功能说明与客户沟通手册</h1>
 <blockquote>
 <p>路由：<code>/ip-risk</code>（主导航独立模块）<br>文件：<code>src/pages/IpRisk.jsx</code>，后端接口：<code>POST /api/ai-assistant/ip-risk-check</code></p>
@@ -130,18 +130,25 @@
 <td>2</td>
 <td><strong>Google Patents</strong>（专利检索）</td>
 <td>AI 提取英文关键词</td>
-<td>专利侵权风险（主要为美国专利库）</td>
+<td>专利侵权风险（美国专利库）</td>
 <td>每次都有</td>
 </tr>
 <tr>
 <td>3</td>
+<td><strong>专利汇</strong>（专利检索）</td>
+<td>AI 提取关键词</td>
+<td>专利侵权风险（中国+全球专利库）</td>
+<td>已配置 PATENTHUB_TOKEN 时</td>
+</tr>
+<tr>
+<td>4</td>
 <td><strong>Google 搜索</strong>（商标检索）</td>
 <td>AI 提取品牌词 → 查询 USPTO</td>
 <td>商标/Logo 侵权风险</td>
 <td>图中有可疑品牌词时触发</td>
 </tr>
 <tr>
-<td>4</td>
+<td>5</td>
 <td><strong>Google 搜索</strong>（IP 角色版权检索）</td>
 <td>AI 识别到的 IP 角色/图案名</td>
 <td>IP 形象版权归属方</td>
@@ -151,7 +158,7 @@
 <td>—</td>
 <td><strong>Gemini AI 综合分析</strong></td>
 <td>全部检索结果</td>
-<td>汇总生成分组报告</td>
+<td>汇总生成分组报告（含专利综合风险）</td>
 <td>每次都有</td>
 </tr>
 </tbody></table>
@@ -171,8 +178,12 @@
 <td>商标 / Logo 风险</td>
 </tr>
 <tr>
+<td><code>patentRisk</code></td>
+<td><strong>专利综合风险</strong>（结构化：美国专利+中国/全球专利关键发现、需关注专利清单、风险等级与建议）</td>
+</tr>
+<tr>
 <td><code>designRisk</code></td>
-<td>外观设计风险</td>
+<td>外观设计风险（侧重视觉相似性，与 Lens 匹配结果结合）</td>
 </tr>
 <tr>
 <td><code>ipImageRisk</code></td>
@@ -200,7 +211,11 @@
 </tr>
 </tbody></table>
 <p>前端展示中，「高」风险等级以红色+警告图标标注；每个 section 卡片独立显示。</p>
-<p>报告同时包含「本次检索方式汇总」表格，显示实际执行了哪些检索服务（<code>searchSummary</code>）。</p>
+<p>报告同时包含：</p>
+<ul>
+<li><strong>本次检索方式汇总</strong>（<code>searchSummary</code>）：实际执行的检索服务</li>
+<li><strong>检索结果明细（按来源）</strong>（<code>retrievalDetails</code>）：各查询实际返回结果，便于区分 Google Patents 与专利汇等不同来源</li>
+</ul>
 <hr>
 <h2>四、SerpApi 与 Google 的关系</h2>
 <p>SerpApi 是一个<strong>第三方付费服务</strong>，合法地把 Google Lens / Google Patents / Google 搜索的结果以 API 形式提供给开发者。</p>
@@ -264,6 +279,7 @@
 <hr>
 <h2>六、功能配置（服务器端）</h2>
 <p>深度查询依赖 <code>SERPAPI_KEY</code> 环境变量。未配置时，深度查询按钮报错「深度查询暂未开放」。</p>
+<p><strong>可选</strong>：配置 <code>PATENTHUB_TOKEN</code> 后，专利检索将同时调用专利汇（中国+全球专利库），与 Google Patents（美国为主）互补。不配置则仅用 Google Patents。</p>
 <p>配置方式见 <a href="./DEPLOY.md">DEPLOY.md</a> — 第三节。</p>
 <hr>
 <h2>七、待开放的检测维度</h2>
@@ -304,14 +320,14 @@
 </tbody></table>
 <h3>建议分步策略</h3>
 <ol>
-<li><strong>已完成</strong>：免费快筛（Gemini）+ 深度查询（Google Lens / Patents / 商标 / IP 角色版权，SerpApi）。</li>
+<li><strong>已完成</strong>：免费快筛（Gemini）+ 深度查询（Google Lens / Google Patents / 专利汇（可选）/ 商标 / IP 角色版权，SerpApi + PatentHub）。</li>
 <li><strong>下一步可选</strong>：接入 IPRScan（€249/年），向需要专业商标比对的客户提供更精准的商标报告。</li>
 <li><strong>按需开放</strong>：TinEye 专业图片溯源（¥2,200/年）、WIPO 全球数据库、美国版权局查询。</li>
 </ol>
 <hr>
 <h2>八、向客户解释时可以说</h2>
 <blockquote>
-<p>「深度查询会做 3～4 项检索：① 以图搜图（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② 专利检索（Google Patents）——主要查美国专利库，辅助判断是否有类似专利；③ 商标检索——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
+<p>「深度查询会做 4～5 项检索：① 以图搜图（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② 专利检索（Google Patents + 专利汇）——Google Patents 查美国专利库，专利汇查中国及全球专利库（已配置时），辅助判断是否有类似专利；③ 商标检索——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告，含<strong>专利综合风险</strong>（美国专利、中国/全球专利关键发现与需关注专利清单）。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
 </blockquote>
 <hr>
 <h2>九、重要免责说明</h2>

@@ -53,7 +53,7 @@ export default function StyleClone() {
   const [productImages, setProductImages] = useState([])
   const [optionalPrompt, setOptionalPrompt] = useState('')
   const [quantity, setQuantity] = useState('1张')
-  const [model, setModel] = useState('Nano Banana Pro')
+  const [model, setModel] = useState('Nano Banana')
   const [clarity, setClarity] = useState('2K 高清')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [generating, setGenerating] = useState(false)

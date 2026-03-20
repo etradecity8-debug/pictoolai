@@ -125,7 +125,7 @@ const MATERIAL_TABS = [
 
 export default function ProductRefinement({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
-  const [model, setModel] = useState('Nano Banana Pro')
+  const [model, setModel] = useState('Nano Banana')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
   const [materialPrompt, setMaterialPrompt] = useState('')

@@ -36,11 +36,11 @@ const QUICK_DIMS = [
   { icon: '🤖', label: 'AI 图像分析', tool: 'Google Gemini', cost: '免费', detail: '商标/Logo 识别、外观设计相似性、IP 角色/图案识别、平台合规风险' },
 ]
 const DEEP_DIMS = [
-  { icon: '🔍', label: '以图搜图 + 来源溯源', tool: 'Google Lens', cost: '深度查询共 20 积分', detail: '整网检索外观相似商品，并追踪图片最早出现的来源，判断外观侵权与图片版权溯源' },
-  { icon: '📋', label: '专利检索', tool: 'Google Patents', cost: '同上', detail: '主要检索美国专利库中的外观/设计专利，辅助判断专利侵权风险' },
+  { icon: '🔍', label: '以图搜图 + 来源溯源', tool: 'Google Lens', cost: '深度查询共 20 积分', detail: '整网检索外观相似商品，并追踪图片最早出现的来源网站，判断外观侵权与图片版权溯源' },
+  { icon: '📋', label: '专利检索', tool: 'Google Patents、专利汇', cost: '同上', detail: 'Google Patents 检索美国专利库；专利汇检索中国及全球专利库（已配置时）。覆盖外观/设计专利，辅助判断专利侵权风险' },
   { icon: '™️', label: '商标检索', tool: 'Google 搜索 (USPTO)', cost: '同上', detail: '检索美国商标局相关网页，判断商标/Logo 近似侵权风险' },
   { icon: '🎭', label: 'IP 角色版权检索', tool: 'Google 搜索', cost: '同上', detail: '若 AI 识别到疑似 IP 角色/图案，自动查询该 IP 的版权归属方与知识产权持有人' },
-  { icon: '🤖', label: 'AI 综合分析', tool: 'Google Gemini', cost: '同上', detail: '综合上述所有检索结果，生成结构化风险报告' },
+  { icon: '🤖', label: 'AI 综合分析', tool: 'Google Gemini', cost: '同上', detail: '综合上述所有检索结果，生成结构化风险报告（含专利综合风险分析）' },
 ]
 
 export default function IpRisk() {
@@ -103,7 +103,7 @@ export default function IpRisk() {
         {/* 页头 */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-900">侵权风险检测</h1>
-          <p className="text-sm text-gray-500 mt-0.5">上传产品图与说明，AI 分析商标/外观设计/IP 形象/专利侵权风险，并出具分组报告</p>
+          <p className="text-sm text-gray-500 mt-0.5">上传产品图与说明，AI 分析商标/专利/外观设计/IP 形象/图片版权风险，出具结构化分组报告（深度查询含 Google Patents + 专利汇 多库专利检索）</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
@@ -215,7 +215,7 @@ export default function IpRisk() {
                   <input type="radio" name="ipRiskMode" value="deep" checked={mode === 'deep'} onChange={() => setMode('deep')} className="mt-1 shrink-0" />
                   <span className="flex flex-col gap-0.5">
                     <span className="text-sm font-medium whitespace-nowrap">深度查询</span>
-                    <span className="text-xs text-gray-500">联网检索（Lens + 专利 + 商标 + IP 角色），消耗 20 积分</span>
+                    <span className="text-xs text-gray-500">联网检索（Lens + 专利（美+中/全球）+ 商标 + IP 角色），消耗 20 积分</span>
                   </span>
                 </label>
               </div>
@@ -272,10 +272,51 @@ export default function IpRisk() {
                 </div>
               )}
 
+              {result.mode === 'deep' && result.retrievalDetails && result.retrievalDetails.length > 0 && (
+                <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+                    <h4 className="text-sm font-semibold text-gray-800">检索结果明细（按来源）</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">各查询实际返回的结果，便于区分来自 Google Patents（美国专利）与专利汇（中国+全球专利）等不同来源</p>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {result.retrievalDetails.map((item, i) => (
+                      <div key={i} className="px-4 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium text-gray-800">{item.method}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{item.service}</span>
+                          <span className="text-xs text-gray-500">检索词：{item.query}</span>
+                        </div>
+                        <ul className="text-xs text-gray-600 space-y-1 ml-0">
+                          {item.results?.length ? (
+                            item.results.map((r, j) => (
+                              <li key={j} className="flex flex-wrap gap-x-2 gap-y-0.5">
+                                {r.link ? (
+                                  <a href={r.link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline truncate max-w-md">
+                                    {r.title || '（无标题）'}
+                                  </a>
+                                ) : (
+                                  <span>{r.title || '（无标题）'}</span>
+                                )}
+                                {r.id && <span className="text-gray-400">({r.id})</span>}
+                                {r.applicant && <span className="text-gray-400">— {r.applicant}</span>}
+                              </li>
+                            ))
+                          ) : (
+                            <li className="text-gray-400">
+                              {item.emptyReason ? `（${item.emptyReason}）` : '（无结果）'}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {result.mode === 'quick' && (
                 <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-xs text-gray-500">
                   <span className="font-medium text-gray-700">本次分析依据：</span>
-                  Google Gemini AI 图像理解（免费）· 分析维度：商标/Logo、外观设计、IP 角色/图案、平台合规。如需更深入的专利、商标数据库与图片来源溯源，请选择「深度查询」（20 积分）。
+                  Google Gemini AI 图像理解（免费）· 分析维度：商标/Logo、外观设计、IP 角色/图案、平台合规。如需专利（Google Patents + 专利汇）、商标、图片来源溯源等联网检索，请选择「深度查询」（20 积分）。
                 </div>
               )}
 
@@ -283,6 +324,7 @@ export default function IpRisk() {
                 <div className="grid gap-4">
                   {[
                     { key: 'trademarkRisk', title: '商标 / Logo 风险' },
+                    { key: 'patentRisk', title: '专利综合风险' },
                     { key: 'designRisk', title: '外观设计风险' },
                     { key: 'ipImageRisk', title: 'IP 形象 / 版权风险' },
                     { key: 'copyrightSourceRisk', title: '图片版权溯源' },

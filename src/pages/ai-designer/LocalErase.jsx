@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
 import GalleryThumb from '../../components/GalleryThumb'
 import OutputSettings from '../../components/OutputSettings'
+import textRemoveDemoBefore from '../../assets/text-remove-demo-before.png'
+import textRemoveDemoAfter from '../../assets/text-remove-demo-after.png'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
@@ -47,7 +49,7 @@ export default function LocalErase({ variant = 'erase', initialImageFromGallery 
   const [galleryPicker, setGalleryPicker] = useState({ open: false })
   const [galleryItems, setGalleryItems] = useState([])
   const [galleryLoading, setGalleryLoading] = useState(false)
-  const [model, setModel] = useState('Nano Banana 2')
+  const [model, setModel] = useState('Nano Banana')
   const [aspectRatio, setAspectRatio] = useState('1:1 正方形')
   const [clarity, setClarity] = useState('1K 标准')
   const maskCanvasRef = useRef(null)
@@ -305,8 +307,28 @@ export default function LocalErase({ variant = 'erase', initialImageFromGallery 
         </p>
       </div>
 
-      {/* 示例对比（仅局部消除展示） */}
-      {!isTextRemove && (
+      {/* 示例对比 */}
+      {isTextRemove ? (
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">原图（含文字）</p>
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72">
+            <img src={textRemoveDemoBefore} alt="原图" className="w-full h-full object-cover" />
+          </div>
+        </div>
+        <div className="flex items-center text-primary">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </div>
+        <div className="flex flex-col items-center">
+          <p className="text-sm font-medium text-gray-500 mb-2">去除后</p>
+          <div className="rounded-lg overflow-hidden border border-gray-200 shadow-sm w-72 h-72">
+            <img src={textRemoveDemoAfter} alt="去除后" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+      ) : (
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 py-2">
         <div className="flex flex-col items-center">
           <p className="text-sm font-medium text-gray-500 mb-2">原图</p>
@@ -421,6 +443,7 @@ export default function LocalErase({ variant = 'erase', initialImageFromGallery 
             onModelChange={setModel}
             onAspectRatioChange={setAspectRatio}
             onClarityChange={setClarity}
+            hint={isTextRemove ? '文字编辑任务建议选择 Nano Banana 2 或 Pro' : null}
           />
           <button
             type="button"

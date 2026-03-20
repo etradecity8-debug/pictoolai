@@ -297,6 +297,8 @@ nano server/.env
 SERPAPI_KEY=你的SerpApi密钥
 ```
 
+**可选：专利汇（补充中国+全球专利）**：在 [patenthub.cn/api/open](https://www.patenthub.cn/api/open) 申请 TOKEN，于 `.env` 中追加 `PATENTHUB_TOKEN=你的TOKEN`。配置后深度查询将同时检索专利汇（中国/全球专利库），与 Google Patents（美国为主）互补。不配置则仅用 Google Patents。
+
 保存退出（`Ctrl+O` 回车 → `Ctrl+X`）。
 
 ```bash

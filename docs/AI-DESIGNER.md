@@ -364,8 +364,12 @@
 | 路由 | 中文名 | 服务器 mode | 说明 |
 |------|--------|-------------|------|
 | `text-replace` | 文字替换 | `text-replace` | 替换图中的文字内容 |
-| `text-translate` | 语言转换 | `text-translate` | 将图中文字翻译为另一语言 |
+| `text-translate` | 语言转换 | `text-translate` | 将图中文字翻译为另一语言；**默认模型 Nano Banana 2**（Nano Banana 处理语言转换经常失败） |
 | `text-remove` | 文字去除 | `add-remove`（专用 prompt）| 涂抹要去除的文字区域后一键消除；复用 `LocalErase` 组件（`variant="text-remove"`） |
+
+- **默认模型**：文字替换、文字去除默认 Nano Banana；语言转换默认 **Nano Banana 2**。
+- **文字去除示例图**：`public/text-remove-demo-before.png`（含文字原图）、`text-remove-demo-after.png`（去除后）
+- **文字去除模型提示**：OutputSettings 在文字去除模式下显示 hint「文字编辑任务建议选择 Nano Banana 2 或 Pro」
 
 **页面排版**：从 ai-designer 进入时，采用与其它模块统一的布局——标题居中、副文案 text-base、主内容 max-w-3xl 白底卡片；上传区文案「上传图片」「从作品库选择」。
 

@@ -176,7 +176,7 @@ export default function DetailSet() {
   const [targetAudience, setTargetAudience] = useState('')
   const [styleDesc, setStyleDesc] = useState('')
   const [otherRequirements, setOtherRequirements] = useState('')
-  const [model, setModel] = useState('Nano Banana Pro')
+  const [model, setModel] = useState('Nano Banana')
   const [clarity, setClarity] = useState('2K 高清')
   const [analyzing, setAnalyzing] = useState(false)
   const [designSpecMarkdown, setDesignSpecMarkdown] = useState('')

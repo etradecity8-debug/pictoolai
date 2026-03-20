@@ -67,6 +67,16 @@
 
 ---
 
+## 今日完成（2026-03-19）
+
+### 1. 文字修改模块优化
+
+- **语言转换默认模型**：改为 **Nano Banana 2**（Nano Banana 经常无法处理语言转换任务）。`ImageEdit.jsx` 中 `initialMode === 'text-translate'` 时默认选中 Nano Banana 2；切换模式时同步更新。
+- **文字去除**：① 增加占位图 `public/text-remove-demo-before.png`、`text-remove-demo-after.png`（流浪猫救援海报 before/after 示例）；② OutputSettings 在文字去除模式下显示 hint「文字编辑任务建议选择 Nano Banana 2 或 Pro」。
+- **文档**：`docs/AI-DESIGNER.md` 第六部分已更新；`.cursor/rules/project-context.mdc` 已同步记忆。
+
+---
+
 ## 今日完成（2026-03-18）
 
 ### 1. 添加人/物（完善）
@@ -117,10 +127,10 @@
 
 **完整步骤**：按 `docs/DEPLOY.md` 第二节执行（本机 `git add` / `commit` / `push` → 服务器 `git pull` / `npm install` / `npm run build` / `pm2 restart`）。
 
-**本次（2026-03-18）建议提交说明**：
+**本次（2026-03-19）建议提交说明**：
 ```bash
 git add .
-git commit -m "feat: 添加人/物完善(多物品/自定义位置/真实比例/占位图)+仓库用AI编辑(一二级菜单/自动带图)+文档同步"
+git commit -m "feat: 文字修改优化-语言转换默认Nano Banana2+文字去除占位图与hint+文档同步"
 git push
 ```
 然后到服务器执行 `docs/DEPLOY.md` 第二节的步骤。

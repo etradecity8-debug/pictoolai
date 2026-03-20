@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">DEPLOY.md → 打印版 · 2026/3/19</div>
+  <div class="meta">DEPLOY.md → 打印版 · 2026/3/20</div>
   <h1>PicToolAI 运维手册</h1>
 <blockquote>
 <p>本文涵盖四块内容：<strong>首次部署</strong>（VPS 环境搭建）→ <strong>每次更新</strong>（日常发版操作）→ <strong>COS 配置</strong>（仓库图片国内加速）→ <strong>用户管理</strong>（管理后台 + 数据库操作）。</p>
@@ -237,6 +237,7 @@ pm2 save
 <p>在文件末尾加一行：</p>
 <pre><code>SERPAPI_KEY=你的SerpApi密钥
 </code></pre>
+<p><strong>可选：专利汇（补充中国+全球专利）</strong>：在 <a href="https://www.patenthub.cn/api/open">patenthub.cn/api/open</a> 申请 TOKEN，于 <code>.env</code> 中追加 <code>PATENTHUB_TOKEN=你的TOKEN</code>。配置后深度查询将同时检索专利汇（中国/全球专利库），与 Google Patents（美国为主）互补。不配置则仅用 Google Patents。</p>
 <p>保存退出（<code>Ctrl+O</code> 回车 → <code>Ctrl+X</code>）。</p>
 <pre><code class="language-bash">pm2 restart pictoolai-server
 </code></pre>
