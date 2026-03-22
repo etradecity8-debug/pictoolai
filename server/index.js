@@ -30,6 +30,12 @@ import {
   grantSignupBonus,
   getSubscriptionInfo,
 } from './points.js'
+import {
+  parseSellerSpriteExcel,
+  validateRows,
+  processOneRow,
+} from './supplier-matching.js'
+import { isDajiConfigured } from './daji.js'
 
 setGetDb(getDb)
 
@@ -115,7 +121,7 @@ function readUsersJson() {
 // ── SQLite 用户操作 ──────────────────────────────────────────────────────────
 
 function dbFindUser(email) {
-  return getDb().prepare('SELECT email, password_hash, role, created_at FROM users WHERE email = ?').get(email.toLowerCase())
+  return getDb().prepare('SELECT email, password_hash, role, created_at, frozen FROM users WHERE email = ?').get(email.toLowerCase())
 }
 
 function dbCreateUser(email, passwordHash, role = 'user') {
@@ -207,6 +213,9 @@ app.post('/api/login', async (req, res) => {
     const user = dbFindUser(normalizedEmail)
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: '邮箱或密码错误' })
+    }
+    if (user.frozen) {
+      return res.status(403).json({ error: '账号已冻结，请联系管理员' })
     }
     const token = jwt.sign({ email: user.email }, JWT_SECRET, { expiresIn: '7d' })
     const balance = getBalance(user.email)
@@ -927,7 +936,9 @@ function requireAuth(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET)
     const dbUser = dbFindUser(payload.email)
-    req.user = { email: payload.email, role: dbUser?.role ?? 'user' }
+    if (!dbUser) return res.status(401).json({ error: '用户不存在' })
+    if (dbUser.frozen) return res.status(403).json({ error: '账号已冻结，请联系管理员' })
+    req.user = { email: payload.email, role: dbUser.role ?? 'user' }
     next()
   } catch {
     return res.status(401).json({ error: '登录已过期，请重新登录' })
@@ -4315,12 +4326,201 @@ ${ipCopyrightSummary}
   }
 })
 
+// ── AI 电商工具箱 · 智能选品（1688 供应商匹配）──────────────────────────────
+const SUPPLIER_MATCHING_POINTS_PER_ROW = 1
+const supplierTasks = new Map() // taskId -> { status, current, total, results[], error?, createdAt }
+
+async function fetchExchangeRate() {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=CNY')
+    const json = await res.json()
+    return json?.rates?.CNY ? parseFloat(json.rates.CNY) : 7.2
+  } catch {
+    return 7.2
+  }
+}
+
+app.get('/api/supplier-matching/exchange-rate', async (_req, res) => {
+  try {
+    const rate = await fetchExchangeRate()
+    return res.json({ rate })
+  } catch (e) {
+    return res.json({ rate: 7.2 })
+  }
+})
+
+app.get('/api/supplier-matching/daji-status', (_req, res) => {
+  return res.json({ configured: isDajiConfigured() })
+})
+
+// 解析 Excel 预览（不扣积分）
+app.post('/api/supplier-matching/parse', requireAuth, (req, res) => {
+  try {
+    const { fileBase64 } = req.body || {}
+    if (!fileBase64) return res.status(400).json({ error: '请上传 Excel 文件' })
+    const buf = Buffer.from(fileBase64, 'base64')
+    const rows = parseSellerSpriteExcel(buf)
+    const err = validateRows(rows)
+    if (err) return res.status(400).json({ error: err })
+    return res.json({ rows, count: rows.length })
+  } catch (e) {
+    console.error('[supplier-matching] parse error', e.message)
+    return res.status(400).json({ error: e.message || '解析失败' })
+  }
+})
+
+// 开始分析（创建任务，后台处理）
+app.post('/api/supplier-matching/start', requireAuth, async (req, res) => {
+  try {
+    if (!isDajiConfigured()) return res.status(503).json({ error: '1688 搜索服务暂未配置，请联系管理员' })
+    const { fileBase64, settings } = req.body || {}
+    if (!fileBase64) return res.status(400).json({ error: '请上传 Excel 文件' })
+    const buf = Buffer.from(fileBase64, 'base64')
+    const rows = parseSellerSpriteExcel(buf)
+    const err = validateRows(rows)
+    if (err) return res.status(400).json({ error: err })
+
+    const exchangeRate = settings?.useManualRate ? parseFloat(settings.manualRate) : await fetchExchangeRate()
+    if (!exchangeRate || exchangeRate <= 0) return res.status(400).json({ error: '汇率无效' })
+    const headPresets = { air: 40, sea_fast: 12, sea_slow: 8 }
+    const headRate = settings?.headCustom != null ? parseFloat(settings.headCustom) : (headPresets[settings?.headPreset] ?? 40)
+    const domesticPerItem = parseFloat(settings?.domesticPerItem) || 0
+    const commissionOverride = settings?.commissionOverride != null ? parseFloat(settings.commissionOverride) : null
+
+    const taskId = `sm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    const task = {
+      status: 'running',
+      current: 0,
+      total: rows.length,
+      results: [],
+      error: null,
+      createdAt: Date.now(),
+      userEmail: req.user.email,
+    }
+    supplierTasks.set(taskId, task)
+
+    // 预扣积分：成功匹配的行数 × 1
+    const estimatedPoints = rows.length * SUPPLIER_MATCHING_POINTS_PER_ROW
+    const balance = getBalance(req.user.email)
+    if (balance < estimatedPoints) {
+      supplierTasks.delete(taskId)
+      return res.status(400).json({ error: `积分不足，预计需 ${estimatedPoints} 积分（${rows.length} 条 × 1 积分/条）` })
+    }
+
+    const processSettings = {
+      exchangeRate,
+      headRate,
+      domesticPerItem,
+      commissionRate: commissionOverride,
+    }
+
+    setImmediate(async () => {
+      let successCount = 0
+      for (let i = 0; i < rows.length; i++) {
+        if (task.status === 'cancelled') break
+        try {
+          const rowResult = await processOneRow(rows[i], processSettings)
+          task.results.push(rowResult)
+          if (rowResult.found) successCount++
+        } catch (e) {
+          console.error('[supplier-matching] row error', e.message)
+          task.results.push({
+            rowIndex: rows[i].rowIndex,
+            title: rows[i].title,
+            found: false,
+            error: e.message,
+          })
+        }
+        task.current = i + 1
+      }
+      task.status = 'done'
+      const toDeduct = successCount * SUPPLIER_MATCHING_POINTS_PER_ROW
+      if (toDeduct > 0) {
+        try {
+          deductPoints(req.user.email, toDeduct, `智能选品 ${successCount} 条`)
+        } catch (e) {
+          console.error('[supplier-matching] deduct points failed', e.message)
+        }
+      }
+      setTimeout(() => supplierTasks.delete(taskId), 60 * 60 * 1000)
+    })
+
+    return res.json({ taskId, total: rows.length })
+  } catch (e) {
+    console.error('[supplier-matching] start error', e.message)
+    return res.status(500).json({ error: e.message || '启动失败' })
+  }
+})
+
+app.get('/api/supplier-matching/task/:taskId', requireAuth, (req, res) => {
+  const task = supplierTasks.get(req.params.taskId)
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' })
+  if (task.userEmail !== req.user.email) return res.status(403).json({ error: '无权查看' })
+  return res.json({
+    status: task.status,
+    current: task.current,
+    total: task.total,
+    results: task.results,
+    error: task.error,
+  })
+})
+
+// 保存报告到历史
+app.post('/api/supplier-matching/save', requireAuth, (req, res) => {
+  try {
+    const { name, settings, resultData } = req.body || {}
+    const db = getDb()
+    const id = db
+      .prepare(
+        'INSERT INTO supplier_matching_reports (user_email, created_at, name, settings, rows_count, result_data) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(
+        req.user.email,
+        Date.now(),
+        name || '未命名报告',
+        JSON.stringify(settings || {}),
+        Array.isArray(resultData) ? resultData.length : 0,
+        JSON.stringify(resultData || [])
+      ).lastInsertRowid
+    return res.json({ id })
+  } catch (e) {
+    return res.status(500).json({ error: '保存失败' })
+  }
+})
+
+app.get('/api/supplier-matching/reports', requireAuth, (req, res) => {
+  const rows = getDb()
+    .prepare('SELECT id, name, created_at AS createdAt, rows_count AS rowsCount FROM supplier_matching_reports WHERE user_email = ? ORDER BY created_at DESC LIMIT 50')
+    .all(req.user.email)
+  return res.json({ items: rows })
+})
+
+app.get('/api/supplier-matching/reports/:id', requireAuth, (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM supplier_matching_reports WHERE id = ? AND user_email = ?')
+    .get(req.params.id, req.user.email)
+  if (!row) return res.status(404).json({ error: '报告不存在' })
+  return res.json({
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at,
+    settings: JSON.parse(row.settings || '{}'),
+    resultData: JSON.parse(row.result_data || '[]'),
+  })
+})
+
+app.delete('/api/supplier-matching/reports/:id', requireAuth, (req, res) => {
+  const r = getDb().prepare('DELETE FROM supplier_matching_reports WHERE id = ? AND user_email = ?').run(req.params.id, req.user.email)
+  if (r.changes === 0) return res.status(404).json({ error: '报告不存在' })
+  return res.json({ ok: true })
+})
+
 // ── 管理员 API ────────────────────────────────────────────────────────────────
 
 // 客户列表（含余额、订阅到期时间、总消耗、管理员备注）
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   try {
-    const users = getDb().prepare('SELECT email, role, created_at, admin_notes FROM users ORDER BY created_at DESC').all()
+    const users = getDb().prepare('SELECT email, role, created_at, admin_notes, frozen FROM users ORDER BY created_at DESC').all()
     const result = users.map((u) => {
       const info = getSubscriptionInfo(u.email)
       const spentRow = getDb()
@@ -4331,6 +4531,7 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
         role: u.role,
         createdAt: u.created_at,
         adminNotes: u.admin_notes ?? '',
+        frozen: !!u.frozen,
         balance: info.balance,
         expiresAt: info.expiresAt,
         lastGrantedAt: info.lastGrantedAt,
@@ -4356,6 +4557,23 @@ app.patch('/api/admin/users/:email/notes', requireAdmin, (req, res) => {
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '更新备注失败' })
+  }
+})
+
+// 冻结/解冻客户（不删除，暂时不可用）
+app.patch('/api/admin/users/:email/freeze', requireAdmin, (req, res) => {
+  try {
+    const targetEmail = req.params.email.toLowerCase()
+    if (targetEmail === req.user.email) return res.status(400).json({ error: '不能冻结自己的账号' })
+    const user = dbFindUser(targetEmail)
+    if (!user) return res.status(404).json({ error: '用户不存在' })
+    const frozen = !!req.body?.frozen
+    getDb().prepare('UPDATE users SET frozen = ? WHERE email = ?').run(frozen ? 1 : 0, targetEmail)
+    console.log(`[Admin] ${req.user.email} ${frozen ? '冻结' : '解冻'}了用户 ${targetEmail}`)
+    return res.json({ ok: true, frozen })
+  } catch (e) {
+    console.error(e)
+    return res.status(500).json({ error: '操作失败' })
   }
 })
 
@@ -4398,6 +4616,7 @@ app.delete('/api/admin/users/:email', requireAdmin, (req, res) => {
     db.prepare('DELETE FROM amazon_listing_snapshots WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM ebay_listing_snapshots WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM aliexpress_listing_snapshots WHERE user_email = ?').run(targetEmail)
+    db.prepare('DELETE FROM supplier_matching_reports WHERE user_email = ?').run(targetEmail)
     db.prepare('DELETE FROM users WHERE email = ?').run(targetEmail)
     console.log(`[Admin] ${req.user.email} 删除了用户 ${targetEmail}（含 ${galleryRows.length} 张仓库图），该邮箱可重新注册`)
     return res.json({ ok: true })

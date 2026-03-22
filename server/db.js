@@ -94,6 +94,17 @@ export function getDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_aliexpress_listing_user ON aliexpress_listing_snapshots(user_email);
     CREATE INDEX IF NOT EXISTS idx_aliexpress_listing_created ON aliexpress_listing_snapshots(created_at DESC);
+    CREATE TABLE IF NOT EXISTS supplier_matching_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_email TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      name TEXT DEFAULT '',
+      settings TEXT NOT NULL DEFAULT '{}',
+      rows_count INTEGER NOT NULL DEFAULT 0,
+      result_data TEXT NOT NULL DEFAULT '[]'
+    );
+    CREATE INDEX IF NOT EXISTS idx_supplier_reports_user ON supplier_matching_reports(user_email);
+    CREATE INDEX IF NOT EXISTS idx_supplier_reports_created ON supplier_matching_reports(created_at DESC);
   `)
     try {
       const galleryInfo = db.prepare('PRAGMA table_info(gallery)').all()
@@ -118,6 +129,7 @@ export function getDb() {
       const usersInfo = db.prepare('PRAGMA table_info(users)').all()
       const usersNames = usersInfo.map((c) => c.name)
       if (!usersNames.includes('admin_notes')) db.exec('ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT NULL')
+      if (!usersNames.includes('frozen')) db.exec('ALTER TABLE users ADD COLUMN frozen INTEGER NOT NULL DEFAULT 0')
     } catch (_) {}
   }
   return db

@@ -42,6 +42,23 @@ npm install && npm start
 - 前端：<http://localhost:5173>
 - 后端：<http://localhost:3001>
 
+### 端口被占用时
+
+若启动时报 `EADDRINUSE: address already in use :::3001`（或 5173），说明该端口已被占用，可先结束占用的进程：
+
+```bash
+# 查看占用端口的进程
+lsof -i :3001
+
+# 结束该进程（替换 PID 为实际进程号）
+kill -9 <PID>
+
+# 或一行命令直接结束
+lsof -ti :3001 | xargs kill -9
+```
+
+前端端口 5173 同理：`lsof -ti :5173 | xargs kill -9`。
+
 ### 首次配置
 
 在 `server/.env` 中至少配置：

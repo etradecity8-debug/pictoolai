@@ -42,7 +42,15 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-gray-900 text-center">登录</h1>
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            <div
+              className={`rounded-lg px-3 py-2 text-sm ${
+                error.includes('冻结')
+                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                  : 'bg-red-50 text-red-600'
+              }`}
+            >
+              {error}
+            </div>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700">邮箱</label>

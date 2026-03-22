@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">PRICING-COST.md → 打印版 · 2026/3/21</div>
+  <div class="meta">PRICING-COST.md → 打印版 · 2026/3/23</div>
   <h1>PicToolAI · 积分规则、成本与盈利分析</h1>
 <blockquote>
 <p>本文档供内部参考，记录积分扣费逻辑、API 成本核算、固定成本及盈利分析。</p>
@@ -130,6 +130,12 @@
 <td>每次，按所选模型与清晰度</td>
 </tr>
 <tr>
+<td>智能选品（1688 匹配）</td>
+<td>1</td>
+<td>¥0.20/条</td>
+<td>匹配成功才扣，未找到不扣</td>
+</tr>
+<tr>
 <td>侵权风险检测 · 深度查询</td>
 <td>20</td>
 <td>¥4.00/次</td>
@@ -139,7 +145,7 @@
 <td>侵权风险检测 · 快速筛查</td>
 <td>0</td>
 <td>免费</td>
-<td>仅 Gemini，成本极低</td>
+<td>仅 Gemini text，成本极低</td>
 </tr>
 <tr>
 <td>电商 AI 运营助手（所有分析）</td>
@@ -204,6 +210,35 @@
 <li>平均约 3 次/每次深度查询</li>
 <li><strong>当前免费版可支撑</strong>：250 ÷ 3 ≈ <strong>约 80 次深度查询/月</strong></li>
 <li>若月内深度查询量超免费额度，需升级 SerpApi 套餐；Developer 约可支撑 1,600 次/月</li>
+</ul>
+<h3>2.2.5 DajiAPI（智能选品 1688 搜索）</h3>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>费用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>免费版</td>
+<td>100 次/月</td>
+<td>开发测试</td>
+</tr>
+<tr>
+<td>标准版</td>
+<td>$100/月（≈¥720）</td>
+<td>50,000 次，≈¥0.014/次</td>
+</tr>
+<tr>
+<td>高级版</td>
+<td>$500/月</td>
+<td>333,333 次</td>
+</tr>
+</tbody></table>
+<ul>
+<li>关键词搜索 <code>/alibaba/product/keywordQuery</code>，每次调用约 ¥0.014</li>
+<li>每条产品 1 次搜索，50 条 ≈ ¥0.7；用户付费 1 积分/条 = ¥0.20/条</li>
 </ul>
 <h3>2.3 专利汇（侵权专利检索补充）</h3>
 <table>
@@ -384,6 +419,34 @@
 <td><strong>≈ ¥3.93/次（约 98% 毛利率）</strong></td>
 </tr>
 </tbody></table>
+<h3>4.2.5 智能选品利润</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>金额</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>用户付费</td>
+<td>1 积分 = ¥0.20/条</td>
+</tr>
+<tr>
+<td>DajiAPI 成本</td>
+<td>≈ ¥0.014/次（关键词搜索）</td>
+</tr>
+<tr>
+<td>Gemini 成本</td>
+<td>翻译+排序 ≈ ¥0.02/条</td>
+</tr>
+<tr>
+<td><strong>毛利润</strong></td>
+<td><strong>≈ ¥0.17/条（约 83% 毛利率）</strong></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>匹配成功才扣积分，未找到不扣。成本以 DajiAPI 标准版、50 条/次估算。</p>
+</blockquote>
 <h3>4.3 收支平衡估算</h3>
 <p><strong>当前</strong> SerpApi、专利汇均为免费版，固定运营成本约 <strong>¥526/月</strong>（服务器+域名+COS+Cursor）。</p>
 <table>

@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/21</div>
+  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/3/23</div>
   <h1>PicToolAI 项目概览</h1>
 <blockquote>
 <p>技术栈、目录结构、功能一览、数据与配置。详细设计见各专项文档。</p>
@@ -86,8 +86,8 @@
 </tr>
 <tr>
 <td>外部服务</td>
-<td>SerpApi、专利汇</td>
-<td>侵权深度查询（可选）</td>
+<td>SerpApi、专利汇、DajiAPI</td>
+<td>侵权深度查询、智能选品 1688 搜索（可选）</td>
 </tr>
 </tbody></table>
 <hr>
@@ -100,6 +100,7 @@
 │   ├── ECOMMERCE-AI-ASSISTANT.md
 │   ├── AI-DESIGNER.md
 │   ├── IP-RISK.md
+│   ├── 1688-SUPPLIER-MATCHING.md
 │   ├── DEPLOY.md
 │   ├── KNOWN_ISSUES.md
 │   ├── PRICING-COST.md
@@ -116,6 +117,8 @@
 │   │   ├── ImageEdit.jsx     # 修改图片（9 种模式）
 │   │   ├── AiAssistant.jsx   # 电商 AI 运营助手
 │   │   ├── IpRisk.jsx        # 侵权风险检测
+│   │   ├── AiToolbox.jsx     # AI 电商工具箱入口
+│   │   ├── ai-toolbox/       # 智能选品（SupplierMatching）
 │   │   ├── StyleClone.jsx    # 风格复刻
 │   │   ├── Admin.jsx         # 管理后台
 │   │   └── dashboard/        # Gallery、ListingHistory
@@ -132,7 +135,9 @@
 │   │   └── exportListingCsv.js   # 导出 CSV/JSON
 │   └── context/AuthContext.jsx
 ├── server/
-│   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、admin
+│   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、supplier-matching、admin
+│   ├── daji.js               # DajiAPI 1688 关键词/以图搜图
+│   ├── supplier-matching.js  # 智能选品：解析 Excel、AI 翻译、1688 搜索、利润核算
 │   ├── db.js                 # SQLite 表结构与初始化
 │   ├── points.js             # 积分规则、getBalance、grantPoints、grantSignupBonus
 │   ├── gemini-models.js      # 生图模型 ID、分析模型 ID
@@ -168,6 +173,11 @@
 <td>电商 AI 运营助手</td>
 <td><code>/ai-assistant</code></td>
 <td>亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究</td>
+</tr>
+<tr>
+<td>AI 电商工具箱</td>
+<td><code>/ai-toolbox</code>、<code>/ai-toolbox/supplier-matching</code></td>
+<td>智能选品：卖家精灵表格→1688 匹配→利润核算（1 积分/条）</td>
 </tr>
 <tr>
 <td>侵权风险检测</td>
@@ -304,6 +314,11 @@
 <td>深度查询</td>
 <td>Google Lens、Patents、专利汇、商标、IP 角色，20 积分</td>
 </tr>
+<tr>
+<td><strong>AI 电商工具箱</strong></td>
+<td>智能选品</td>
+<td>上传卖家精灵 Excel → AI 翻译+1688 搜索 → Top 3 匹配 → 利润核算，1 积分/条</td>
+</tr>
 </tbody></table>
 <p><strong>暂不开放</strong>：亚马逊 A+ 模块（Step 4 + 独立 A+ 页）、服装组图、万能画布。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
 <hr>
@@ -343,6 +358,10 @@
 <tr>
 <td>aliexpress_listing_snapshots</td>
 <td>速卖通 Listing 快照</td>
+</tr>
+<tr>
+<td>supplier_matching_reports</td>
+<td>智能选品报告历史</td>
 </tr>
 </tbody></table>
 <p>图片文件：未配 COS 时存 <code>server/gallery/</code>；配置 COS 后新图上传腾讯云，数据库存 <code>cos_key</code>。</p>
@@ -395,6 +414,11 @@
 <td>COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET / COS_REGION</td>
 <td>可选</td>
 <td>腾讯云 COS 仓库加速</td>
+</tr>
+<tr>
+<td>DAJI_APP_KEY / DAJI_APP_SECRET</td>
+<td>智能选品</td>
+<td>DajiAPI 1688 搜索，未配置则智能选品不可用</td>
 </tr>
 <tr>
 <td>GEMINI_ANALYSIS_MODEL</td>
@@ -458,6 +482,21 @@
 <td>快筛/深度查询</td>
 </tr>
 <tr>
+<td>智能选品</td>
+<td>POST /api/supplier-matching/parse, /start, /save</td>
+<td>解析 Excel、启动分析、保存报告</td>
+</tr>
+<tr>
+<td></td>
+<td>GET /api/supplier-matching/task/:id, /reports, /reports/:id</td>
+<td>任务进度、历史报告</td>
+</tr>
+<tr>
+<td></td>
+<td>DELETE /api/supplier-matching/reports/:id</td>
+<td>删除报告</td>
+</tr>
+<tr>
 <td>智能粘贴</td>
 <td>POST /api/ai-assistant/smart-paste</td>
 <td>从粘贴文本提取 Listing 字段</td>
@@ -465,7 +504,7 @@
 <tr>
 <td>管理员</td>
 <td>GET/POST/DELETE/PATCH /api/admin/users/*</td>
-<td>用户列表、充值、删除、备注</td>
+<td>用户列表、充值、删除、备注、冻结/解冻</td>
 </tr>
 </tbody></table>
 <hr>
@@ -514,6 +553,10 @@ npm install &amp;&amp; npm start
 <tr>
 <td>侵权风险检测</td>
 <td><a href="./IP-RISK.md">IP-RISK.md</a></td>
+</tr>
+<tr>
+<td>1688 智能选品</td>
+<td><a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a></td>
 </tr>
 <tr>
 <td>运维部署</td>

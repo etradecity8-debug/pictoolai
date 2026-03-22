@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
 import GalleryThumb from '../../components/GalleryThumb'
+import { loadImageFromGalleryId } from '../../lib/loadGalleryImage'
 import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
@@ -121,7 +122,7 @@ export default function AddPersonObject({ initialImageFromGallery }) {
 
   useEffect(() => {
     if (!initialImageFromGallery?.url || !getToken) return
-    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken, initialImageFromGallery.id)
       .then(({ file, dataUrl }) => {
         setBaseImage({ file, dataUrl })
         setResult(null)
@@ -136,11 +137,15 @@ export default function AddPersonObject({ initialImageFromGallery }) {
     setGalleryPicker({ open: true, forBase: !!forBase, objectIndex })
     if (galleryItems.length > 0) return
     setGalleryLoading(true)
-    getToken() &&
-      fetch('/api/gallery', { headers: { Authorization: `Bearer ${getToken()}` } })
-        .then((res) => res.json().catch(() => ({})))
-        .then((data) => setGalleryItems(data.items || []))
-        .finally(() => setGalleryLoading(false))
+    const token = getToken()
+    if (!token) {
+      setGalleryLoading(false)
+      return
+    }
+    fetch('/api/gallery', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.json().catch(() => ({})))
+      .then((data) => setGalleryItems(data.items || []))
+      .finally(() => setGalleryLoading(false))
   }
 
   const pickFromGallery = async (item) => {
@@ -148,13 +153,7 @@ export default function AddPersonObject({ initialImageFromGallery }) {
     const objIdx = galleryPicker.objectIndex
     setGalleryPicker((prev) => ({ ...prev, open: false }))
     try {
-      const token = getToken()
-      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
-      const headers = token && !isAbsolute ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(item.url, { headers })
-      const blob = await res.blob()
-      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
-      const dataUrl = URL.createObjectURL(file)
+      const { file, dataUrl } = await loadImageFromGalleryId(item.id, getToken)
       if (wasForBase) {
         setBaseImage({ file, dataUrl })
       } else if (typeof objIdx === 'number') {

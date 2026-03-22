@@ -21,7 +21,7 @@
 | 认证 | JWT、bcrypt | 登录态存 localStorage，密钥可配 `JWT_SECRET` |
 | 数据库 | SQLite（better-sqlite3） | `server/pictoolai.db`，单文件 |
 | AI | Google Gemini | 分析：`gemini-2.5-flash`；生图：Nano Banana / 2 / Pro |
-| 外部服务 | SerpApi、专利汇 | 侵权深度查询（可选） |
+| 外部服务 | SerpApi、专利汇、DajiAPI | 侵权深度查询、智能选品 1688 搜索（可选） |
 
 ---
 
@@ -36,6 +36,7 @@
 │   ├── ECOMMERCE-AI-ASSISTANT.md
 │   ├── AI-DESIGNER.md
 │   ├── IP-RISK.md
+│   ├── 1688-SUPPLIER-MATCHING.md
 │   ├── DEPLOY.md
 │   ├── KNOWN_ISSUES.md
 │   ├── PRICING-COST.md
@@ -52,6 +53,8 @@
 │   │   ├── ImageEdit.jsx     # 修改图片（9 种模式）
 │   │   ├── AiAssistant.jsx   # 电商 AI 运营助手
 │   │   ├── IpRisk.jsx        # 侵权风险检测
+│   │   ├── AiToolbox.jsx     # AI 电商工具箱入口
+│   │   ├── ai-toolbox/       # 智能选品（SupplierMatching）
 │   │   ├── StyleClone.jsx    # 风格复刻
 │   │   ├── Admin.jsx         # 管理后台
 │   │   └── dashboard/        # Gallery、ListingHistory
@@ -68,7 +71,9 @@
 │   │   └── exportListingCsv.js   # 导出 CSV/JSON
 │   └── context/AuthContext.jsx
 ├── server/
-│   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、admin
+│   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、supplier-matching、admin
+│   ├── daji.js               # DajiAPI 1688 关键词/以图搜图
+│   ├── supplier-matching.js  # 智能选品：解析 Excel、AI 翻译、1688 搜索、利润核算
 │   ├── db.js                 # SQLite 表结构与初始化
 │   ├── points.js             # 积分规则、getBalance、grantPoints、grantSignupBonus
 │   ├── gemini-models.js      # 生图模型 ID、分析模型 ID
@@ -91,6 +96,7 @@
 | 通用电商生图 | `/detail-set` | 全品类组图：5 种图片类型分别选张数，分析→确认→生图 |
 | AI 美工 | `/ai-designer`、`/ai-designer/:toolId` | 局部重绘/消除/换色、智能扩图、提升质感、服装 3D/平铺/调整身材、生成场景、添加人/物、文字修改、风格变迁、水印、官方示例 |
 | 电商 AI 运营助手 | `/ai-assistant` | 亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究 |
+| AI 电商工具箱 | `/ai-toolbox`、`/ai-toolbox/supplier-matching` | 智能选品：卖家精灵表格→1688 匹配→利润核算（1 积分/条） |
 | 侵权风险检测 | `/ip-risk` | 免费快筛 + 深度查询（20 积分） |
 | 订阅 | `/pricing` | 定价与套餐 |
 | 联系我们 | `/contact` | 微信联系方式 |
@@ -127,6 +133,7 @@
 | **eBay / 速卖通** | 生成/优化 | 平台专属算法与规则 |
 | **侵权检测** | 快筛 | Gemini 视觉分析，免费 |
 | | 深度查询 | Google Lens、Patents、专利汇、商标、IP 角色，20 积分 |
+| **AI 电商工具箱** | 智能选品 | 上传卖家精灵 Excel → AI 翻译+1688 搜索 → Top 3 匹配 → 利润核算，1 积分/条 |
 
 **暂不开放**：亚马逊 A+ 模块（Step 4 + 独立 A+ 页）、服装组图、万能画布。详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
 
@@ -145,6 +152,7 @@
 | amazon_listing_snapshots | 亚马逊 Listing 快照 |
 | ebay_listing_snapshots | eBay Listing 快照 |
 | aliexpress_listing_snapshots | 速卖通 Listing 快照 |
+| supplier_matching_reports | 智能选品报告历史 |
 
 图片文件：未配 COS 时存 `server/gallery/`；配置 COS 后新图上传腾讯云，数据库存 `cos_key`。
 
@@ -162,6 +170,7 @@
 | SERPAPI_KEY | 深度查询 | 侵权深度查询必需 |
 | PATENTHUB_TOKEN | 可选 | 专利汇中国+全球专利检索 |
 | COS_SECRET_ID / COS_SECRET_KEY / COS_BUCKET / COS_REGION | 可选 | 腾讯云 COS 仓库加速 |
+| DAJI_APP_KEY / DAJI_APP_SECRET | 智能选品 | DajiAPI 1688 搜索，未配置则智能选品不可用 |
 | GEMINI_ANALYSIS_MODEL | 可选 | 覆盖分析模型（默认 gemini-2.5-flash） |
 
 ---
@@ -179,8 +188,11 @@
 | eBay | POST /api/ai-assistant/ebay/* | analyze、generate-listing、optimize-listing |
 | 速卖通 | POST /api/ai-assistant/aliexpress/* | 同上 |
 | 侵权 | POST /api/ai-assistant/ip-risk-check | 快筛/深度查询 |
+| 智能选品 | POST /api/supplier-matching/parse, /start, /save | 解析 Excel、启动分析、保存报告 |
+| | GET /api/supplier-matching/task/:id, /reports, /reports/:id | 任务进度、历史报告 |
+| | DELETE /api/supplier-matching/reports/:id | 删除报告 |
 | 智能粘贴 | POST /api/ai-assistant/smart-paste | 从粘贴文本提取 Listing 字段 |
-| 管理员 | GET/POST/DELETE/PATCH /api/admin/users/* | 用户列表、充值、删除、备注 |
+| 管理员 | GET/POST/DELETE/PATCH /api/admin/users/* | 用户列表、充值、删除、备注、冻结/解冻 |
 
 ---
 
@@ -219,6 +231,7 @@ npm install && npm start
 | 电商 AI 助手 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
 | AI 美工 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | 侵权风险检测 | [IP-RISK.md](./IP-RISK.md) |
+| 1688 智能选品 | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
 | 运维部署 | [DEPLOY.md](./DEPLOY.md) |
 | 已知问题 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
 | 积分与成本 | [PRICING-COST.md](./PRICING-COST.md) |

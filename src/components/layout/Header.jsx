@@ -76,6 +76,21 @@ export default function Header() {
               </Link>
             ))}
 
+            {/* AI 电商工具箱 */}
+            <Link
+              to="/ai-toolbox"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
+                location.pathname.startsWith('/ai-toolbox')
+                  ? 'text-gray-900 bg-white shadow-sm border border-gray-200'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-white/70'
+              }`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>AI 电商工具箱</span>
+            </Link>
             {/* AI 运营助手：点击进入，平台在侧边栏选择 */}
             <Link
               to="/ai-assistant"
@@ -212,6 +227,20 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
+            {/* AI 电商工具箱（移动端） */}
+            <Link
+              to="/ai-toolbox"
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
+                location.pathname.startsWith('/ai-toolbox') ? 'text-gray-900 bg-white font-medium' : 'text-gray-600 hover:bg-white/60 hover:text-gray-900'
+              }`}
+              onClick={() => setMenuOpen(false)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>AI 电商工具箱</span>
+            </Link>
             {/* 电商AI运营助手（移动端） */}
             <Link
               to="/ai-assistant"

@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1688 SUPPLIER MATCHING</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">1688-SUPPLIER-MATCHING.md → 打印版 · 2026/3/23</div>
+  <h1>1688 智能选品匹配 — 功能方案说明</h1>
+<blockquote>
+<p>本文档面向客户沟通使用，说明「卖家精灵表格 → 自动匹配 1688 供应商 → 利润核算」功能的实现方案。</p>
+</blockquote>
+<hr>
+<h2>一、客户需求</h2>
+<p>客户从<strong>卖家精灵</strong>下载&quot;待开发产品&quot;Excel 表格，包含亚马逊商品的图片、英文标题、售价、重量、FBA 费用等信息。希望系统能够：</p>
+<ol>
+<li><strong>自动解析</strong>上传的表格</li>
+<li><strong>自动在 1688 上搜索</strong>最匹配的供应商商品，拿到采购价</li>
+<li><strong>自动核算利润</strong>，判断该产品是否值得开发</li>
+</ol>
+<p>目标：<strong>全自动</strong>，上传表格 → 输出利润分析报告，中间无需手动操作。</p>
+<hr>
+<h2>二、卖家精灵表格数据分析</h2>
+<p>以客户提供的样本 <code>Product-Home&amp;Kitchen-US-Last-30-days-419484.xlsx</code> 为例：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>数据</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>数据量</td>
+<td>46 条产品</td>
+</tr>
+<tr>
+<td>文件大小</td>
+<td>263KB</td>
+</tr>
+<tr>
+<td>列数</td>
+<td>约 48 列</td>
+</tr>
+<tr>
+<td>类目</td>
+<td>Home &amp; Kitchen（家居厨房）</td>
+</tr>
+</tbody></table>
+<h3>表格中可直接使用的关键字段</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>用途</th>
+<th>示例</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>商品标题（英文）</td>
+<td>AI 翻译为中文搜索词，匹配 1688</td>
+<td>Disposable Toilet Cleaning System...</td>
+</tr>
+<tr>
+<td>商品主图 URL</td>
+<td>下载后做以图搜图，提高匹配精度</td>
+<td><code>https://m.media-amazon.com/images/I/...jpg</code></td>
+</tr>
+<tr>
+<td>详细参数</td>
+<td>品牌、材质、尺寸、颜色等，辅助筛选</td>
+<td>Brand:LFBEAR, Material:Polypropylene...</td>
+</tr>
+<tr>
+<td>价格（$）</td>
+<td>利润计算：亚马逊端售价</td>
+<td>$21.96 ~ $31.99</td>
+</tr>
+<tr>
+<td>FBA 费用（$）</td>
+<td>利润计算：已有数据可直接用</td>
+<td>$6.26 ~ $7.13</td>
+</tr>
+<tr>
+<td>毛利率</td>
+<td>卖家精灵已算的基础毛利率</td>
+<td>55% ~ 61%</td>
+</tr>
+<tr>
+<td>商品重量 / 尺寸</td>
+<td>头程运费估算</td>
+<td>0.97kg, 5&quot;×3.8&quot;×8.8&quot;</td>
+</tr>
+<tr>
+<td>大类目 / 小类目</td>
+<td>缩小搜索范围，确定佣金比例</td>
+<td>Home &amp; Kitchen → Toilet Brushes</td>
+</tr>
+<tr>
+<td>卖家所属地</td>
+<td>CN = 中国卖家，1688 有货概率极高</td>
+<td>CN</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>表格中已有 <code>1688链接1</code>、<code>1688链接2</code> 两个<strong>空列</strong>，说明卖家精灵原本就是让用户手动去 1688 查找填入的。我们要做的就是<strong>用 AI 自动完成这一步</strong>。</p>
+</blockquote>
+<hr>
+<h2>三、全自动化流程</h2>
+<pre><code>用户上传卖家精灵 Excel（最多 100 条）
+        ↓
+   ① 解析表格 — 校验必填字段（商品标题、售价、商品主图）
+        ↓
+   ② 确认参数 — 头程运费（预设/自定义）、国内运费（默认0）、汇率（实时/手动）、佣金比例（按行大类目，缺则15%）
+        ↓
+   ③ 创建异步分析任务（页面不卡住，显示进度面板）
+        ↓
+   对每条商品逐条处理（实时更新进度）：
+   ├─ ③a AI 智能翻译（Gemini）
+   │      英文标题 → 中文采购关键词
+   │      例：&quot;Disposable Toilet Brush with 48 Refills&quot;
+   │         → &quot;一次性马桶刷 替换头 48个装&quot;
+   ├─ ③b 1688 商品搜索（DajiAPI）
+   │      ├─ 通道一：中文关键词搜索（已实现）
+   │      └─ 通道二：产品主图以图搜图（待扩展，Daji 以图搜图仅支持 1688 域名图片）
+   │      → 当前仅用关键词通道，返回候选结果
+   ├─ ③c AI 智能匹配打分（Gemini）
+   │      对比原始产品 vs 1688 搜索结果
+   │      综合：标题相似度、规格参数、图片相似度、店铺评分
+   │      → 选出 Top 3，默认推荐第 1 名
+   │      → 搜不到则标记「未找到」，不扣积分
+   └─ ③d 利润自动核算
+          亚马逊售价（表格已有）
+          - 1688 采购价（API 获取，用推荐第 1 名的价格）
+          - FBA 费用（表格已有 / 按重量估算）
+          - 头程运费（用户选定的费率 × 重量）
+          - 平台佣金（售价 × 品类佣金率）
+        ↓
+   ④ 查看完整利润分析报告
+      → 默认按毛利率排序
+      → 每行可切换 Top 3 匹配，利润实时重算
+      → 「保存报告」→ 存入历史记录
+      → 「导出 Excel」→ 下载完整报告
+</code></pre>
+<hr>
+<h2>四、利润计算公式</h2>
+<pre><code>单件毛利 = 亚马逊售价 × 汇率
+         - 1688 采购价
+         - 国内运费（默认 0，用户可设置每件 ¥X）
+         - 头程运费（用户选定费率 × 重量）
+         - FBA 配送费（表格已有 / 缺失时按重量估算）
+         - 亚马逊佣金（售价 × 品类佣金率，缺类目用 15%）
+         - 其他费用（预留：广告、退货，暂不参与）
+
+毛利率 = 单件毛利 ÷ 亚马逊售价 × 100%
+</code></pre>
+<p>各参数默认值（已确认）：</p>
+<ul>
+<li><strong>汇率</strong>：默认实时获取（Frankfurter API，免费无需 Key），用户可切换为手动输入固定值</li>
+<li><strong>头程运费</strong>：双模式<ul>
+<li>预设费率（默认选中空运）：空运 ¥40/kg、海运快船 ¥12/kg、海运慢船 ¥8/kg</li>
+<li>自定义：用户手动输入 ¥/kg 单价</li>
+</ul>
+</li>
+<li><strong>国内运费</strong>：默认 <strong>0</strong>，用户可设置「每件 ¥X」（采购到仓库的国内段费用）</li>
+<li><strong>品类佣金率</strong>：按行 <code>大类目</code> 映射 Amazon 官方 Referral Fee，混品类表格每行独立计算；<strong>缺类目时用默认 15%</strong></li>
+<li><strong>广告费 / 退货率</strong>：预留，暂不参与计算（界面显示「即将支持」）</li>
+</ul>
+<hr>
+<h2>五、技术可行性</h2>
+<h3>各环节评估</h3>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>技术难度</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>解析 Excel 表格</td>
+<td>★☆☆ 低</td>
+<td>成熟的 xlsx 解析库，字段映射即可</td>
+</tr>
+<tr>
+<td>AI 翻译关键词</td>
+<td>★☆☆ 低</td>
+<td>Gemini 擅长此类翻译任务，准确率高</td>
+</tr>
+<tr>
+<td>1688 商品搜索</td>
+<td>★★★ 核心</td>
+<td>需接入第三方 1688 数据 API（见下方）</td>
+</tr>
+<tr>
+<td>AI 匹配打分</td>
+<td>★★☆ 中</td>
+<td>Gemini 对比分析，需调优 prompt</td>
+</tr>
+<tr>
+<td>利润计算</td>
+<td>★☆☆ 低</td>
+<td>纯数学计算，公式确定即可</td>
+</tr>
+<tr>
+<td>报告展示与导出</td>
+<td>★☆☆ 低</td>
+<td>表格渲染 + Excel 导出</td>
+</tr>
+</tbody></table>
+<h3>1688 数据获取方案（核心）</h3>
+<p>由于 1688 没有免费公开的搜索 API，需要通过以下方式之一获取数据：</p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优点</th>
+<th>缺点</th>
+<th>推荐度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>第三方 1688 API 服务商</strong></td>
+<td>接入简单、数据稳定、合规</td>
+<td>按次收费</td>
+<td>⭐⭐⭐ 首选</td>
+</tr>
+<tr>
+<td><strong>1688 开放平台官方 API</strong></td>
+<td>最正规、数据最全</td>
+<td>需企业资质、审核周期长</td>
+<td>⭐⭐ 长期</td>
+</tr>
+<tr>
+<td><strong>网页爬虫</strong></td>
+<td>免费</td>
+<td>反爬强、不稳定、有法律风险</td>
+<td>⭐ 不推荐</td>
+</tr>
+</tbody></table>
+<p><strong>推荐方案</strong>：先接入第三方 1688 API 服务商（国内有多家提供此类服务），快速上线；后续如有需要再申请官方 API。</p>
+<hr>
+<h2>六、1688 API 服务商调研（2026-03）</h2>
+<p>经过对市场上主流 1688 数据 API 服务商的调研，以下是详细对比：</p>
+<h3>方案 A：DajiAPI（推荐首选）</h3>
+<ul>
+<li><strong>官网</strong>：<a href="https://www.dajiapi.cn">https://www.dajiapi.cn</a></li>
+<li><strong>文档</strong>：<a href="https://wiki.dajisaas.com/doc-4514988">https://wiki.dajisaas.com/doc-4514988</a></li>
+</ul>
+<p><strong>支持的 1688 接口：</strong></p>
+<ul>
+<li>关键词搜索商品</li>
+<li><strong>以图搜图</strong>（图片搜索）</li>
+<li>商品详情（通过商品 ID）</li>
+<li>店铺搜索</li>
+<li>查询运费 / 预览订单 / 创建订单等</li>
+</ul>
+<p><strong>定价：</strong></p>
+<table>
+<thead>
+<tr>
+<th>套餐</th>
+<th>月调用量</th>
+<th>月费</th>
+<th>单次费用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>免费版</td>
+<td>100 次</td>
+<td>$0</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>标准版</td>
+<td>50,000 次</td>
+<td>$100（≈¥720）</td>
+<td>≈¥0.014/次</td>
+</tr>
+<tr>
+<td>高级版</td>
+<td>333,333 次</td>
+<td>$500（≈¥3,600）</td>
+<td>≈¥0.011/次</td>
+</tr>
+<tr>
+<td>定制版</td>
+<td>按需</td>
+<td>联系客服</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<p><strong>优点：</strong></p>
+<ul>
+<li>同时支持关键词搜索和以图搜图，满足双通道需求</li>
+<li>免费版可用于开发测试（100 次/月）</li>
+<li>支持 12 种语言返回（中英日韩俄等）</li>
+<li>搜索支持多维筛选：价格区间、排序（批发价/复购率/月销量）、认证工厂、一件代发等</li>
+<li>提供完整的签名认证机制，安全可靠</li>
+<li>支持联系客服（Email / 微信 / WhatsApp）</li>
+</ul>
+<p><strong>注意事项：</strong></p>
+<ul>
+<li>以图搜图接口 <code>imageUrl</code> 参数仅支持 1688 图片链接，需先上传图片或使用图片 ID</li>
+<li>需要先注册 1688 平台账号并激活</li>
+<li>签名规则：参数字典序排列 + MD5 加密</li>
+</ul>
+<p><strong>接入评估：</strong></p>
+<ul>
+<li>我们的场景（46 条产品，每条搜 1<del>2 次）每月约 50</del>100 次调用，<strong>免费版即可满足开发测试</strong></li>
+<li>正式使用按每月处理 500 个产品算，约 1,000 次调用，标准版绰绰有余</li>
+<li>技术接入难度低，REST API + 签名，半天可完成对接</li>
+</ul>
+<hr>
+<h3>方案 B：TMAPI</h3>
+<ul>
+<li><strong>官网</strong>：<a href="https://tmapi.top">https://tmapi.top</a></li>
+</ul>
+<p><strong>支持的 1688 接口：</strong></p>
+<ul>
+<li>关键词搜索商品</li>
+<li>商品详情（通过 ID）</li>
+<li>商品评价数据</li>
+<li>30 天销售趋势和价格趋势</li>
+<li>历史价格对比（跨平台：淘宝/天猫/京东/拼多多）</li>
+</ul>
+<p><strong>定价：</strong></p>
+<ul>
+<li>新注册有少量免费测试额度</li>
+<li>正式价格需联系客服，官网未公开</li>
+</ul>
+<p><strong>优点：</strong></p>
+<ul>
+<li>多语言支持（中英俄泰葡等）</li>
+<li>额外提供销售趋势和历史价格数据，对选品分析有价值</li>
+<li>覆盖多平台（1688、淘宝、亚马逊、Shopee 等）</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>价格不透明，需要沟通</li>
+<li>未明确是否支持以图搜图</li>
+<li>文档相对 DajiAPI 不够完善</li>
+</ul>
+<hr>
+<h3>方案 C：万邦 Onebound</h3>
+<ul>
+<li><strong>官网</strong>：<a href="https://www.onebound.cn">https://www.onebound.cn</a></li>
+<li><strong>API 测试</strong>：<a href="https://open.onebound.cn/test/">https://open.onebound.cn/test/</a></li>
+</ul>
+<p><strong>支持的 1688 接口：</strong></p>
+<ul>
+<li>关键词搜索</li>
+<li><strong>以图搜图</strong>（<code>item_search_img</code>）</li>
+<li>商品详情</li>
+<li>自定义 API 调用</li>
+</ul>
+<p><strong>定价：</strong></p>
+<ul>
+<li>万邦主要卖代购系统整套方案，起步价 ¥28,000</li>
+<li>单独 API 调用的定价需联系客服</li>
+<li>面向企业级客户，价格较高</li>
+</ul>
+<p><strong>优点：</strong></p>
+<ul>
+<li>10 年+电商 API 经验，稳定性有保障</li>
+<li>每天 1 亿+调用量，技术实力强</li>
+<li>有以图搜图能力</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>定价面向企业，对我们的使用量来说性价比低</li>
+<li>主要做代购系统，单独 API 服务不是重点</li>
+</ul>
+<hr>
+<h3>方案 D：Apify（海外爬虫平台）</h3>
+<ul>
+<li><strong>官网</strong>：<a href="https://apify.com">https://apify.com</a></li>
+</ul>
+<p>提供多个 1688 爬虫 Actor：</p>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>月费</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1688 Products Scraper (devcake)</td>
+<td>$4/千条起</td>
+<td>按结果计费</td>
+</tr>
+<tr>
+<td>1688 Product Search Scraper (ecomscrape)</td>
+<td>$20/月 + 用量</td>
+<td>含月租费</td>
+</tr>
+<tr>
+<td>1688 Search Scraper (songd)</td>
+<td>$30/月 + 用量</td>
+<td>含月租费</td>
+</tr>
+</tbody></table>
+<p><strong>优点：</strong></p>
+<ul>
+<li>无需申请 API 权限，开箱即用</li>
+<li>按用量付费，灵活</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>本质是网页爬虫，稳定性不如正规 API</li>
+<li>1688 反爬更新可能导致失效</li>
+<li>服务器在海外，访问 1688 可能需要代理</li>
+<li>不支持以图搜图</li>
+</ul>
+<hr>
+<h3>方案 E：1688 官方开放平台（长期方案）</h3>
+<ul>
+<li><strong>官网</strong>：<a href="https://open.1688.com%EF%BC%88%E7%8E%B0%E5%B7%B2%E8%BF%81%E7%A7%BB%E8%87%B3">https://open.1688.com（现已迁移至</a> <a href="https://ai.1688.com%EF%BC%89">https://ai.1688.com）</a></li>
+</ul>
+<p><strong>申请条件：</strong></p>
+<ul>
+<li><strong>必须企业资质</strong>（个人开发者无法申请核心 API）</li>
+<li>需要：加盖公章的营业执照、法人身份证、企业对公账户</li>
+<li>建议开通&quot;诚信通&quot;服务</li>
+</ul>
+<p><strong>申请流程：</strong></p>
+<ol>
+<li>在 open.1688.com 注册开发者账号</li>
+<li>企业实名认证（1~2 个工作日）</li>
+<li>提交入驻申请，创建应用</li>
+<li>填写《API 使用申请表》——说明所需接口、预计调用量、应用场景</li>
+<li>审核周期：普通 5<del>7 个工作日，&quot;管家服务&quot;可缩短至 2</del>3 天</li>
+<li>通过后获得 App Key 和 App Secret</li>
+</ol>
+<p><strong>官方 API 能力：</strong></p>
+<ul>
+<li><code>alibaba.product.search</code> — 关键词搜索</li>
+<li><code>alibaba.product.image.search</code> — <strong>以图搜图</strong>（拍立淘）</li>
+<li>图片要求：JPG/PNG，建议 &lt;1MB，最小边 ≥256px</li>
+<li>支持相似度阈值设置（0~1）</li>
+<li>调用限制：个人 ≤10 次/秒，企业 ≤50 次/秒</li>
+</ul>
+<p><strong>优点：</strong></p>
+<ul>
+<li>数据最全、最准、最稳定</li>
+<li>官方以图搜图效果最好</li>
+<li>长期使用最合规</li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul>
+<li>需企业资质，申请周期 1~2 周</li>
+<li>部分 API 权限受限</li>
+</ul>
+<hr>
+<h3>服务商对比总结</h3>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>DajiAPI</th>
+<th>TMAPI</th>
+<th>万邦</th>
+<th>Apify</th>
+<th>1688 官方</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>关键词搜索</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>以图搜图</td>
+<td>✅</td>
+<td>❓ 未确认</td>
+<td>✅</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>接入难度</td>
+<td>低</td>
+<td>低</td>
+<td>中</td>
+<td>低</td>
+<td>中</td>
+</tr>
+<tr>
+<td>价格透明</td>
+<td>✅ 公开</td>
+<td>❌ 需联系</td>
+<td>❌ 需联系</td>
+<td>✅ 公开</td>
+<td>免费（有限额）</td>
+</tr>
+<tr>
+<td>免费试用</td>
+<td>✅ 100次/月</td>
+<td>✅ 少量</td>
+<td>❌</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>稳定性</td>
+<td>高</td>
+<td>高</td>
+<td>高</td>
+<td>中（爬虫）</td>
+<td>最高</td>
+</tr>
+<tr>
+<td>企业资质要求</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td><strong>是</strong></td>
+</tr>
+<tr>
+<td>适合我们的场景</td>
+<td>⭐⭐⭐</td>
+<td>⭐⭐</td>
+<td>⭐</td>
+<td>⭐</td>
+<td>⭐⭐⭐（长期）</td>
+</tr>
+</tbody></table>
+<h3>推荐策略</h3>
+<ol>
+<li><strong>立即行动</strong>：注册 <strong>DajiAPI</strong> 免费版，用 100 次免费额度进行开发和测试</li>
+<li><strong>验证效果</strong>：用客户的 46 条产品数据实测搜索质量和匹配准确度</li>
+<li><strong>正式上线</strong>：升级到标准版（$100/月），足够每月处理数千个产品</li>
+<li><strong>长期规划</strong>：如果客户有企业资质，可同步申请 1688 官方 API，逐步切换</li>
+</ol>
+<h3>DajiAPI 接口路径说明</h3>
+<ul>
+<li><strong>图片搜索</strong>：<code>/alibaba/product/imageQuery</code></li>
+<li><strong>关键词搜索</strong>：<code>/alibaba/product/keywordQuery</code></li>
+</ul>
+<h3>DajiAPI 环境变量配置（部署必配）</h3>
+<p>在 <code>server/.env</code> 中增加以下两项，<strong>不要提交到 Git</strong>：</p>
+<pre><code># DajiAPI 1688 搜索（智能选品功能）
+# 在 https://www.dajiapi.cn 注册后获取
+DAJI_APP_KEY=你的AppKey
+DAJI_APP_SECRET=你的AppSecret
+</code></pre>
+<ul>
+<li><code>DAJI_APP_KEY</code>：Daji 控制台中的应用 AppKey</li>
+<li><code>DAJI_APP_SECRET</code>：对应应用的 AppSecret（用于接口签名）</li>
+<li><strong>重要</strong>：创建应用后，需联系 Daji 平台<strong>激活 1688 接口</strong>（否则会报错「请创建应用，再联系平台进行激活」）。微信：openapi2019；WhatsApp：+8618820777181</li>
+</ul>
+<p>未配置时，智能选品功能不可用（接口调用会失败）。</p>
+<h3>当前实现与文档说明</h3>
+<ul>
+<li><strong>关键词搜索</strong>：已实现，使用 <code>/alibaba/product/keywordQuery</code></li>
+<li><strong>以图搜图</strong>：接口已封装（<code>server/daji.js</code> 的 <code>searchByImage</code>），业务流程中暂未启用；表格主图为亚马逊 CDN 链接，Daji 仅支持 1688 域名图片，故当前仅用关键词通道</li>
+</ul>
+<hr>
+<h2>七、费用估算（更新）</h2>
+<h3>单次使用费用（以 46 条产品为例）</h3>
+<table>
+<thead>
+<tr>
+<th>费用项</th>
+<th>单价</th>
+<th>数量</th>
+<th>小计</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AI 翻译（Gemini）</td>
+<td>约 ¥0.01/条</td>
+<td>46</td>
+<td>≈ ¥0.5</td>
+</tr>
+<tr>
+<td>1688 关键词搜索 API（DajiAPI）</td>
+<td>≈¥0.014/次</td>
+<td>46</td>
+<td>≈ ¥0.6</td>
+</tr>
+<tr>
+<td>1688 以图搜图 API（可选）</td>
+<td>≈¥0.014/次</td>
+<td>0（未启用）</td>
+<td>—</td>
+</tr>
+<tr>
+<td>AI 匹配打分（Gemini）</td>
+<td>约 ¥0.02/条</td>
+<td>46</td>
+<td>≈ ¥1</td>
+</tr>
+<tr>
+<td><strong>合计</strong></td>
+<td></td>
+<td></td>
+<td><strong>≈ ¥2.1</strong></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>以 DajiAPI 标准版定价估算。<strong>当前仅用关键词搜索</strong>，以图搜图未启用，46 条实际成本约 ¥2.1。启用以图搜图后约 ¥3/50 条。开发测试阶段用免费版即可（100 次/月）。</p>
+</blockquote>
+<h3>开发投入</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>预估</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>开发周期</td>
+<td>3~5 个工作日（API 确定后）</td>
+</tr>
+<tr>
+<td>需要新增的依赖</td>
+<td>xlsx 解析库、1688 API 对接</td>
+</tr>
+<tr>
+<td>对现有系统的影响</td>
+<td>新增独立页面，不影响已有功能</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>八、产品形态设计（已确认）</h2>
+<h3>页面入口</h3>
+<p>导航栏新增顶级入口「<strong>AI 电商工具箱</strong>」，与「通用电商生图」「AI美工」「电商AI运营助手」同级。该模块为工具集合，当前首个功能为「<strong>智能选品</strong>」（1688 供应商匹配），后续可在此模块下继续扩展其他电商工具。</p>
+<h3>表格列解析说明</h3>
+<p>卖家精灵导出的表格共有 <strong>50 列</strong>。以下为完整列清单及我们的使用情况：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>列名</th>
+<th align="center">必填</th>
+<th align="center">选填</th>
+<th align="center">不必要</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>图片</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>2</td>
+<td>ASIN</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>结果对照、去重</td>
+</tr>
+<tr>
+<td>3</td>
+<td>产品价格</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用（我们用 价格($)）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>1688链接1</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用（系统会填充）</td>
+</tr>
+<tr>
+<td>5</td>
+<td>1688链接2</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>6</td>
+<td>详细参数</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>辅助 AI 匹配打分</td>
+</tr>
+<tr>
+<td>7</td>
+<td>品牌</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>8</td>
+<td>品牌链接</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>商品标题</strong></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td align="center"></td>
+<td>AI 翻译 → 1688 关键词搜索</td>
+</tr>
+<tr>
+<td>10</td>
+<td>商品详情页链接</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>11</td>
+<td><strong>商品主图</strong></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td align="center"></td>
+<td>AI 匹配打分（以图搜图待扩展）</td>
+</tr>
+<tr>
+<td>12</td>
+<td>父ASIN</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>13</td>
+<td>类目路径</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>14</td>
+<td>大类目</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>确定佣金比例，缺则 15%</td>
+</tr>
+<tr>
+<td>15</td>
+<td>标签</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>16</td>
+<td>大类BSR</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>17</td>
+<td>大类BSR增长数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>18</td>
+<td>大类BSR增长率</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>19</td>
+<td>小类目</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>20</td>
+<td>小类BSR</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>21</td>
+<td>月销量</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>22</td>
+<td>月销量增长率</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>23</td>
+<td>月销售额($)</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>24</td>
+<td>子体销量</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>25</td>
+<td>子体销售额($)</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>26</td>
+<td>变体数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>27</td>
+<td><strong>价格($)</strong></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td align="center"></td>
+<td>利润计算（亚马逊售价）</td>
+</tr>
+<tr>
+<td>28</td>
+<td>评分数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>29</td>
+<td>月新增评分数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>30</td>
+<td>评分</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>31</td>
+<td>留评率</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>32</td>
+<td>FBA($)</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>利润计算，缺则按重量估算</td>
+</tr>
+<tr>
+<td>33</td>
+<td>毛利率</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>34</td>
+<td>上架时间</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>35</td>
+<td>上架天数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>36</td>
+<td>配送方式</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>37</td>
+<td>LQS</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>38</td>
+<td>卖家数</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>39</td>
+<td>BuyBox卖家</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>40</td>
+<td>BuyBox类型</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>41</td>
+<td>卖家所属地</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>42</td>
+<td>卖家首页</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>43</td>
+<td>商品重量</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>头程运费估算</td>
+</tr>
+<tr>
+<td>44</td>
+<td>商品重量（单位换算）</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>45</td>
+<td>商品尺寸</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>46</td>
+<td>商品尺寸（单位换算）</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>47</td>
+<td>包装重量</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>头程运费估算</td>
+</tr>
+<tr>
+<td>48</td>
+<td>包装重量（单位换算）</td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td align="center"></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>49</td>
+<td>包装尺寸</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+<tr>
+<td>50</td>
+<td>包装尺寸（单位换算）</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">✅</td>
+<td>未使用</td>
+</tr>
+</tbody></table>
+<p><strong>汇总</strong>：必填 3 列（商品标题、商品主图、价格($)）；选填 9 列（ASIN、详细参数、大类目、FBA($)、商品重量相关 4 列）；不必要 41 列。</p>
+<blockquote>
+<p>缺少选填列的表格仍可运行，但利润计算中 FBA/头程将使用默认估算值，精度会降低。</p>
+<p><strong>多品类支持</strong>：表格中可混多个类目（如 Home &amp; Kitchen + Sports），每行独立处理。佣金按该行的 <code>大类目</code> 映射；缺类目时用默认 15%。</p>
+</blockquote>
+<h3>用户操作流程</h3>
+<pre><code>步骤 1：上传表格
+  → 拖拽或点击上传卖家精灵 Excel（最多 100 条产品）
+  → 系统自动识别列名，校验必填字段，预览数据
+
+步骤 2：确认设置
+  → 头程运费：选择物流方式（空运/海运快船/海运慢船）或手动输入 ¥/kg
+     默认：空运 ¥40/kg
+  → 国内运费：默认 0，用户可设置「每件 ¥X」（采购到仓库）
+  → 汇率：默认「实时汇率」（Frankfurter API 自动获取），可切换为手动输入固定值
+  → 佣金比例：按行大类目自动填充（混品类每行独立），缺类目用 15%，用户可手动调整
+  → 广告费/退货率：预留（暂不参与计算，界面待补充）
+  → 点击「开始分析」
+
+步骤 3：分析进行中（异步任务，页面不卡住）
+  → 生成一个分析任务，显示任务进度面板
+  → 进度条 + 文字提示（如「正在分析第 12/46 条…」）
+  → 每完成一条，实时在表格中更新该行结果
+  → 用户可以看到已完成的行、正在处理的行、等待中的行
+  → 页面可自由浏览，不阻塞其他操作
+
+步骤 4：查看报告
+  → 完整利润分析表格
+  → 每个产品展示：
+     - AI 推荐的最佳 1688 匹配商品（默认选中，标记「推荐」）
+     - 另外 2 个备选匹配（可点击切换，利润实时重算）
+     - 匹配不到的标记「❌ 未找到」，利润列显示「—」
+  → 支持按毛利率排序，一眼看出哪些产品值得开发
+  → 「保存报告」— 存入历史记录，可随时回看
+  → 「导出 Excel」— 下载完整报告
+</code></pre>
+<h3>匹配结果逻辑</h3>
+<ul>
+<li>每条产品通过<strong>关键词搜索</strong>在 1688 上查找（以图搜图待扩展）</li>
+<li>AI（Gemini）对搜索结果进行智能打分，综合标题相似度、规格参数、图片相似度、店铺评分</li>
+<li>返回 <strong>Top 3</strong> 匹配结果，<strong>默认选中评分最高的第 1 名</strong>用于利润计算</li>
+<li>用户可手动切换到第 2、3 名，利润自动重算</li>
+<li>搜不到匹配商品的行标记为「❌ 未找到」，<strong>不扣积分</strong></li>
+</ul>
+<h3>报告输出示例</h3>
+<table>
+<thead>
+<tr>
+<th>亚马逊商品</th>
+<th>售价($)</th>
+<th>1688 推荐匹配</th>
+<th>采购价(¥)</th>
+<th>FBA($)</th>
+<th>头程(¥)</th>
+<th>佣金($)</th>
+<th>毛利(¥)</th>
+<th>毛利率</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Disposable Toilet Brush...</td>
+<td>$31.99</td>
+<td>🏅 一次性马桶刷套装 48替换头</td>
+<td>¥35</td>
+<td>$7.13</td>
+<td>¥8</td>
+<td>$4.80</td>
+<td>¥114</td>
+<td>50%</td>
+<td>✅ 推荐</td>
+</tr>
+<tr>
+<td>Toilet Brush Pink Set...</td>
+<td>$21.96</td>
+<td>🏅 马桶清洁刷粉色套装</td>
+<td>¥28</td>
+<td>$6.26</td>
+<td>¥7</td>
+<td>$3.29</td>
+<td>¥68</td>
+<td>43%</td>
+<td>✅ 可做</td>
+</tr>
+<tr>
+<td>Kitchen Organizer...</td>
+<td>$15.99</td>
+<td>❌ 未找到</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+</tbody></table>
+<h3>历史记录</h3>
+<ul>
+<li>每次分析完成后，用户可点击「保存报告」将结果保存到系统</li>
+<li>在「AI 电商工具箱」模块内可查看历史分析报告列表</li>
+<li>历史报告可重新打开查看、导出 Excel</li>
+<li>存储结构类似 Listing 历史（<code>supplier_matching_reports</code> 表）</li>
+</ul>
+<hr>
+<h2>九、已确认的产品规格</h2>
+<p>以下为经讨论后确认的产品规格，所有条目均已达成一致：</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>规格项</th>
+<th>确认结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>表格格式</strong></td>
+<td>固定格式（卖家精灵导出）。必填字段：商品标题、售价、商品主图。其余为建议有</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>1688 API</strong></td>
+<td>使用 <strong>DajiAPI</strong>（<a href="https://www.dajiapi.cn%EF%BC%89%E3%80%82%E5%BC%80%E5%8F%91%E9%98%B6%E6%AE%B5%E7%94%A8%E5%85%8D%E8%B4%B9%E7%89%88%EF%BC%88100%E6%AC%A1/%E6%9C%88%EF%BC%89%EF%BC%8C%E4%B8%8A%E7%BA%BF%E5%90%8E%E5%8D%87%E7%BA%A7%E6%A0%87%E5%87%86%E7%89%88">https://www.dajiapi.cn）。开发阶段用免费版（100次/月），上线后升级标准版</a></td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>头程运费</strong></td>
+<td>双模式：① 预设费率（空运 ¥40/kg、海运快船 ¥12/kg、海运慢船 ¥8/kg）② 用户自定义 ¥/kg。默认空运</td>
+</tr>
+<tr>
+<td>3b</td>
+<td><strong>国内运费</strong></td>
+<td>默认 0，用户可设置「每件 ¥X」（采购到仓库）</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>广告费/退货</strong></td>
+<td>预留，界面显示「即将支持」，暂不参与计算</td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>汇率</strong></td>
+<td>双模式：① 实时汇率（Frankfurter API，免费无需 Key）② 用户手动输入固定值。默认实时</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>匹配结果</strong></td>
+<td>返回 <strong>Top 3</strong> 匹配商品，AI 自动推荐评分最高的第 1 名，用户可手动切换</td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>搜不到</strong></td>
+<td>标记「❌ 未找到」，该行不扣积分</td>
+</tr>
+<tr>
+<td>8</td>
+<td><strong>积分</strong></td>
+<td><strong>1 积分/条</strong>（成功匹配才扣）。成本 ≈¥0.034/条，收费 ¥0.20/条，毛利 83%</td>
+</tr>
+<tr>
+<td>9</td>
+<td><strong>上传上限</strong></td>
+<td>单次最多 <strong>100 条</strong>产品</td>
+</tr>
+<tr>
+<td>10</td>
+<td><strong>页面入口</strong></td>
+<td>导航栏新增顶级模块「<strong>AI 电商工具箱</strong>」，首个功能为「智能选品」，后续可扩展</td>
+</tr>
+<tr>
+<td>11</td>
+<td><strong>处理体验</strong></td>
+<td>异步任务模式，生成任务后显示进度面板，逐条实时更新，<strong>页面不卡住</strong></td>
+</tr>
+<tr>
+<td>12</td>
+<td><strong>结果保存</strong></td>
+<td>支持保存到历史记录 + 导出 Excel</td>
+</tr>
+<tr>
+<td>13</td>
+<td><strong>多品类混表</strong></td>
+<td>支持，每行独立处理，佣金按该行大类目映射，缺类目用 15%</td>
+</tr>
+<tr>
+<td>14</td>
+<td><strong>环境变量</strong></td>
+<td><code>DAJI_APP_KEY</code>、<code>DAJI_APP_SECRET</code> 写入 <code>server/.env</code>，部署时配置</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>十、总结</h2>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>评估</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>技术可行性</strong></td>
+<td>✅ 完全可行</td>
+</tr>
+<tr>
+<td><strong>1688 数据源</strong></td>
+<td>DajiAPI（已确认）</td>
+</tr>
+<tr>
+<td><strong>开发周期</strong></td>
+<td>3~5 个工作日</td>
+</tr>
+<tr>
+<td><strong>单次使用成本</strong></td>
+<td>≈ ¥3（50 条产品，平台侧 API 成本）</td>
+</tr>
+<tr>
+<td><strong>用户积分消耗</strong></td>
+<td>1 积分/条（匹配成功才扣，未找到不扣）</td>
+</tr>
+<tr>
+<td><strong>上传上限</strong></td>
+<td>100 条/次</td>
+</tr>
+<tr>
+<td><strong>对现有系统影响</strong></td>
+<td>无，导航栏新增「AI 电商工具箱」模块</td>
+</tr>
+<tr>
+<td><strong>用户价值</strong></td>
+<td>高——将数小时的手动查价工作缩短为几分钟</td>
+</tr>
+</tbody></table>
+<p><strong>下一步行动</strong>：</p>
+<ol>
+<li>注册 DajiAPI 免费版（<a href="https://www.dajiapi.cn%EF%BC%89%EF%BC%8C%E5%AE%9E%E6%B5%8B%E6%90%9C%E7%B4%A2%E6%95%88%E6%9E%9C">https://www.dajiapi.cn），实测搜索效果</a></li>
+<li>确认无误后开始开发（预计 3~5 个工作日）</li>
+<li>长期可考虑申请 1688 官方开放平台 API（需企业资质）</li>
+</ol>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import ImageLightbox from '../../components/ImageLightbox'
 import GalleryThumb from '../../components/GalleryThumb'
+import { loadImageFromGalleryId } from '../../lib/loadGalleryImage'
 import OutputSettings from '../../components/OutputSettings'
 import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
@@ -67,7 +68,7 @@ export default function BodyShape({ initialImageFromGallery }) {
 
   useEffect(() => {
     if (!initialImageFromGallery?.url || !getToken) return
-    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken, initialImageFromGallery.id)
       .then(({ file, dataUrl }) => {
         setImage({ file, dataUrl })
         setResult(null)
@@ -105,13 +106,7 @@ export default function BodyShape({ initialImageFromGallery }) {
   const pickFromGallery = async (item) => {
     setGalleryPicker({ open: false })
     try {
-      const token = getToken()
-      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
-      const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(item.url, { headers })
-      const blob = await res.blob()
-      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
-      const dataUrl = URL.createObjectURL(file)
+      const { file, dataUrl } = await loadImageFromGalleryId(item.id, getToken)
       setImage({ file, dataUrl })
       setResult(null)
       setError('')

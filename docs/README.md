@@ -23,6 +23,7 @@
 | 做速卖通 Listing（128 字符标题、产品属性） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 三、速卖通 |
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/生成场景/风格复刻/文字修改） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | 了解侵权风险检测（功能/实现原理/费用/漏检/外部数据源） | [IP-RISK.md](./IP-RISK.md) |
+| 了解 1688 智能选品匹配方案（卖家精灵→自动匹配供应商→利润核算） | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
 
 ### 运维与部署
 
@@ -53,6 +54,7 @@
 | 功能 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | 电商 AI 助手：亚马逊（一）、eBay（二）、速卖通（三） |
 | 功能 | [AI-DESIGNER.md](./AI-DESIGNER.md) | AI 美工：图片编辑、质量提升、文字修改、风格变迁、水印、官方示例 |
 | 功能 | [IP-RISK.md](./IP-RISK.md) | 侵权风险检测：功能、实现原理、费用、漏检分析、外部数据源 |
+| 方案 | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) | 1688 智能选品匹配：卖家精灵表格→自动匹配供应商→利润核算 |
 | 运维 | [DEPLOY.md](./DEPLOY.md) | 首次部署、每次更新、SerpApi、COS、用户管理、Gemini 地区限制 |
 | 参考 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、待办改进、运营须知（数据隐私） |
 | 参考 | [PRICING-COST.md](./PRICING-COST.md) | 积分规则、API 成本、固定成本、盈利分析 |

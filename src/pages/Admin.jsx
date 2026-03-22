@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+
+const DEFAULT_COL_WIDTHS = { email: 160, role: 72, balance: 76, consumed: 76, expires: 130, created: 110, notes: 100, actions: 300 }
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -324,6 +326,53 @@ export default function Admin() {
   const [notesTarget, setNotesTarget] = useState(null)
   const [cleanupLoading, setCleanupLoading] = useState(false)
   const [cleanupResult, setCleanupResult] = useState(null)
+  const [sortBy, setSortBy] = useState('createdAt')
+  const [sortAsc, setSortAsc] = useState(false)
+  const [colWidths, setColWidths] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pictoolai_admin_col_widths')
+      if (saved) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) }
+    } catch (_) {}
+    return { ...DEFAULT_COL_WIDTHS }
+  })
+  const [resizingCol, setResizingCol] = useState(null)
+  const resizeStartX = useRef(0)
+  const resizeStartW = useRef(0)
+
+  const latestWidthsRef = useRef(colWidths)
+  latestWidthsRef.current = colWidths
+
+  useEffect(() => {
+    if (!resizingCol) return
+    const onMove = (e) => {
+      const dx = e.clientX - resizeStartX.current
+      const newW = Math.max(50, resizeStartW.current + dx)
+      const next = { ...latestWidthsRef.current, [resizingCol]: newW }
+      latestWidthsRef.current = next
+      setColWidths(next)
+    }
+    const onUp = () => {
+      setResizingCol(null)
+      try { localStorage.setItem('pictoolai_admin_col_widths', JSON.stringify(latestWidthsRef.current)) } catch (_) {}
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [resizingCol])
+
+  const startResize = (col, e) => {
+    e.preventDefault()
+    setResizingCol(col)
+    resizeStartX.current = e.clientX
+    resizeStartW.current = colWidths[col]
+  }
 
   const fetchUsers = useCallback(() => {
     setLoading(true)
@@ -346,6 +395,50 @@ export default function Admin() {
   }, [isAdmin, navigate, fetchUsers])
 
   const filtered = users.filter((u) => u.email.toLowerCase().includes(search.toLowerCase()))
+
+  const sorted = [...filtered].sort((a, b) => {
+    let va, vb
+    switch (sortBy) {
+      case 'balance':
+        va = a.balance ?? 0
+        vb = b.balance ?? 0
+        return sortAsc ? va - vb : vb - va
+      case 'totalSpent':
+        va = a.totalSpent ?? 0
+        vb = b.totalSpent ?? 0
+        return sortAsc ? va - vb : vb - va
+      case 'expiresAt':
+        va = a.expiresAt ?? 0
+        vb = b.expiresAt ?? 0
+        return sortAsc ? va - vb : vb - va
+      case 'createdAt':
+      default:
+        va = a.createdAt ?? 0
+        vb = b.createdAt ?? 0
+        return sortAsc ? va - vb : vb - va
+    }
+  })
+
+  function toggleSort(key) {
+    setSortBy(key)
+    setSortAsc((prev) => {
+      if (sortBy === key) return !prev
+      // 切换列时的默认：到期 asc=早的在前，其余 desc
+      return key === 'expiresAt'
+    })
+  }
+
+  const SortHeader = ({ field, label }) => (
+    <span
+      className="cursor-pointer select-none hover:text-gray-700"
+      onClick={() => toggleSort(field)}
+    >
+      {label}
+      {sortBy === field && (
+        <span className="ml-1 text-indigo-500">{sortAsc ? '↑' : '↓'}</span>
+      )}
+    </span>
+  )
 
   function handleGrantSuccess(email, balance, expiresAt) {
     setUsers((prev) =>
@@ -444,75 +537,189 @@ export default function Admin() {
             <div className="text-center text-gray-400 py-16">暂无用户</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
+              <table className="w-full text-sm table-fixed" style={{ minWidth: Object.values(colWidths).reduce((a, b) => a + b, 0) }}>
+                <colgroup>
+                  {(['email', 'role', 'balance', 'consumed', 'expires', 'created', 'notes', 'actions']).map((k) => (
+                    <col key={k} style={{ width: colWidths[k] }} />
+                  ))}
+                </colgroup>
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-4 py-3 font-medium text-gray-500 w-[18%] min-w-[140px]">邮箱</th>
-                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">角色</th>
-                    <th className="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">余额</th>
-                    <th className="text-right px-3 py-3 font-medium text-gray-500 whitespace-nowrap">已消耗</th>
-                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">订阅到期</th>
-                    <th className="text-left px-3 py-3 font-medium text-gray-500 whitespace-nowrap">注册时间</th>
-                    <th className="text-left px-3 py-3 font-medium text-gray-500 min-w-[100px]">备注</th>
-                    <th className="text-right px-4 py-3 font-medium text-gray-500 whitespace-nowrap">操作</th>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500 align-middle">
+                      <div className="flex items-center justify-between gap-1">
+                        <span>邮箱</span>
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('email', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500 align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-between gap-1">
+                        <span>角色</span>
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('role', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-medium text-gray-500 align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <SortHeader field="balance" label="余额" />
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('balance', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-medium text-gray-500 align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <SortHeader field="totalSpent" label="已消耗" />
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('consumed', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500 align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-between gap-1">
+                        <SortHeader field="expiresAt" label="订阅到期" />
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('expires', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500 align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-between gap-1">
+                        <SortHeader field="createdAt" label="注册时间" />
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('created', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-left px-3 py-2.5 font-medium text-gray-500 align-middle">
+                      <div className="flex items-center justify-between gap-1">
+                        <span>备注</span>
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('notes', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
+                    <th className="text-right px-3 py-2.5 font-medium text-gray-500 align-middle">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>操作</span>
+                        <span
+                          className="w-1.5 flex-shrink-0 cursor-col-resize bg-gray-200 hover:bg-indigo-400 rounded self-stretch min-h-[16px] ml-0.5"
+                          onMouseDown={(e) => startResize('actions', e)}
+                          title="拖拽调节列宽"
+                        />
+                      </div>
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filtered.map((u) => (
-                    <tr key={u.email} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-gray-800 align-middle">{u.email}</td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            u.role === 'admin'
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {u.role === 'admin' ? '管理员' : '普通用户'}
-                        </span>
+                  {sorted.map((u) => (
+                    <tr key={u.email} className={`hover:bg-gray-50/50 transition-colors ${u.frozen ? 'bg-gray-100/60' : ''}`}>
+                      <td className="px-3 py-2 font-medium text-gray-800 align-middle truncate" title={u.email}>{u.email}</td>
+                      <td className="px-3 py-2 align-middle">
+                        <div className="flex items-center gap-1 flex-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                              u.role === 'admin'
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {u.role === 'admin' ? '管理员' : '普通用户'}
+                          </span>
+                          {u.frozen && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 whitespace-nowrap">
+                              已冻结
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="px-3 py-3 text-right align-middle whitespace-nowrap">
+                      <td className="px-3 py-2 text-right align-middle whitespace-nowrap">
                         <span className={`font-semibold ${u.balance > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
                           {u.balance}
                         </span>
-                        <span className="text-gray-400 text-xs ml-1">积分</span>
+                        <span className="text-gray-400 text-xs ml-0.5">积分</span>
                       </td>
-                      <td className="px-3 py-3 text-right text-gray-500 align-middle whitespace-nowrap">
+                      <td className="px-3 py-2 text-right text-gray-500 align-middle whitespace-nowrap">
                         {u.totalSpent}
-                        <span className="text-gray-400 text-xs ml-1">积分</span>
+                        <span className="text-gray-400 text-xs ml-0.5">积分</span>
                       </td>
-                      <td className="px-3 py-3 align-middle whitespace-nowrap">{formatExpiry(u.expiresAt)}</td>
-                      <td className="px-3 py-3 text-gray-500 align-middle whitespace-nowrap">{formatDate(u.createdAt)}</td>
-                      <td className="px-3 py-3 align-middle max-w-[140px]">
+                      <td className="px-3 py-2 align-middle overflow-hidden min-w-0">
+                        <div className="truncate" title={u.expiresAt ? `${formatDate(u.expiresAt)}` : ''}>
+                          {formatExpiry(u.expiresAt)}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-gray-500 align-middle overflow-hidden min-w-0">
+                        <span className="block truncate">{formatDate(u.createdAt)}</span>
+                      </td>
+                      <td className="px-3 py-2 align-middle overflow-hidden">
                         <span className="block truncate text-gray-600 text-xs" title={u.adminNotes || ''}>
                           {u.adminNotes || '—'}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => setNotesTarget(u)}
-                          className="mt-1 text-xs text-indigo-600 hover:underline"
-                        >
-                          编辑备注
-                        </button>
                       </td>
-                      <td className="px-4 py-3 align-middle whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-3 py-2 align-middle overflow-visible">
+                        <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/admin/users/${encodeURIComponent(u.email)}/freeze`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+                                    body: JSON.stringify({ frozen: !u.frozen }),
+                                  })
+                                  const data = await res.json()
+                                  if (!res.ok) throw new Error(data.error || '操作失败')
+                                  setUsers((prev) => prev.map((x) => (x.email === u.email ? { ...x, frozen: data.frozen } : x)))
+                                } catch (e) {
+                                  setError(e.message)
+                                }
+                              }}
+                              className={`px-2 py-1 text-xs font-medium rounded border transition-colors whitespace-nowrap ${
+                                u.frozen
+                                  ? 'text-green-600 border-green-200 hover:bg-green-50'
+                                  : 'text-amber-600 border-amber-200 hover:bg-amber-50'
+                              }`}
+                            >
+                              {u.frozen ? '解冻' : '冻结'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setNotesTarget(u)}
+                            className="px-2 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-50 transition-colors whitespace-nowrap"
+                          >
+                            编辑备注
+                          </button>
                           <button
                             onClick={() => setGrantTarget(u)}
-                            className="px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-indigo-600 border border-indigo-200 rounded hover:bg-indigo-50 transition-colors whitespace-nowrap"
                           >
                             充值
                           </button>
                           <button
                             onClick={() => setTxTarget(u)}
-                            className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded hover:bg-gray-50 transition-colors whitespace-nowrap"
                           >
                             流水
                           </button>
                           <button
                             onClick={() => setDeleteTarget(u)}
-                            className="px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                            className="px-2 py-1 text-xs font-medium text-red-500 border border-red-200 rounded hover:bg-red-50 transition-colors whitespace-nowrap"
                           >
                             删除
                           </button>

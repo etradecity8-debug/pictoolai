@@ -5,7 +5,7 @@ import GalleryThumb from '../components/GalleryThumb'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
-import { loadImageFromGalleryUrl } from '../lib/loadGalleryImage'
+import { loadImageFromGalleryUrl, loadImageFromGalleryId } from '../lib/loadGalleryImage'
 
 // 各模式的示例展示配置
 // demo: { before, after, prompt, beforeLabel, afterLabel } — 有真实图片时填入
@@ -695,7 +695,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
 
   useEffect(() => {
     if (!initialImageFromGallery?.url || !getToken) return
-    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken)
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken, initialImageFromGallery.id)
       .then(({ file, dataUrl }) => {
         setImages([{ file, dataUrl, slot: 0 }])
         setResult(null)
@@ -798,13 +798,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
     setGalleryPicker((p) => ({ ...p, open: false }))
     const slotIndex = galleryPicker.slot
     try {
-      const token = getToken()
-      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
-      const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(item.url, { headers })
-      const blob = await res.blob()
-      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
-      const dataUrl = URL.createObjectURL(file)
+      const { file, dataUrl } = await loadImageFromGalleryId(item.id, getToken)
       setImages((prev) => {
         const next = prev.filter((img) => img.slot !== slotIndex)
         return [...next, { file, dataUrl, slot: slotIndex }]

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import ImageLightbox from '../components/ImageLightbox'
 import GalleryThumb from '../components/GalleryThumb'
+import { loadImageFromGalleryId } from '../lib/loadGalleryImage'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 import GeneratingOverlay from '../components/GeneratingOverlay'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
@@ -117,13 +118,7 @@ export default function StyleClone() {
   const pickFromGallery = async (item, type) => {
     setGalleryPicker({ open: false, type: null })
     try {
-      const token = getToken()
-      const isAbsolute = typeof item.url === 'string' && item.url.startsWith('http')
-      const headers = (token && !isAbsolute) ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(item.url, { headers })
-      const blob = await res.blob()
-      const file = new File([blob], 'gallery.jpg', { type: blob.type || 'image/jpeg' })
-      const dataUrl = URL.createObjectURL(file)
+      const { file, dataUrl } = await loadImageFromGalleryId(item.id, getToken)
       if (type === 'reference' && referenceImages.length < MAX_REFERENCE) {
         setReferenceImages((prev) => [...prev, { file, dataUrl }])
       } else if (type === 'product' && productImages.length < MAX_PRODUCT) {

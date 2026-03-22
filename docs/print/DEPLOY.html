@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">DEPLOY.md → 打印版 · 2026/3/21</div>
+  <div class="meta">DEPLOY.md → 打印版 · 2026/3/23</div>
   <h1>PicToolAI 运维手册</h1>
 <blockquote>
 <p>本文涵盖四块内容：<strong>首次部署</strong>（VPS 环境搭建）→ <strong>每次更新</strong>（日常发版操作）→ <strong>COS 配置</strong>（仓库图片国内加速）→ <strong>用户管理</strong>（管理后台 + 数据库操作）。</p>
@@ -96,6 +96,8 @@ ADMIN_PASSWORD=你的管理员密码
 # HTTPS_PROXY=http://127.0.0.1:7890        # 若服务器访问 Gemini 需代理则填
 # SERPAPI_KEY=你的SerpApi密钥               # 侵权风险深度查询，见第三节
 # PATENTHUB_TOKEN=你的专利汇TOKEN            # 专利汇补充中国+全球专利检索，见第三节（不配置则仅用 Google Patents）
+# DAJI_APP_KEY=                             # 智能选品 1688 搜索，见 docs/1688-SUPPLIER-MATCHING.md；创建应用后需联系 Daji 激活（微信 openapi2019）
+# DAJI_APP_SECRET=
 # COS_SECRET_ID=                            # 腾讯云 COS 加速，见第四节
 # COS_SECRET_KEY=
 # COS_BUCKET=pictoolai-1234567890
@@ -286,7 +288,8 @@ COS_REGION=ap-guangzhou
 </tbody></table>
 <ul>
 <li>生图时先写本地 + 入库，再<strong>异步</strong>上传 COS，不阻塞生图接口。</li>
-<li>仓库列表对 COS URL 直接 img src（无 CORS 问题）；相对路径带 Token fetch。</li>
+<li>仓库列表缩略图：COS URL 直接 img src；相对路径带 Token fetch。</li>
+<li><strong>从作品库选择</strong>：选图加载始终走后端 <code>/api/gallery/image/:id</code>，避免 COS 跨域 fetch 失败（生产环境 CORS 易导致选图后图片不出现）。</li>
 <li>下载/批量下载统一走 <code>/api/gallery/image/:id</code>（后端从本地读），不依赖 COS。</li>
 <li>删除图片时同时删本地文件和 COS 对象（若有 <code>cos_key</code>）。</li>
 </ul>
@@ -327,7 +330,7 @@ COS_REGION=ap-guangzhou
 <li>管理员账号登录站点，进入 <code>/admin</code>（管理后台）。</li>
 <li>找到用户，点「删除」按钮，弹窗确认。</li>
 </ol>
-<p>后台会<strong>同时清除</strong>：<code>users</code>、<code>user_points</code>、<code>points_transactions</code>、<code>gallery</code>（含本地文件与 COS 对象）、<code>amazon_listing_snapshots</code>、<code>ebay_listing_snapshots</code>、<code>aliexpress_listing_snapshots</code>。</p>
+<p>后台会<strong>同时清除</strong>：<code>users</code>、<code>user_points</code>、<code>points_transactions</code>、<code>gallery</code>（含本地文件与 COS 对象）、<code>amazon_listing_snapshots</code>、<code>ebay_listing_snapshots</code>、<code>aliexpress_listing_snapshots</code>、<code>supplier_matching_reports</code>。</p>
 <p>删除后该邮箱可重新注册（积分重置为 0）。不能删除自己的账号。</p>
 <h3>5.2 在服务器上手动删除（仅数据库，不删文件）</h3>
 <blockquote>
@@ -344,6 +347,7 @@ DELETE FROM points_transactions WHERE user_email = &#39;要删除的邮箱@examp
 DELETE FROM amazon_listing_snapshots WHERE user_email = &#39;要删除的邮箱@example.com&#39;;
 DELETE FROM ebay_listing_snapshots WHERE user_email = &#39;要删除的邮箱@example.com&#39;;
 DELETE FROM aliexpress_listing_snapshots WHERE user_email = &#39;要删除的邮箱@example.com&#39;;
+DELETE FROM supplier_matching_reports WHERE user_email = &#39;要删除的邮箱@example.com&#39;;
 DELETE FROM users WHERE email = &#39;要删除的邮箱@example.com&#39;;
 </code></pre>
 <p>退出：</p>
@@ -357,7 +361,7 @@ DELETE FROM users WHERE email = &#39;要删除的邮箱@example.com&#39;;
 <pre><code class="language-sql">DELETE FROM users WHERE email = &#39;该邮箱@example.com&#39;;
 .quit
 </code></pre>
-<p>注意：其他表的数据（积分、仓库、Listing）不会被删，如需彻底清理请用 5.2 的完整 7 条语句。</p>
+<p>注意：其他表的数据（积分、仓库、Listing、智能选品报告）不会被删，如需彻底清理请用 5.2 的完整 8 条语句。</p>
 <h3>5.4 查看所有用户</h3>
 <pre><code class="language-bash">cd ~/app/server &amp;&amp; sqlite3 pictoolai.db
 </code></pre>
@@ -413,6 +417,11 @@ FROM users ORDER BY created_at DESC;
 <tr>
 <td>编辑备注</td>
 <td><code>PATCH /api/admin/users/:email/notes</code></td>
+<td>仅 admin</td>
+</tr>
+<tr>
+<td>冻结/解冻</td>
+<td><code>PATCH /api/admin/users/:email/freeze</code>（body: <code>{ frozen: true/false }</code>）</td>
 <td>仅 admin</td>
 </tr>
 <tr>

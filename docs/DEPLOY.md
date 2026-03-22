@@ -73,6 +73,8 @@ ADMIN_PASSWORD=你的管理员密码
 # HTTPS_PROXY=http://127.0.0.1:7890        # 若服务器访问 Gemini 需代理则填
 # SERPAPI_KEY=你的SerpApi密钥               # 侵权风险深度查询，见第三节
 # PATENTHUB_TOKEN=你的专利汇TOKEN            # 专利汇补充中国+全球专利检索，见第三节（不配置则仅用 Google Patents）
+# DAJI_APP_KEY=                             # 智能选品 1688 搜索，见 docs/1688-SUPPLIER-MATCHING.md；创建应用后需联系 Daji 激活（微信 openapi2019）
+# DAJI_APP_SECRET=
 # COS_SECRET_ID=                            # 腾讯云 COS 加速，见第四节
 # COS_SECRET_KEY=
 # COS_BUCKET=pictoolai-1234567890
@@ -346,7 +348,8 @@ pm2 restart pictoolai-server
 | COS 上传完成 | `https://...cos...`（COS 签名 URL） | 直接 img src，加载更快 |
 
 - 生图时先写本地 + 入库，再**异步**上传 COS，不阻塞生图接口。
-- 仓库列表对 COS URL 直接 img src（无 CORS 问题）；相对路径带 Token fetch。
+- 仓库列表缩略图：COS URL 直接 img src；相对路径带 Token fetch。
+- **从作品库选择**：选图加载始终走后端 `/api/gallery/image/:id`，避免 COS 跨域 fetch 失败（生产环境 CORS 易导致选图后图片不出现）。
 - 下载/批量下载统一走 `/api/gallery/image/:id`（后端从本地读），不依赖 COS。
 - 删除图片时同时删本地文件和 COS 对象（若有 `cos_key`）。
 
@@ -378,7 +381,7 @@ pm2 restart pictoolai-server
 1. 管理员账号登录站点，进入 `/admin`（管理后台）。
 2. 找到用户，点「删除」按钮，弹窗确认。
 
-后台会**同时清除**：`users`、`user_points`、`points_transactions`、`gallery`（含本地文件与 COS 对象）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`。
+后台会**同时清除**：`users`、`user_points`、`points_transactions`、`gallery`（含本地文件与 COS 对象）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`、`supplier_matching_reports`。
 
 删除后该邮箱可重新注册（积分重置为 0）。不能删除自己的账号。
 
@@ -402,6 +405,7 @@ DELETE FROM points_transactions WHERE user_email = '要删除的邮箱@example.c
 DELETE FROM amazon_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
 DELETE FROM ebay_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
 DELETE FROM aliexpress_listing_snapshots WHERE user_email = '要删除的邮箱@example.com';
+DELETE FROM supplier_matching_reports WHERE user_email = '要删除的邮箱@example.com';
 DELETE FROM users WHERE email = '要删除的邮箱@example.com';
 ```
 
@@ -426,7 +430,7 @@ DELETE FROM users WHERE email = '该邮箱@example.com';
 .quit
 ```
 
-注意：其他表的数据（积分、仓库、Listing）不会被删，如需彻底清理请用 5.2 的完整 7 条语句。
+注意：其他表的数据（积分、仓库、Listing、智能选品报告）不会被删，如需彻底清理请用 5.2 的完整 8 条语句。
 
 ### 5.4 查看所有用户
 
@@ -457,6 +461,7 @@ FROM users ORDER BY created_at DESC;
 | 充值积分 | `POST /api/admin/users/:email/grant` | 仅 admin |
 | 查积分流水 | `GET /api/admin/users/:email/transactions` | 仅 admin |
 | 编辑备注 | `PATCH /api/admin/users/:email/notes` | 仅 admin |
+| 冻结/解冻 | `PATCH /api/admin/users/:email/freeze`（body: `{ frozen: true/false }`） | 仅 admin |
 | 清理孤儿仓库 | `POST /api/admin/cleanup-orphan-gallery` | 仅 admin |
 
 ---

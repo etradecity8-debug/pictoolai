@@ -30,12 +30,18 @@
 | **仓库多张保存** | 选文件夹保存时，部分目录（含系统/隐藏文件）会被浏览器拒绝，提示「含有系统文件」 | 多张不能改为「每张弹一次另存为」（选 1 万张要点 1 万次），需在浏览器限制下找更好方案 |
 | **角色一致性 360°** | 女模特的「左侧侧面」「右侧侧面」指令常生成相反结果 | 可能为模型对左右视图理解偏差或中文→英文指令偏差，待调试 |
 
-### 1.3 已实现（记录备查）
+### 1.3 配置与依赖
+
+| 项目 | 说明 |
+|------|------|
+| **智能选品 Daji 激活** | 配置 `DAJI_APP_KEY` / `DAJI_APP_SECRET` 后，需联系 Daji 平台激活 1688 接口（微信 openapi2019 / WhatsApp +8618820777181），否则会报错「请创建应用，再联系平台进行激活」 |
+
+### 1.4 已实现（记录备查）
 
 | 项目 | 说明 |
 |------|------|
 | 仓库 COS 加速 | 配置 `COS_*` 后新图自动上传 COS，详见 [DEPLOY.md](./DEPLOY.md) 第四节 |
-| 从作品库选择 | `GalleryThumb` 组件：COS URL 直接 img src，相对路径 Token fetch，详见 DEPLOY 第四节 |
+| 从作品库选择 | 选图加载统一走后端 `/api/gallery/image/:id`，避免 COS 跨域导致选图后图片不出现 |
 
 ---
 
@@ -98,6 +104,7 @@
 | 全品类组图 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
 | 电商 AI 助手（亚马逊/eBay/速卖通） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
 | 侵权风险检测 | [IP-RISK.md](./IP-RISK.md) |
+| 1688 智能选品 | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
 | AI 美工 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
 | 部署与运维 | [DEPLOY.md](./DEPLOY.md) |
 | 积分与成本 | [PRICING-COST.md](./PRICING-COST.md) |
@@ -119,6 +126,7 @@
 | SERPAPI_KEY | 侵权深度查询必需 |
 | PATENTHUB_TOKEN | 侵权专利汇检索（可选） |
 | ADMIN_EMAIL / ADMIN_PASSWORD | 管理员 |
+| DAJI_APP_KEY / DAJI_APP_SECRET | 智能选品 1688 搜索（需联系 Daji 激活） |
 | COS_* | 仓库图片加速（可选） |
 
 ---
@@ -130,6 +138,10 @@
 ### 侵权风险检测
 
 - 独立模块 `/ip-risk`，免费快筛 + 深度查询（20 积分）。详见 [IP-RISK.md](./IP-RISK.md)。
+
+### 1688 智能选品
+
+- AI 电商工具箱 → 智能选品：上传卖家精灵 Excel → AI 翻译 + Daji 关键词搜索 → Top 3 匹配 → 利润核算，1 积分/条。需配置 `DAJI_APP_KEY` / `DAJI_APP_SECRET` 并联系 Daji 激活 1688 接口。详见 [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md)。
 
 ### 电商 AI 助手
 
@@ -146,6 +158,14 @@
 ### 积分与定价
 
 - ¥200/1000 积分/年；Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Pro 12/12/20、侵权深度 20。Admin 充值 30天/180天/1年。
+
+### 管理后台（2026-03-23）
+
+- 备注列显示真实内容；「编辑备注」按钮在操作列；操作按钮（冻结/编辑备注/充值/流水/删除）单行排列；可拖拽调节列宽（localStorage 持久化）；按余额/已消耗/到期/注册时间排序；用户冻结功能（登录及接口返回 403，前端琥珀色提示）；仅普通用户可冻结。
+
+### 从作品库选择（2026-03-23）
+
+- 选图加载统一用 `loadImageFromGalleryId(id)` 走后端 `/api/gallery/image/:id`，避免 COS 跨域导致选图后图片不出现。GalleryThumb 传 `url/title/token`。从仓库「用AI编辑」带图进入时传 `id`，`loadImageFromGalleryUrl` 优先走 id 代理。
 
 ### 其他
 
