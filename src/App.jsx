@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { AI_TOOLBOX_ENABLED } from './lib/featureFlags'
 import ProtectedRoute from './components/ProtectedRoute'
 import GuestOnlyRoute from './components/GuestOnlyRoute'
 import Header from './components/layout/Header'
@@ -60,10 +61,14 @@ export default function App() {
       <Route path="/amazon-aplus" element={<ProtectedRoute><MarketingLayout><AmazonAPlus /></MarketingLayout></ProtectedRoute>} />
       <Route path="/ai-assistant" element={<ProtectedRoute><MarketingLayout><AiAssistant /></MarketingLayout></ProtectedRoute>} />
       <Route path="/ip-risk" element={<ProtectedRoute><MarketingLayout><IpRisk /></MarketingLayout></ProtectedRoute>} />
+      {AI_TOOLBOX_ENABLED ? (
       <Route path="/ai-toolbox" element={<ProtectedRoute><MarketingLayout><AiToolbox /></MarketingLayout></ProtectedRoute>}>
         <Route index element={<Navigate to="/ai-toolbox/supplier-matching" replace />} />
         <Route path="supplier-matching" element={<SupplierMatching />} />
       </Route>
+      ) : (
+      <Route path="/ai-toolbox/*" element={<Navigate to="/" replace />} />
+      )}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard/gallery" replace />} />
         <Route path="gallery" element={<Gallery />} />

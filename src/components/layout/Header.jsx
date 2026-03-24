@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { AI_TOOLBOX_ENABLED } from '../../lib/featureFlags'
 
 const iconClass = 'w-4 h-4 shrink-0'
 
@@ -76,7 +77,7 @@ export default function Header() {
               </Link>
             ))}
 
-            {/* AI 电商工具箱 */}
+            {AI_TOOLBOX_ENABLED && (
             <Link
               to="/ai-toolbox"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
@@ -91,6 +92,7 @@ export default function Header() {
               </svg>
               <span>AI 电商工具箱</span>
             </Link>
+            )}
             {/* AI 运营助手：点击进入，平台在侧边栏选择 */}
             <Link
               to="/ai-assistant"
@@ -227,7 +229,7 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
-            {/* AI 电商工具箱（移动端） */}
+            {AI_TOOLBOX_ENABLED && (
             <Link
               to="/ai-toolbox"
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
@@ -241,6 +243,7 @@ export default function Header() {
               </svg>
               <span>AI 电商工具箱</span>
             </Link>
+            )}
             {/* 电商AI运营助手（移动端） */}
             <Link
               to="/ai-assistant"

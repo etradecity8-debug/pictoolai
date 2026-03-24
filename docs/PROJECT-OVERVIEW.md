@@ -72,8 +72,8 @@
 │   └── context/AuthContext.jsx
 ├── server/
 │   ├── index.js              # 主入口：注册/登录、分析、生图、仓库、image-edit、ai-assistant、ip-risk、supplier-matching、admin
-│   ├── daji.js               # DajiAPI 1688 关键词/以图搜图
-│   ├── supplier-matching.js  # 智能选品：解析 Excel、AI 翻译、1688 搜索、利润核算
+│   ├── daji.js               # DajiAPI：上传图片、以图搜图
+│   ├── supplier-matching.js  # 智能选品：解析 Excel、以图搜图、利润核算（无关键词兜底）
 │   ├── db.js                 # SQLite 表结构与初始化
 │   ├── points.js             # 积分规则、getBalance、grantPoints、grantSignupBonus
 │   ├── gemini-models.js      # 生图模型 ID、分析模型 ID
@@ -133,7 +133,7 @@
 | **eBay / 速卖通** | 生成/优化 | 平台专属算法与规则 |
 | **侵权检测** | 快筛 | Gemini 视觉分析，免费 |
 | | 深度查询 | Google Lens、Patents、专利汇、商标、IP 角色，20 积分 |
-| **AI 电商工具箱** | 智能选品 | 上传卖家精灵 Excel → AI 翻译+1688 搜索 → Top 3 匹配 → 利润核算，1 积分/条 |
+| **AI 电商工具箱** | 智能选品 | **已封存**。原功能：卖家精灵 Excel → 以图搜图 1688 → 利润核算。详见 KNOWN_ISSUES |
 
 **暂不开放**：亚马逊 A+ 模块（Step 4 + 独立 A+ 页）、服装组图、万能画布。详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
 

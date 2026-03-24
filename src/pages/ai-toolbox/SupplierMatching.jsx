@@ -40,6 +40,8 @@ export default function SupplierMatching() {
   const [selectedIndex, setSelectedIndex] = useState({}) // rowIndex -> 0|1|2
   const [historyItems, setHistoryItems] = useState([])
   const [viewingReport, setViewingReport] = useState(null)
+  const [diagnoseResult, setDiagnoseResult] = useState(null)
+  const [diagnoseLoading, setDiagnoseLoading] = useState(false)
   const pollRef = useRef(null)
 
   useEffect(() => {
@@ -165,6 +167,25 @@ export default function SupplierMatching() {
     }
   }
 
+  const handleDiagnose = async () => {
+    if (!rows?.[0]?.mainImage || !getToken()) return
+    setDiagnoseLoading(true)
+    setDiagnoseResult(null)
+    try {
+      const res = await fetch('/api/supplier-matching/diagnose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ imageUrl: rows[0].mainImage }),
+      })
+      const data = await res.json()
+      setDiagnoseResult(data)
+    } catch (e) {
+      setDiagnoseResult({ error: e.message || '诊断请求失败' })
+    } finally {
+      setDiagnoseLoading(false)
+    }
+  }
+
   const handleExport = () => {
     const headers = ['行号', '亚马逊商品', '售价$', '1688推荐', '采购价¥', 'FBA$', '头程¥', '佣金¥', '毛利¥', '毛利率', '1688链接']
     const lines = results.map((r) => {
@@ -215,7 +236,7 @@ export default function SupplierMatching() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-gray-900 mb-2">智能选品</h1>
-      <p className="text-sm text-gray-500 mb-6">上传卖家精灵 Excel，自动匹配 1688 供应商并核算利润（1 积分/条，匹配成功才扣）</p>
+      <p className="text-sm text-gray-500 mb-6">上传卖家精灵 Excel，以图搜图匹配 1688 供应商并核算利润（1 积分/条，匹配成功才扣。须有商品主图）</p>
 
       {historyItems.length > 0 && !taskId && !viewingReport && (
         <details className="mb-6">
@@ -354,14 +375,30 @@ export default function SupplierMatching() {
                   />
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleStart}
-                disabled={!dajiConfigured || !user}
-                className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                开始分析（预计 {rows.length * 5} 秒）
-              </button>
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  type="button"
+                  onClick={handleStart}
+                  disabled={!dajiConfigured || !user}
+                  className="px-6 py-2.5 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  开始分析（预计 {rows.length * 5} 秒）
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDiagnose}
+                  disabled={!dajiConfigured || !user || diagnoseLoading}
+                  className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                  title="用第一条主图测试：拉图→上传→图搜 各步是否成功"
+                >
+                  {diagnoseLoading ? '诊断中…' : '诊断第一条'}
+                </button>
+              </div>
+              {diagnoseResult && (
+                <pre className="mt-2 p-4 bg-gray-50 rounded-lg text-xs overflow-auto max-h-48 border">
+                  {JSON.stringify(diagnoseResult, null, 2)}
+                </pre>
+              )}
             </>
           )}
         </div>
@@ -461,7 +498,9 @@ export default function SupplierMatching() {
                                 )}
                               </div>
                             ) : (
-                              <span className="text-gray-400">❌ 未找到</span>
+                              <span className="text-gray-400" title={r.error}>
+                                ❌ {r.error || '未找到'}
+                              </span>
                             )}
                           </td>
                           <td className="border p-2">{m?.price ?? '—'}</td>

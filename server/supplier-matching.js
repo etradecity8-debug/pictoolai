@@ -1,12 +1,9 @@
 /**
- * 智能选品：解析表格、AI 翻译、1688 搜索、利润核算
+ * 智能选品：解析卖家精灵 Excel、以图搜图 1688、利润核算
+ * 仅支持以图搜图，无主图或失败直接标记未找到（无关键词兜底）
  */
-import { GoogleGenAI } from '@google/genai'
 import XLSX from 'xlsx'
-import { searchByKeyword } from './daji.js'
-import { ANALYSIS_MODEL_ID } from './gemini-models.js'
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+import { uploadImage, searchByImage } from './daji.js'
 
 // 卖家精灵列名映射（支持多种写法）
 const COL_MAP = {
@@ -87,6 +84,33 @@ function parseWeightToKg(val) {
   return num
 }
 
+/** 诊断：对单张主图 URL 跑完整流程，返回每步结果（用于排查全部未找到） */
+export async function runDiagnostic(imageUrl) {
+  const out = { url: String(imageUrl || '').trim().slice(0, 100), step1: {}, step2: {}, step3: {} }
+  if (!out.url) {
+    out.step1 = { ok: false, error: 'URL 为空' }
+    return out
+  }
+  const img = await fetchImageAsBase64(out.url)
+  out.step1 = img?.data ? { ok: true, base64Len: img.data.length } : { ok: false, error: img?.error || '未知' }
+  if (!img?.data) return out
+
+  try {
+    const imageId = await uploadImage(img.data)
+    out.step2 = { ok: true, imageId: String(imageId).slice(0, 50) }
+    try {
+      const res = await searchByImage({ imageId, pageSize: 20 })
+      const count = res?.items?.length ?? 0
+      out.step3 = { ok: true, count, sample: res?.items?.[0]?.title?.slice(0, 40) }
+    } catch (e) {
+      out.step3 = { ok: false, error: e?.message || String(e) }
+    }
+  } catch (e) {
+    out.step2 = { ok: false, error: e?.message || String(e) }
+  }
+  return out
+}
+
 /** 校验必填字段，返回错误信息或 null */
 export function validateRows(rows) {
   for (let i = 0; i < rows.length; i++) {
@@ -134,68 +158,78 @@ function getCommissionRate(category) {
   return 15
 }
 
-/** AI 翻译英文标题 → 中文采购关键词 */
-export async function translateToChineseKeyword(title) {
-  const apiKey = GEMINI_API_KEY
-  if (!apiKey) throw new Error('Gemini API 未配置')
-  const ai = new GoogleGenAI({ apiKey })
-  const prompt = `Translate this Amazon product title into 2-5 Chinese keywords that a 1688/Alibaba buyer would search for. Output ONLY the keywords, separated by spaces, no quotes or punctuation. Example: "Disposable Toilet Brush with 48 Refills" → "一次性马桶刷 替换头 48个装"
-
-Title: ${title}`
-  const res = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
-  const text = res?.text?.trim() || ''
-  return text.replace(/["'""]/g, '').replace(/[,，;；]/g, ' ').trim() || title
-}
-
-/** AI 从候选中选出 Top 3 并排序 */
-export async function rankMatches(originalTitle, candidates) {
-  if (!candidates.length) return []
-  const apiKey = GEMINI_API_KEY
-  if (!apiKey) return candidates.slice(0, 3)
-
-  const list = candidates.slice(0, 15).map((c, i) => `${i + 1}. ${c.title} | 价格: ¥${c.price} | 月销: ${c.monthSold}`).join('\n')
-  const ai = new GoogleGenAI({ apiKey })
-  const prompt = `You are matching 1688 products to an Amazon product. Given the Amazon title and 1688 search results, pick the TOP 3 best matches (by relevance, similar product, reasonable price). Output ONLY a JSON array of the 1-based indices, e.g. [3, 1, 7]. If none match well, output [].
-
-Amazon title: ${originalTitle}
-
-1688 results:
-${list}
-
-Output JSON array only:`
-  const res = await ai.models.generateContent({ model: ANALYSIS_MODEL_ID, contents: [{ text: prompt }] })
-  let text = res?.text?.trim() || ''
-  text = text.replace(/```\w*\n?/g, '').trim()
+/** 拉取图片为 base64（超时 15s，最大 2.5MB，用于 Daji 上传）
+ * 亚马逊 CDN 需模拟浏览器请求，否则易 403
+ * @returns {{ mimeType, data } | { data: null, error: string }} */
+async function fetchImageAsBase64(url) {
+  if (!url || typeof url !== 'string') return { data: null, error: 'URL 为空' }
+  let clean = url.trim()
+  if (!clean.startsWith('http')) {
+    if (clean.startsWith('//')) clean = 'https:' + clean
+    else return { data: null, error: 'URL 格式无效（需以 http 或 // 开头）' }
+  }
   try {
-    const arr = JSON.parse(text)
-    if (!Array.isArray(arr)) return candidates.slice(0, 3)
-    const indices = arr.filter((n) => typeof n === 'number' && n >= 1 && n <= candidates.length).slice(0, 3)
-    return indices.map((i) => candidates[i - 1]).filter(Boolean)
-  } catch {
-    return candidates.slice(0, 3)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
+    const res = await fetch(clean, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        Referer: 'https://www.amazon.com/',
+      },
+    })
+    clearTimeout(timeout)
+    if (!res.ok) {
+      const msg = `主图拉取失败 (HTTP ${res.status})`
+      console.warn('[supplier-matching]', msg, clean.slice(0, 80))
+      return { data: null, error: msg }
+    }
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length > 2.5 * 1024 * 1024) {
+      return { data: null, error: '主图拉取失败 (图片超过 2.5MB)' }
+    }
+    const contentType = res.headers.get('content-type') || 'image/jpeg'
+    const mime = contentType.includes('png') ? 'image/png' : 'image/jpeg'
+    return { mimeType: mime, data: buf.toString('base64') }
+  } catch (err) {
+    const isAbort = err?.name === 'AbortError' || /abort|timeout/i.test(err?.message || '')
+    const msg = isAbort ? '主图拉取失败 (超时 15s)' : `主图拉取失败 (${err?.message || err})`
+    console.warn('[supplier-matching]', msg, clean.slice(0, 80))
+    return { data: null, error: msg }
   }
 }
 
-/** 单条产品：翻译 → 搜索 → 排序 → 利润 */
+/** 单条产品：仅以图搜图（亚马逊主图→Daji 上传→1688 同款），无主图或失败直接标记未找到 */
 export async function processOneRow(row, settings, onProgress) {
   const { exchangeRate, headRate, domesticPerItem, commissionRate } = settings
   const commission = typeof commissionRate === 'number' ? commissionRate : getCommissionRate(row.category)
 
-  // 1. 翻译
-  onProgress?.('translate')
-  const keyword = await translateToChineseKeyword(row.title)
-
-  // 2. 1688 搜索
-  onProgress?.('search')
   let items = []
-  try {
-    const res = await searchByKeyword(keyword, { pageSize: 20 })
-    items = res.items || []
-  } catch (err) {
-    console.error('[supplier-matching] Daji search error:', err?.message || String(err))
+  let searchError = null
+
+  if (!row.mainImage) {
+    searchError = '缺少商品主图，仅支持以图搜图'
+  } else {
+    onProgress?.('search')
+    const img = await fetchImageAsBase64(row.mainImage)
+    if (!img?.data) {
+      searchError = img?.error || '主图拉取失败'
+    } else {
+      try {
+        const imageId = await uploadImage(img.data)
+        const res = await searchByImage({ imageId, pageSize: 20 })
+        items = res.items || []
+      } catch (err) {
+        searchError = err?.message || String(err)
+        console.error('[supplier-matching] Daji 以图搜图失败:', searchError)
+      }
+    }
   }
 
   if (!items.length) {
+    if (!searchError) searchError = '1688 未返回匹配结果'
     return {
       rowIndex: row.rowIndex,
       title: row.title,
@@ -205,18 +239,17 @@ export async function processOneRow(row, settings, onProgress) {
       asin: row.asin,
       weightKg: row.weightKg,
       fba: row.fba,
-      keyword,
+      keyword: '',
       matches: [],
       found: false,
       profit: null,
       selectedIndex: -1,
+      error: searchError,
     }
   }
 
-  // 3. AI 排序
   onProgress?.('rank')
-  const top3 = await rankMatches(row.title, items)
-  const matches = top3.length ? top3 : items.slice(0, 3)
+  const matches = items.slice(0, 3)
 
   const selected = matches[0]
   const fba = row.fba ?? (row.weightKg ? row.weightKg * 4.5 : 5)
@@ -237,7 +270,7 @@ export async function processOneRow(row, settings, onProgress) {
     asin: row.asin,
     weightKg: row.weightKg,
     fba: row.fba,
-    keyword,
+    keyword: '',
     matches: matches.map((m) => ({
       offerId: m.offerId,
       title: m.title,

@@ -44,6 +44,7 @@
   <h1>1688 智能选品匹配 — 功能方案说明</h1>
 <blockquote>
 <p>本文档面向客户沟通使用，说明「卖家精灵表格 → 自动匹配 1688 供应商 → 利润核算」功能的实现方案。</p>
+<p><strong>【2026-03 已封存】</strong> 该功能前台已隐藏（<code>AI_TOOLBOX_ENABLED = false</code>）。原因：Daji 以图搜图对亚马逊主图在 1688 上几乎无匹配，1688 少有与亚马逊完全同款的商品。代码与 API 保留，后续是否删除待定。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
 </blockquote>
 <hr>
 <h2>一、客户需求</h2>
@@ -92,12 +93,12 @@
 </thead>
 <tbody><tr>
 <td>商品标题（英文）</td>
-<td>AI 翻译为中文搜索词，匹配 1688</td>
+<td>结果展示</td>
 <td>Disposable Toilet Cleaning System...</td>
 </tr>
 <tr>
 <td>商品主图 URL</td>
-<td>下载后做以图搜图，提高匹配精度</td>
+<td><strong>以图搜图</strong>直接匹配 1688 同款（必填）</td>
 <td><code>https://m.media-amazon.com/images/I/...jpg</code></td>
 </tr>
 <tr>
@@ -150,25 +151,16 @@
    ③ 创建异步分析任务（页面不卡住，显示进度面板）
         ↓
    对每条商品逐条处理（实时更新进度）：
-   ├─ ③a AI 智能翻译（Gemini）
-   │      英文标题 → 中文采购关键词
-   │      例：&quot;Disposable Toilet Brush with 48 Refills&quot;
-   │         → &quot;一次性马桶刷 替换头 48个装&quot;
-   ├─ ③b 1688 商品搜索（DajiAPI）
-   │      ├─ 通道一：中文关键词搜索（已实现）
-   │      └─ 通道二：产品主图以图搜图（待扩展，Daji 以图搜图仅支持 1688 域名图片）
-   │      → 当前仅用关键词通道，返回候选结果
-   ├─ ③c AI 智能匹配打分（Gemini）
-   │      对比原始产品 vs 1688 搜索结果
-   │      综合：标题相似度、规格参数、图片相似度、店铺评分
-   │      → 选出 Top 3，默认推荐第 1 名
+   ├─ ③a 1688 商品搜索（DajiAPI，仅以图搜图）
+   │      亚马逊主图 URL → 拉取 base64 → POST /alibaba/upload/image 获取 imageId
+   │      → GET /alibaba/product/imageQuery 以图搜图 → 直接得到 1688 同款/相似商品
+   │      无主图或图搜失败 → 直接标记「未找到」（无关键词兜底）
+   ├─ ③b 排序
+   │      Daji 已按相似度排序，直接取前 3
+   ├─ ③c 利润自动核算
+   │      亚马逊售价 - 1688 采购价 - 国内运费 - 头程 - FBA - 佣金
    │      → 搜不到则标记「未找到」，不扣积分
-   └─ ③d 利润自动核算
-          亚马逊售价（表格已有）
-          - 1688 采购价（API 获取，用推荐第 1 名的价格）
-          - FBA 费用（表格已有 / 按重量估算）
-          - 头程运费（用户选定的费率 × 重量）
-          - 平台佣金（售价 × 品类佣金率）
+   └─ ③d 结果输出
         ↓
    ④ 查看完整利润分析报告
       → 默认按毛利率排序
@@ -217,19 +209,9 @@
 <td>成熟的 xlsx 解析库，字段映射即可</td>
 </tr>
 <tr>
-<td>AI 翻译关键词</td>
-<td>★☆☆ 低</td>
-<td>Gemini 擅长此类翻译任务，准确率高</td>
-</tr>
-<tr>
-<td>1688 商品搜索</td>
+<td>1688 以图搜图</td>
 <td>★★★ 核心</td>
-<td>需接入第三方 1688 数据 API（见下方）</td>
-</tr>
-<tr>
-<td>AI 匹配打分</td>
-<td>★★☆ 中</td>
-<td>Gemini 对比分析，需调优 prompt</td>
+<td>Daji 上传图片 + 图搜 API</td>
 </tr>
 <tr>
 <td>利润计算</td>
@@ -326,7 +308,7 @@
 </tbody></table>
 <p><strong>优点：</strong></p>
 <ul>
-<li>同时支持关键词搜索和以图搜图，满足双通道需求</li>
+<li>支持以图搜图（我们使用）和关键词搜索（未使用）</li>
 <li>免费版可用于开发测试（100 次/月）</li>
 <li>支持 12 种语言返回（中英日韩俄等）</li>
 <li>搜索支持多维筛选：价格区间、排序（批发价/复购率/月销量）、认证工厂、一件代发等</li>
@@ -335,8 +317,8 @@
 </ul>
 <p><strong>注意事项：</strong></p>
 <ul>
-<li>以图搜图接口 <code>imageUrl</code> 参数仅支持 1688 图片链接，需先上传图片或使用图片 ID</li>
-<li>需要先注册 1688 平台账号并激活</li>
+<li>以图搜图支持两种方式：① 上传任意图片 base64 → 获取 imageId → 图搜（我们使用此方式，支持亚马逊主图）；② imageAddress 仅支持 1688 域名图片</li>
+<li>需要先注册 Daji 应用并联系客服激活 1688 接口</li>
 <li>签名规则：参数字典序排列 + MD5 加密</li>
 </ul>
 <p><strong>接入评估：</strong></p>
@@ -573,8 +555,9 @@
 </ol>
 <h3>DajiAPI 接口路径说明</h3>
 <ul>
-<li><strong>图片搜索</strong>：<code>/alibaba/product/imageQuery</code></li>
-<li><strong>关键词搜索</strong>：<code>/alibaba/product/keywordQuery</code></li>
+<li><strong>上传图片</strong>：<code>POST /alibaba/upload/image</code>（提交 image_base64，获取 imageId）</li>
+<li><strong>以图搜图</strong>：<code>GET /alibaba/product/imageQuery</code>（参数 imageId 或 imageAddress）</li>
+<li><strong>关键词搜索</strong>：<code>GET /alibaba/product/keywordQuery</code></li>
 </ul>
 <h3>DajiAPI 环境变量配置（部署必配）</h3>
 <p>在 <code>server/.env</code> 中增加以下两项，<strong>不要提交到 Git</strong>：</p>
@@ -589,10 +572,317 @@ DAJI_APP_SECRET=你的AppSecret
 <li><strong>重要</strong>：创建应用后，需联系 Daji 平台<strong>激活 1688 接口</strong>（否则会报错「请创建应用，再联系平台进行激活」）。微信：openapi2019；WhatsApp：+8618820777181</li>
 </ul>
 <p>未配置时，智能选品功能不可用（接口调用会失败）。</p>
-<h3>当前实现与文档说明</h3>
+<h3>当前实现与文档说明（与代码一致）</h3>
 <ul>
-<li><strong>关键词搜索</strong>：已实现，使用 <code>/alibaba/product/keywordQuery</code></li>
-<li><strong>以图搜图</strong>：接口已封装（<code>server/daji.js</code> 的 <code>searchByImage</code>），业务流程中暂未启用；表格主图为亚马逊 CDN 链接，Daji 仅支持 1688 域名图片，故当前仅用关键词通道</li>
+<li><strong>仅以图搜图</strong>：<code>server/daji.js</code> 提供 <code>uploadImage(imageBase64)</code>、<code>searchByImage({ imageId })</code>。<code>server/supplier-matching.js</code> 中：有主图 → <code>fetchImageAsBase64</code> 拉图（超时 15s，≤2.5MB，模拟浏览器请求）→ <code>uploadImage</code> → <code>searchByImage</code>；直接得到 1688 同款/相似，取前 3</li>
+<li><strong>无兜底</strong>：无主图或图搜失败直接标记「未找到」，不做关键词搜索（关键词匹配不准）</li>
+</ul>
+<h3>实现原理与逻辑（与代码一致）</h3>
+<p>以下为 <code>server/supplier-matching.js</code>、<code>server/daji.js</code>、<code>server/index.js</code> 的实际实现说明。</p>
+<h4>1. 模块架构</h4>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>server/supplier-matching.js</code></td>
+<td>Excel 解析、校验、以图搜图、利润核算</td>
+</tr>
+<tr>
+<td><code>server/daji.js</code></td>
+<td>DajiAPI 封装：上传图片、以图搜图（含签名）</td>
+</tr>
+<tr>
+<td><code>server/index.js</code></td>
+<td>API 路由、异步任务、积分扣除、报告存储</td>
+</tr>
+</tbody></table>
+<h4>2. Excel 解析逻辑</h4>
+<ul>
+<li><strong>列名映射</strong>：<code>COL_MAP</code> 定义各字段支持的多重列名（如 <code>商品主图</code> / <code>主图</code> / <code>mainImage</code> / <code>图片</code>），<code>findCol(row, keys)</code> 按「精确匹配优先、包含匹配次之」查找列，且排除误匹配（如「产品价格」不会匹配「价格」）</li>
+<li><strong>行数上限</strong>：最多解析 100 条</li>
+<li><strong>重量解析</strong>：<code>parseWeightToKg(val)</code> 支持 lb/pound → kg、g/克 → kg、默认按 kg 处理</li>
+<li><strong>输出字段</strong>：<code>rowIndex</code>、<code>title</code>、<code>price</code>、<code>mainImage</code>、<code>fba</code>、<code>weightKg</code>、<code>category</code>、<code>asin</code>、<code>detailParams</code></li>
+</ul>
+<h4>3. 校验逻辑</h4>
+<p><code>validateRows(rows)</code> 要求每条：</p>
+<ul>
+<li>商品标题非空</li>
+<li>售价 &gt; 0</li>
+<li>商品主图非空</li>
+</ul>
+<p>任一条不满足即返回错误信息，阻止解析/启动。</p>
+<h4>4. 以图搜图流程（单条产品）</h4>
+<pre><code>1. 检查 mainImage 是否存在
+   └─ 无 → 返回 found: false, error: &#39;缺少商品主图，仅支持以图搜图&#39;
+
+2. fetchImageAsBase64(url)
+   - 超时 15 秒、最大 2.5MB；模拟浏览器请求（User-Agent、Referer、Accept），避免亚马逊 CDN 403
+   - 成功 → { mimeType, data (base64) }
+   - 失败 → { data: null, error: &#39;具体原因&#39; }（如 HTTP 403、超时、图片过大等）
+
+3. img.data 为空 → 返回 found: false, error: img.error 或 &#39;主图拉取失败&#39;
+
+4. uploadImage(img.data) → POST /alibaba/upload/image，获取 imageId
+
+5. searchByImage({ imageId, pageSize: 20 }) → GET /alibaba/product/imageQuery
+
+6. 取 res.items 前 3 条作为 matches（Daji 已按相似度排序）
+
+7. 有结果 → 利润核算；无结果 → 返回 found: false, error: 上述步骤中的错误信息
+</code></pre>
+<h4>5. 利润核算公式与参数</h4>
+<ul>
+<li><strong>FBA 缺失估算</strong>：<code>row.fba ?? (row.weightKg ? row.weightKg * 4.5 : 5)</code>（美元）</li>
+<li><strong>头程</strong>：<code>(row.weightKg ?? 0.5) * headRate</code>（人民币）</li>
+<li><strong>采购成本</strong>：<code>1688 采购价 + domesticPerItem + 头程</code></li>
+<li><strong>佣金</strong>：<code>售价 × 汇率 × (commissionRate/100)</code>，<code>commissionRate</code> 由行级 <code>大类目</code> 映射，缺省 15%</li>
+<li><strong>毛利</strong>：<code>售价×汇率 - 采购成本 - 佣金 - FBA×汇率</code></li>
+<li><strong>毛利率</strong>：<code>(毛利 / 售价×汇率) × 100%</code></li>
+</ul>
+<h4>6. API 路由与任务流</h4>
+<table>
+<thead>
+<tr>
+<th>接口</th>
+<th>方法</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/api/supplier-matching/exchange-rate</code></td>
+<td>GET</td>
+<td>获取实时汇率（Frankfurter）</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/daji-status</code></td>
+<td>GET</td>
+<td>检查 DAJI_APP_KEY/SECRET 是否配置</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/parse</code></td>
+<td>POST</td>
+<td>解析 Excel 预览，校验必填，不扣积分</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/start</code></td>
+<td>POST</td>
+<td>创建异步任务，预扣积分（条数×1），逐条 processOneRow</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/task/:taskId</code></td>
+<td>GET</td>
+<td>轮询任务进度与结果</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/save</code></td>
+<td>POST</td>
+<td>保存报告到 supplier_matching_reports</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/reports</code></td>
+<td>GET</td>
+<td>历史报告列表</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/reports/:id</code></td>
+<td>GET</td>
+<td>报告详情</td>
+</tr>
+<tr>
+<td><code>/api/supplier-matching/reports/:id</code></td>
+<td>DELETE</td>
+<td>删除报告</td>
+</tr>
+</tbody></table>
+<p>任务在内存中维护（<code>supplierTasks</code> Map），完成后 1 小时自动清理。</p>
+<h4>7. 积分扣除规则</h4>
+<ul>
+<li><strong>预扣</strong>：启动时检查 <code>balance &gt;= rows.length * 1</code>，不足则拒绝启动</li>
+<li><strong>实扣</strong>：任务完成后，按 <strong>成功匹配的行数</strong> × 1 积分扣除；未找到的行不扣费</li>
+</ul>
+<h4>8. Daji 签名规则（daji.js）</h4>
+<ol>
+<li>移除 <code>sign</code> 字段</li>
+<li>参数按字典序排序，排除 <code>null</code></li>
+<li>拼接 <code>key=value&amp;</code>，末尾加 <code>&amp;secret=xxx</code></li>
+<li>MD5 加密并转大写</li>
+</ol>
+<p>凭证从 <code>DAJI_APP_KEY</code>、<code>DAJI_APP_SECRET</code> 读取，启动时做 <code>trim()</code> 去除前导空格。</p>
+<h4>9. 前端交互要点</h4>
+<ul>
+<li>上传 Excel → 调用 parse 预览 → 确认参数 → 调用 start</li>
+<li>轮询 task 接口（1.5s 间隔）获取进度与结果</li>
+<li>结果表格支持按毛利率排序；每行可切换 Top 3 匹配，利润在前端 <code>recalcProfit</code> 中实时重算</li>
+<li>FBA 重算逻辑与后端一致：<code>r.profit?.fbaUsd ?? r.fba ?? (r.weightKg ? r.weightKg * 4.5 : 5)</code></li>
+</ul>
+<h4>10. 样本表格验证（Product-Home&amp;Kitchen 2026-03）</h4>
+<p>以卖家精灵样本 <code>Product-Home&amp;Kitchen-US-Last-30-days-419484.xlsx</code> 为例，已验证：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>检查结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>总行数</td>
+<td>45 条</td>
+</tr>
+<tr>
+<td>主图列名</td>
+<td><code>商品主图</code>（COL_MAP 支持 <code>商品主图</code> / <code>主图</code> / <code>mainImage</code> / <code>图片</code>）</td>
+</tr>
+<tr>
+<td>URL 格式</td>
+<td>✅ <strong>CDN 直链</strong>，符合预期</td>
+</tr>
+<tr>
+<td>域名</td>
+<td><code>m.media-amazon.com</code></td>
+</tr>
+<tr>
+<td>路径</td>
+<td><code>/images/I/</code> 开头</td>
+</tr>
+<tr>
+<td>示例</td>
+<td><code>https://m.media-amazon.com/images/I/415Gxoz3FEL._AC_US600_.jpg</code></td>
+</tr>
+</tbody></table>
+<p>结论：该样本表格主图列为亚马逊 CDN 图片直链，非商品页链接，可直接用于以图搜图。</p>
+<h4>11. 报错信息说明</h4>
+<p>匹配失败时，结果表格「1688 匹配」列会显示具体错误。常见报错及含义：</p>
+<table>
+<thead>
+<tr>
+<th>报错文案</th>
+<th>含义</th>
+<th>排查建议</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>缺少商品主图，仅支持以图搜图</code></td>
+<td>该行主图列为空</td>
+<td>检查 Excel 该列是否有 URL</td>
+</tr>
+<tr>
+<td><code>URL 为空</code></td>
+<td>主图列解析为空字符串</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>URL 格式无效（需以 http 或 // 开头）</code></td>
+<td>主图列不是有效 URL</td>
+<td>确认是 <code>https://...</code> 或 <code>//...</code> 格式</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (HTTP 403)</code></td>
+<td>亚马逊 CDN 拒绝请求（反爬）</td>
+<td>服务器所在地区/网络可能被限；可试换 IP 或代理</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (HTTP 404)</code></td>
+<td>图片不存在或链接失效</td>
+<td>检查 URL 是否仍有效</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (HTTP 5xx)</code></td>
+<td>CDN 服务端错误</td>
+<td>稍后重试</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (超时 15s)</code></td>
+<td>网络超时</td>
+<td>检查服务器到 Amazon 的网络；可适当增大超时</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (图片超过 2.5MB)</code></td>
+<td>图片过大</td>
+<td>需在源站压缩或换图</td>
+</tr>
+<tr>
+<td><code>主图拉取失败 (xxx)</code></td>
+<td>其他网络/异常</td>
+<td>查看服务端日志 <code>[supplier-matching]</code> 获取详情</td>
+</tr>
+<tr>
+<td><code>DajiAPI 未配置...</code></td>
+<td>未配置 DAJI_APP_KEY/SECRET</td>
+<td>在 <code>server/.env</code> 配置并重启</td>
+</tr>
+<tr>
+<td><code>请创建应用，再联系平台进行激活</code></td>
+<td>Daji 1688 接口未激活</td>
+<td>联系 Daji 客服激活</td>
+</tr>
+<tr>
+<td><code>会员请求次数达线</code></td>
+<td>Daji 账户配额用尽</td>
+<td>升级套餐或等待下月</td>
+</tr>
+<tr>
+<td><code>1688 未返回匹配结果</code></td>
+<td>主图拉取、Daji 上传、图搜均成功，但 1688 返回 0 条</td>
+<td>可能是 Daji 匹配效果或 1688 数据问题</td>
+</tr>
+</tbody></table>
+<p>服务端控制台会同步输出 <code>[supplier-matching]</code> 前缀日志，便于调试。</p>
+<h4>12. 全部未找到时的排查方案</h4>
+<p>当 45/45 或大量行均显示「未找到」时，按下列步骤逐一排查。</p>
+<p><strong>步骤 1：区分失败环节</strong></p>
+<p>先确认页面显示的具体错误：</p>
+<ul>
+<li>若为 <code>主图拉取失败 (HTTP xxx)</code>、<code>主图拉取失败 (超时)</code> 等 → 主图拉取失败，跳到步骤 2</li>
+<li>若为 <code>1688 未返回匹配结果</code> → Daji 图搜成功但无结果，跳到步骤 4</li>
+<li>若为 <code>DajiAPI 未配置</code>、<code>请创建应用...</code>、<code>会员请求次数达线</code> 等 → Daji 配置/配额问题，跳到步骤 3</li>
+<li>若仅显示「未找到」无其他文案 → 用诊断接口精确定位（步骤 5）</li>
+</ul>
+<p><strong>步骤 2：主图拉取失败</strong></p>
+<ul>
+<li>查看服务端日志中 <code>[supplier-matching] 主图拉取</code> 的 HTTP 状态码或错误信息</li>
+<li>HTTP 403：亚马逊 CDN 反爬，检查服务器所在地区、网络、是否需代理</li>
+<li>超时：检查到 <code>m.media-amazon.com</code> 的网络连通性</li>
+<li>本地测试：在服务器上执行<br><code>curl -I &quot;https://m.media-amazon.com/images/I/415Gxoz3FEL._AC_US600_.jpg&quot;</code><br>看是否返回 200</li>
+</ul>
+<p><strong>步骤 3：Daji 配置与配额</strong></p>
+<ul>
+<li>确认 <code>server/.env</code> 中 <code>DAJI_APP_KEY</code>、<code>DAJI_APP_SECRET</code> 已配置且无前导空格</li>
+<li>是否已联系 Daji 激活 1688 接口（微信 openapi2019 / WhatsApp +8618820777181）</li>
+<li>是否超出 Daji 调用配额</li>
+</ul>
+<p><strong>步骤 4：Daji 返回空结果</strong></p>
+<ul>
+<li>可能是亚马逊主图与 1688 商品图风格差异大，导致匹配不到</li>
+<li>联系 Daji 确认以图搜图接口是否正常、是否有地域/域名限制</li>
+</ul>
+<p><strong>步骤 5：使用诊断接口精确定位</strong></p>
+<p>调用诊断接口可分别验证：主图拉取 → Daji 上传 → Daji 图搜 各步是否成功。</p>
+<ul>
+<li><strong>页面操作</strong>：上传 Excel 后，点击「诊断第一条」按钮，会用第一条主图 URL 跑完整流程，并在下方显示 step1/step2/step3 结果</li>
+</ul>
+<pre><code class="language-bash"># 需先登录获取 Token，替换 YOUR_TOKEN 和主图 URL
+curl -X POST http://localhost:3001/api/supplier-matching/diagnose \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Authorization: Bearer YOUR_TOKEN&quot; \
+  -d &#39;{&quot;imageUrl&quot;:&quot;https://m.media-amazon.com/images/I/415Gxoz3FEL._AC_US600_.jpg&quot;}&#39;
+</code></pre>
+<p>返回示例：</p>
+<pre><code class="language-json">{
+  &quot;url&quot;: &quot;https://m.media-amazon.com/images/I/415Gxoz3FEL._AC_US600_.jpg&quot;,
+  &quot;step1&quot;: { &quot;ok&quot;: true, &quot;base64Len&quot;: 12345 },
+  &quot;step2&quot;: { &quot;ok&quot;: true, &quot;imageId&quot;: &quot;xxx&quot; },
+  &quot;step3&quot;: { &quot;ok&quot;: true, &quot;count&quot;: 20, &quot;sample&quot;: &quot;一次性马桶刷...&quot; }
+}
+</code></pre>
+<ul>
+<li><code>step1.ok: false</code> → 主图拉取失败，看 <code>step1.error</code></li>
+<li><code>step2.ok: false</code> → Daji 上传失败，看 <code>step2.error</code></li>
+<li><code>step3.ok: false</code> → Daji 图搜失败，看 <code>step3.error</code></li>
+<li><code>step3.ok: true</code> 且 <code>count: 0</code> → 1688 未返回匹配，属步骤 4</li>
 </ul>
 <hr>
 <h2>七、费用估算（更新）</h2>
@@ -602,43 +892,27 @@ DAJI_APP_SECRET=你的AppSecret
 <tr>
 <th>费用项</th>
 <th>单价</th>
-<th>数量</th>
-<th>小计</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>AI 翻译（Gemini）</td>
-<td>约 ¥0.01/条</td>
-<td>46</td>
-<td>≈ ¥0.5</td>
-</tr>
-<tr>
-<td>1688 关键词搜索 API（DajiAPI）</td>
+<td>Daji 上传图片</td>
 <td>≈¥0.014/次</td>
-<td>46</td>
-<td>≈ ¥0.6</td>
+<td>有主图时每条约 1 次</td>
 </tr>
 <tr>
-<td>1688 以图搜图 API（可选）</td>
+<td>Daji 以图搜图</td>
 <td>≈¥0.014/次</td>
-<td>0（未启用）</td>
-<td>—</td>
+<td>有主图时每条约 1 次</td>
 </tr>
 <tr>
-<td>AI 匹配打分（Gemini）</td>
-<td>约 ¥0.02/条</td>
-<td>46</td>
-<td>≈ ¥1</td>
-</tr>
-<tr>
-<td><strong>合计</strong></td>
+<td><strong>估算合计</strong></td>
 <td></td>
-<td></td>
-<td><strong>≈ ¥2.1</strong></td>
+<td>约 ¥1.3~2.8/46 条（匹配成功数）</td>
 </tr>
 </tbody></table>
 <blockquote>
-<p>以 DajiAPI 标准版定价估算。<strong>当前仅用关键词搜索</strong>，以图搜图未启用，46 条实际成本约 ¥2.1。启用以图搜图后约 ¥3/50 条。开发测试阶段用免费版即可（100 次/月）。</p>
+<p>以 DajiAPI 标准版、以图搜图估算。开发测试用免费版（100 次/月）即可。</p>
 </blockquote>
 <h3>开发投入</h3>
 <table>
@@ -724,7 +998,7 @@ DAJI_APP_SECRET=你的AppSecret
 <td align="center"></td>
 <td align="center">✅</td>
 <td align="center"></td>
-<td>辅助 AI 匹配打分</td>
+<td>解析保留，当前未用于匹配</td>
 </tr>
 <tr>
 <td>7</td>
@@ -748,7 +1022,7 @@ DAJI_APP_SECRET=你的AppSecret
 <td align="center">✅</td>
 <td align="center"></td>
 <td align="center"></td>
-<td>AI 翻译 → 1688 关键词搜索</td>
+<td>结果展示</td>
 </tr>
 <tr>
 <td>10</td>
@@ -764,7 +1038,7 @@ DAJI_APP_SECRET=你的AppSecret
 <td align="center">✅</td>
 <td align="center"></td>
 <td align="center"></td>
-<td>AI 匹配打分（以图搜图待扩展）</td>
+<td>以图搜图必需，无则标记未找到</td>
 </tr>
 <tr>
 <td>12</td>
@@ -1117,9 +1391,9 @@ DAJI_APP_SECRET=你的AppSecret
 </code></pre>
 <h3>匹配结果逻辑</h3>
 <ul>
-<li>每条产品通过<strong>关键词搜索</strong>在 1688 上查找（以图搜图待扩展）</li>
-<li>AI（Gemini）对搜索结果进行智能打分，综合标题相似度、规格参数、图片相似度、店铺评分</li>
-<li>返回 <strong>Top 3</strong> 匹配结果，<strong>默认选中评分最高的第 1 名</strong>用于利润计算</li>
+<li>每条产品：<strong>仅以图搜图</strong>（亚马逊主图→Daji 上传→图搜），无主图或失败直接标记未找到</li>
+<li>Daji 返回结果已按相似度排序，直接取前 3</li>
+<li>返回 <strong>Top 3</strong> 匹配结果，<strong>默认选中第 1 名</strong>用于利润计算</li>
 <li>用户可手动切换到第 2、3 名，利润自动重算</li>
 <li>搜不到匹配商品的行标记为「❌ 未找到」，<strong>不扣积分</strong></li>
 </ul>

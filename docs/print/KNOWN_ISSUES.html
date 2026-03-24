@@ -69,8 +69,12 @@
 <td>生成 Listing Step 4「A+ 文案与图片」+ 独立 A+ 详情页（<code>/amazon-aplus</code>）<strong>暂不实现</strong>。Step 4 已锁定（<code>APLUS_STEP_ENABLED = false</code>），A+ 页面导航已隐藏。原因：生图效果待优化，用户需求差异大。</td>
 </tr>
 <tr>
+<td><strong>智能选品（1688 供应商匹配）</strong></td>
+<td>AI 电商工具箱 → 智能选品 <strong>已封存</strong>，前台不显示。原因：Daji 以图搜图对亚马逊主图在 1688 上几乎无匹配——用户用相同图片手动在 1688 搜索，也找不到完全一样的商品；诊断显示主图拉取、Daji 上传、图搜接口均成功，但 1688 返回 0 条。大概率因亚马逊商品与 1688 并非一一对应，1688 少有同款。代码与 API 保留，后续是否删除待定。</td>
+</tr>
+<tr>
 <td><strong>恢复方式</strong></td>
-<td>前端改 <code>APLUS_STEP_ENABLED = true</code>；Header 移除 A+ 的 <code>hidden: true</code>。</td>
+<td>A+：前端改 <code>APLUS_STEP_ENABLED = true</code>；Header 移除 A+ 的 <code>hidden: true</code>。智能选品：前端改 <code>AI_TOOLBOX_ENABLED = true</code>。</td>
 </tr>
 </tbody></table>
 <h3>1.2 体验问题</h3>
@@ -103,7 +107,7 @@
 </thead>
 <tbody><tr>
 <td><strong>智能选品 Daji 激活</strong></td>
-<td>配置 <code>DAJI_APP_KEY</code> / <code>DAJI_APP_SECRET</code> 后，需联系 Daji 平台激活 1688 接口（微信 openapi2019 / WhatsApp +8618820777181），否则会报错「请创建应用，再联系平台进行激活」</td>
+<td>（功能已封存）配置 <code>DAJI_APP_KEY</code> / <code>DAJI_APP_SECRET</code> 后，需联系 Daji 平台激活 1688 接口（微信 openapi2019 / WhatsApp +8618820777181），否则会报错「请创建应用，再联系平台进行激活」</td>
 </tr>
 </tbody></table>
 <h3>1.4 已实现（记录备查）</h3>
@@ -354,7 +358,7 @@
 </ul>
 <h3>1688 智能选品</h3>
 <ul>
-<li>AI 电商工具箱 → 智能选品：上传卖家精灵 Excel → AI 翻译 + Daji 关键词搜索 → Top 3 匹配 → 利润核算，1 积分/条。需配置 <code>DAJI_APP_KEY</code> / <code>DAJI_APP_SECRET</code> 并联系 Daji 激活 1688 接口。详见 <a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a>。</li>
+<li>AI 电商工具箱 → 智能选品：<strong>已封存</strong>（见 1.1 节）。原功能见 <a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a>。</li>
 </ul>
 <h3>电商 AI 助手</h3>
 <ul>

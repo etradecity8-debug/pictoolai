@@ -34,6 +34,7 @@ import {
   parseSellerSpriteExcel,
   validateRows,
   processOneRow,
+  runDiagnostic,
 } from './supplier-matching.js'
 import { isDajiConfigured } from './daji.js'
 
@@ -4376,6 +4377,17 @@ app.get('/api/supplier-matching/daji-status', (_req, res) => {
   return res.json({ configured: isDajiConfigured() })
 })
 
+// 诊断：对单张主图 URL 跑完整流程，排查全部未找到（不扣积分）
+app.post('/api/supplier-matching/diagnose', requireAuth, async (req, res) => {
+  try {
+    const { imageUrl } = req.body || {}
+    const result = await runDiagnostic(imageUrl)
+    return res.json(result)
+  } catch (e) {
+    return res.status(500).json({ error: e?.message || '诊断失败' })
+  }
+})
+
 // 解析 Excel 预览（不扣积分）
 app.post('/api/supplier-matching/parse', requireAuth, (req, res) => {
   try {
@@ -4406,7 +4418,9 @@ app.post('/api/supplier-matching/start', requireAuth, async (req, res) => {
     const exchangeRate = settings?.useManualRate ? parseFloat(settings.manualRate) : await fetchExchangeRate()
     if (!exchangeRate || exchangeRate <= 0) return res.status(400).json({ error: '汇率无效' })
     const headPresets = { air: 40, sea_fast: 12, sea_slow: 8 }
-    const headRate = settings?.headCustom != null ? parseFloat(settings.headCustom) : (headPresets[settings?.headPreset] ?? 40)
+    const headRate = settings?.headCustom != null
+      ? (parseFloat(settings.headCustom) || 40)
+      : (headPresets[settings?.headPreset] ?? 40)
     const domesticPerItem = parseFloat(settings?.domesticPerItem) || 0
     const commissionOverride = settings?.commissionOverride != null ? parseFloat(settings.commissionOverride) : null
 
@@ -4446,12 +4460,20 @@ app.post('/api/supplier-matching/start', requireAuth, async (req, res) => {
           task.results.push(rowResult)
           if (rowResult.found) successCount++
         } catch (e) {
-          console.error('[supplier-matching] row error', e.message)
+          let errMsg = e?.message || String(e)
+          if (typeof errMsg === 'string' && errMsg.startsWith('{') && errMsg.includes('"message"')) {
+            try {
+              const parsed = JSON.parse(errMsg)
+              errMsg = parsed?.error?.message || parsed?.message || errMsg
+            } catch {}
+          }
+          if (/503|UNAVAILABLE|high demand/i.test(errMsg)) errMsg = 'AI 服务暂时繁忙，请稍后重试'
+          console.error('[supplier-matching] row error', errMsg)
           task.results.push({
             rowIndex: rows[i].rowIndex,
             title: rows[i].title,
             found: false,
-            error: e.message,
+            error: errMsg,
           })
         }
         task.current = i + 1

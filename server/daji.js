@@ -8,10 +8,10 @@ import { createHash } from 'crypto'
 const BASE_URL = 'https://openapi.dajisaas.com'
 
 function getCredentials() {
-  const appKey = process.env.DAJI_APP_KEY
-  const appSecret = process.env.DAJI_APP_SECRET
+  const appKey = process.env.DAJI_APP_KEY?.trim?.() || process.env.DAJI_APP_KEY
+  const appSecret = process.env.DAJI_APP_SECRET?.trim?.() || process.env.DAJI_APP_SECRET
   if (!appKey || !appSecret) return null
-  return { appKey, appSecret }
+  return { appKey: String(appKey).trim(), appSecret: String(appSecret).trim() }
 }
 
 /**
@@ -84,11 +84,46 @@ export async function searchByKeyword(keyword, opts = {}) {
 }
 
 /**
- * 以图搜图（仅支持 1688 图片链接）
- * @param {string} imageUrl 1688 域名图片 URL
- * @param {object} opts { page, pageSize, country }
+ * 上传图片获取 imageId（用于以图搜图）
+ * 文档：https://wiki.dajisaas.com/api-207062632
+ * @param {string} imageBase64 JPG/PNG/WEBP 的 base64 编码，上限 3MB
+ * @returns {Promise<string>} imageId
  */
-export async function searchByImage(imageUrl, opts = {}) {
+export async function uploadImage(imageBase64) {
+  const cred = getCredentials()
+  if (!cred) throw new Error('DajiAPI 未配置 DAJI_APP_KEY / DAJI_APP_SECRET')
+
+  const params = { appKey: cred.appKey, image_base64: imageBase64 }
+  params.sign = sign(params, cred.appSecret)
+
+  const form = new URLSearchParams()
+  Object.entries(params).forEach(([k, v]) => form.set(k, v))
+
+  const res = await fetch(`${BASE_URL}/alibaba/upload/image`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form.toString(),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (json.code !== 200 && json.code !== 0) {
+    throw new Error(json.message || json.msg || `DajiAPI 上传图片错误: ${res.status}`)
+  }
+  const imageId = json.data?.imageId
+  if (!imageId) throw new Error('DajiAPI 上传未返回 imageId')
+  return imageId
+}
+
+/**
+ * 以图搜图（支持两种方式）
+ * 文档：https://wiki.dajisaas.com/api-164891581
+ * @param {object} opts
+ * @param {string} [opts.imageUrl] 1688 域名图片 URL（仅 1688 链接时用）
+ * @param {string} [opts.imageId] 上传接口返回的 imageId（推荐，支持任意图片）
+ * @param {number} [opts.page]
+ * @param {number} [opts.pageSize]
+ * @param {string} [opts.country]
+ */
+export async function searchByImage(opts) {
   const cred = getCredentials()
   if (!cred) throw new Error('DajiAPI 未配置 DAJI_APP_KEY / DAJI_APP_SECRET')
 
@@ -98,11 +133,14 @@ export async function searchByImage(imageUrl, opts = {}) {
 
   const params = {
     appKey: cred.appKey,
-    imageUrl: String(imageUrl).trim(),
     beginPage: page,
     pageSize,
     country,
   }
+  if (opts.imageId) params.imageId = opts.imageId
+  else if (opts.imageUrl) params.imageAddress = String(opts.imageUrl).trim()
+  else throw new Error('searchByImage 需提供 imageId 或 imageUrl')
+
   params.sign = sign(params, cred.appSecret)
 
   const url = new URL('/alibaba/product/imageQuery', BASE_URL)
@@ -111,7 +149,7 @@ export async function searchByImage(imageUrl, opts = {}) {
   const res = await fetch(url.toString())
   const json = await res.json().catch(() => ({}))
   if (json.code !== 200 && json.code !== 0) {
-    throw new Error(json.message || `DajiAPI 图片搜索错误: ${res.status}`)
+    throw new Error(json.message || json.msg || `DajiAPI 图片搜索错误: ${res.status}`)
   }
   const data = json.data || {}
   const items = Array.isArray(data.data) ? data.data : []
