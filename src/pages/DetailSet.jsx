@@ -162,17 +162,19 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
+/** 根据数量动态维护数组，增补空串、截断超出 */
+function ensureArray(arr, len, defaultVal = '') {
+  const a = Array.isArray(arr) ? [...arr] : []
+  while (a.length < len) a.push(defaultVal)
+  return a.slice(0, len)
+}
+
 export default function DetailSet() {
   const navigate = useNavigate()
   const { user, getToken, refreshUser } = useAuth()
   const [step, setStep] = useState(1)
   const [productImages, setProductImages] = useState([])
   const [productName, setProductName] = useState('')
-  const [sellingPoint1, setSellingPoint1] = useState('')
-  const [sellingPoint2, setSellingPoint2] = useState('')
-  const [sellingPoint3, setSellingPoint3] = useState('')
-  const [sellingPoint4, setSellingPoint4] = useState('')
-  const [sellingPoint5, setSellingPoint5] = useState('')
   const [targetAudience, setTargetAudience] = useState('')
   const [styleDesc, setStyleDesc] = useState('')
   const [otherRequirements, setOtherRequirements] = useState('')
@@ -187,7 +189,15 @@ export default function DetailSet() {
   const [closeUpImageCount, setCloseUpImageCount] = useState(1)
   const [sellingPointImageCount, setSellingPointImageCount] = useState(0)
   const [sellingPointShowText, setSellingPointShowText] = useState(false)
+  const [sceneShowText, setSceneShowText] = useState(false)
+  const [closeUpShowText, setCloseUpShowText] = useState(false)
+  const [interactionShowText, setInteractionShowText] = useState(false)
   const [interactionImageCount, setInteractionImageCount] = useState(0)
+  /** 按类型存储用户描述：选 X 张 → 写 X 个 */
+  const [sellingPointDescs, setSellingPointDescs] = useState([])
+  const [sceneDescs, setSceneDescs] = useState([])
+  const [closeUpDescs, setCloseUpDescs] = useState([])
+  const [interactionDescs, setInteractionDescs] = useState([])
   const [aspectRatio, setAspectRatio] = useState('3:4 竖版')
   const [targetLanguage, setTargetLanguage] = useState('英语')
   const [generating, setGenerating] = useState(false)
@@ -209,6 +219,16 @@ export default function DetailSet() {
     setModel(newModel)
     setClarity((prev) => resolveClarityForModel(newModel, prev))
     setAspectRatio((prev) => resolveAspectForModel(newModel, prev))
+  }
+
+  const setDescAt = (setter, arr, index, value) => {
+    const next = [...ensureArray(arr, Math.max(arr?.length || 0, index + 1))]
+    next[index] = value
+    setter(next)
+  }
+
+  const syncDescsOnCountChange = (count, setter) => {
+    setter(prev => ensureArray(prev, count))
   }
 
   const resetToInputIfEdited = () => {
@@ -255,6 +275,22 @@ export default function DetailSet() {
       setAnalyzeError('请在「生成数量」中至少选择一种图片类型')
       return
     }
+    if (sellingPointImageCount > 0 && sellingPointsLines.length < sellingPointImageCount) {
+      setAnalyzeError(`已选 ${sellingPointImageCount} 张卖点图，请填写 ${sellingPointImageCount} 条卖点描述`)
+      return
+    }
+    if (sceneImageCount > 0 && scDescs.some(d => !d.trim())) {
+      setAnalyzeError('请填写每张场景图的场景描述')
+      return
+    }
+    if (closeUpImageCount > 0 && cuDescs.some(d => !d.trim())) {
+      setAnalyzeError('请填写每张特写图的细节描述')
+      return
+    }
+    if (interactionImageCount > 0 && itDescs.some(d => !d.trim())) {
+      setAnalyzeError('请填写每张交互图的交互描述')
+      return
+    }
     setAnalyzeError('')
     setStep(2)
     setAnalyzing(true)
@@ -282,6 +318,12 @@ export default function DetailSet() {
           sellingPoints: sellingPointsLines,
           sellingPointShowText,
           interactionCount: interactionImageCount,
+          sceneDescriptions: scDescs.map(d => d.trim()).filter(Boolean),
+          closeUpDescriptions: cuDescs.map(d => d.trim()).filter(Boolean),
+          interactionDescriptions: itDescs.map(d => d.trim()).filter(Boolean),
+          sceneShowText,
+          closeUpShowText,
+          interactionShowText,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -327,6 +369,9 @@ export default function DetailSet() {
           aspectRatio: aspectRatio || '3:4 竖版',
           targetLanguage,
           sellingPointShowText,
+          sceneShowText,
+          closeUpShowText,
+          interactionShowText,
           quantity: imagePlan.length,
           image: productImageBase64,
         }),
@@ -349,10 +394,19 @@ export default function DetailSet() {
     }
   }
 
-  const sellingPointsLines = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5]
-    .map(s => s.trim()).filter(Boolean)
-  const effectiveSellingPointCount = Math.min(sellingPointImageCount, sellingPointsLines.length)
+  /** 同步描述数组长度与数量选择 */
+  const spDescs = ensureArray(sellingPointDescs, sellingPointImageCount)
+  const scDescs = ensureArray(sceneDescs, sceneImageCount)
+  const cuDescs = ensureArray(closeUpDescs, closeUpImageCount)
+  const itDescs = ensureArray(interactionDescs, interactionImageCount)
+  const sellingPointsLines = spDescs.map(s => s.trim()).filter(Boolean)
+  const effectiveSellingPointCount = sellingPointImageCount <= 0 ? 0 : Math.min(sellingPointImageCount, sellingPointsLines.length)
   const totalImageCount = mainImageCount + sceneImageCount + closeUpImageCount + effectiveSellingPointCount + interactionImageCount
+  const canAnalyze = productImages.length > 0 && productName.trim() && totalImageCount > 0
+    && (sellingPointImageCount <= 0 || sellingPointsLines.length >= sellingPointImageCount)
+    && (sceneImageCount <= 0 || scDescs.every(d => d.trim()))
+    && (closeUpImageCount <= 0 || cuDescs.every(d => d.trim()))
+    && (interactionImageCount <= 0 || itDescs.every(d => d.trim()))
   const planCount = imagePlan.length
   const isBusy = analyzing || generating
 
@@ -495,10 +549,10 @@ export default function DetailSet() {
               </div>
             </div>
 
-            {/* 组图要求 */}
+            {/* 产品名称 + 通用设置 */}
             <div className={step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-sm font-semibold text-gray-900">组图要求</h2>
+                <h2 className="text-sm font-semibold text-gray-900">产品信息</h2>
                 {step >= 3 && (
                   <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                     <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -506,44 +560,18 @@ export default function DetailSet() {
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-gray-500">填写产品信息，越详细 AI 生成效果越好</p>
               <div className="mt-3 space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700">
-                    产品名称 <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700">产品名称 <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：便携式咖啡机、无线蓝牙耳机"
                     value={productName}
-                    onChange={(e) => {
-                      setProductName(e.target.value)
-                      resetToInputIfEdited()
-                    }}
+                    onChange={(e) => { setProductName(e.target.value); resetToInputIfEdited() }}
                   />
                 </div>
-                {[1, 2, 3, 4, 5].map((i) => {
-                  const val = [sellingPoint1, sellingPoint2, sellingPoint3, sellingPoint4, sellingPoint5][i - 1]
-                  const setVal = [setSellingPoint1, setSellingPoint2, setSellingPoint3, setSellingPoint4, setSellingPoint5][i - 1]
-                  return (
-                    <div key={i}>
-                      <label className="block text-xs font-medium text-gray-700">卖点 {i}</label>
-                      <input
-                        type="text"
-                        readOnly={step >= 3}
-                        className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder={i === 1 ? '例如：一键萃取、便携易带（选填）' : `卖点 ${i}（选填）`}
-                        value={val}
-                        onChange={(e) => {
-                          setVal(e.target.value)
-                          resetToInputIfEdited()
-                        }}
-                      />
-                    </div>
-                  )
-                })}
                 <div>
                   <label className="block text-xs font-medium text-gray-700">目标人群</label>
                   <input
@@ -552,10 +580,7 @@ export default function DetailSet() {
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：都市白领、咖啡爱好者"
                     value={targetAudience}
-                    onChange={(e) => {
-                      setTargetAudience(e.target.value)
-                      resetToInputIfEdited()
-                    }}
+                    onChange={(e) => { setTargetAudience(e.target.value); resetToInputIfEdited() }}
                   />
                 </div>
                 <div>
@@ -566,10 +591,7 @@ export default function DetailSet() {
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="例如：简约现代、科技感、北欧风"
                     value={styleDesc}
-                    onChange={(e) => {
-                      setStyleDesc(e.target.value)
-                      resetToInputIfEdited()
-                    }}
+                    onChange={(e) => { setStyleDesc(e.target.value); resetToInputIfEdited() }}
                   />
                 </div>
                 <div>
@@ -577,13 +599,10 @@ export default function DetailSet() {
                   <textarea
                     readOnly={step >= 3}
                     className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    rows={3}
-                    placeholder="补充拍摄场景、需避开的元素等（选填）"
+                    rows={2}
+                    placeholder="补充需避开的元素等（选填）"
                     value={otherRequirements}
-                    onChange={(e) => {
-                      setOtherRequirements(e.target.value)
-                      resetToInputIfEdited()
-                    }}
+                    onChange={(e) => { setOtherRequirements(e.target.value); resetToInputIfEdited() }}
                   />
                 </div>
               </div>
@@ -642,14 +661,196 @@ export default function DetailSet() {
                 </div>
               </div>
 
-              {/* 生成数量（多类型） */}
-              <div className={`rounded-xl border border-gray-200 bg-white p-4 ${step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}`}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <label className="text-xs font-medium text-gray-700">生图模型</label>
+            {/* 生成数量与描述：选 X 张 → 写 X 个描述 */}
+            <div className={`space-y-4 ${step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+              <h2 className="text-sm font-semibold text-gray-900">生成数量与描述</h2>
+              <p className="text-xs text-gray-500 -mt-2">选择每种类型的张数，选 X 张需填写 X 条对应描述（白底主图无需描述）</p>
+
+              {/* 白底主图：仅数量 */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600">白底主图</span>
+                    <p className="text-xs text-gray-500 mt-0.5">纯白底、产品约 85%、无文字，无需描述</p>
+                  </div>
+                  <select
+                    disabled={step >= 3}
+                    value={mainImageCount}
+                    onChange={(e) => { setMainImageCount(Number(e.target.value)); resetToInputIfEdited() }}
+                    className="w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                  >
+                    {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                  </select>
                 </div>
-                <p className="text-xs text-gray-500 mb-3">Nano Banana 兼容性较好；若遇网络错误可优先选此</p>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <label className="text-xs font-semibold text-gray-800">生成数量（主图/场景/特写/交互图各 0～4 张；卖点图 0～5 张，对应你填写的卖点数）</label>
+              </div>
+
+              {/* 卖点图：数量 + X 个输入 */}
+              <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-100 text-orange-600">卖点图</span>
+                    <p className="text-xs text-gray-500 mt-0.5">每张对应一条卖点，视觉化展示</p>
+                  </div>
+                  <select
+                    disabled={step >= 3}
+                    value={sellingPointImageCount}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setSellingPointImageCount(n)
+                      syncDescsOnCountChange(n, setSellingPointDescs)
+                      resetToInputIfEdited()
+                    }}
+                    className="w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                  >
+                    {[0, 1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                  </select>
+                </div>
+                {sellingPointImageCount > 0 && (
+                  <div className="space-y-2">
+                    {spDescs.map((val, i) => (
+                      <div key={i}>
+                        <label className="block text-xs text-gray-600 mb-0.5">卖点 {i + 1} <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          readOnly={step >= 3}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                          placeholder={`例如：一键萃取、便携易带`}
+                          value={val}
+                          onChange={(e) => { setDescAt(setSellingPointDescs, spDescs, i, e.target.value); resetToInputIfEdited() }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 特写图：数量 + X 个输入 */}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-600">特写图</span>
+                    <p className="text-xs text-gray-500 mt-0.5">产品细节、材质特写</p>
+                  </div>
+                  <select
+                    disabled={step >= 3}
+                    value={closeUpImageCount}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setCloseUpImageCount(n)
+                      syncDescsOnCountChange(n, setCloseUpDescs)
+                      resetToInputIfEdited()
+                    }}
+                    className="w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                  >
+                    {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                  </select>
+                </div>
+                {closeUpImageCount > 0 && (
+                  <div className="space-y-2">
+                    {cuDescs.map((val, i) => (
+                      <div key={i}>
+                        <label className="block text-xs text-gray-600 mb-0.5">细节 {i + 1} 描述 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          readOnly={step >= 3}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                          placeholder={`例如：表面磨砂质感、按钮特写`}
+                          value={val}
+                          onChange={(e) => { setDescAt(setCloseUpDescs, cuDescs, i, e.target.value); resetToInputIfEdited() }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 场景图：数量 + X 个输入 */}
+              <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-600">场景图</span>
+                    <p className="text-xs text-gray-500 mt-0.5">使用场景或生活化背景</p>
+                  </div>
+                  <select
+                    disabled={step >= 3}
+                    value={sceneImageCount}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setSceneImageCount(n)
+                      syncDescsOnCountChange(n, setSceneDescs)
+                      resetToInputIfEdited()
+                    }}
+                    className="w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                  >
+                    {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                  </select>
+                </div>
+                {sceneImageCount > 0 && (
+                  <div className="space-y-2">
+                    {scDescs.map((val, i) => (
+                      <div key={i}>
+                        <label className="block text-xs text-gray-600 mb-0.5">场景 {i + 1} 描述 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          readOnly={step >= 3}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                          placeholder={`例如：咖啡厅桌上、办公室桌面`}
+                          value={val}
+                          onChange={(e) => { setDescAt(setSceneDescs, scDescs, i, e.target.value); resetToInputIfEdited() }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 交互图：数量 + X 个输入 */}
+              <div className="rounded-xl border border-green-200 bg-green-50/50 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-600">交互图</span>
+                    <p className="text-xs text-gray-500 mt-0.5">真人使用、手持或与产品互动</p>
+                  </div>
+                  <select
+                    disabled={step >= 3}
+                    value={interactionImageCount}
+                    onChange={(e) => {
+                      const n = Number(e.target.value)
+                      setInteractionImageCount(n)
+                      syncDescsOnCountChange(n, setInteractionDescs)
+                      resetToInputIfEdited()
+                    }}
+                    className="w-20 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                  >
+                    {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
+                  </select>
+                </div>
+                {interactionImageCount > 0 && (
+                  <div className="space-y-2">
+                    {itDescs.map((val, i) => (
+                      <div key={i}>
+                        <label className="block text-xs text-gray-600 mb-0.5">交互 {i + 1} 描述 <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          readOnly={step >= 3}
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm placeholder-gray-400 focus:border-primary focus:ring-1 focus:ring-primary"
+                          placeholder={`例如：手持使用、放在腿上操作`}
+                          value={val}
+                          onChange={(e) => { setDescAt(setInteractionDescs, itDescs, i, e.target.value); resetToInputIfEdited() }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            </div>
+
+            {/* 生图文字选项：与规划一致，步骤 3 后锁定 */}
+            {(sellingPointImageCount > 0 || sceneImageCount > 0 || closeUpImageCount > 0 || interactionImageCount > 0) && (
+              <div className={`rounded-xl border border-gray-200 bg-gray-50/80 p-4 ${step >= 3 ? 'opacity-50 pointer-events-none select-none' : ''}`}>
+                <div className="flex items-center gap-1.5 mb-3">
+                  <p className="text-xs font-medium text-gray-700">图片是否显示文字</p>
                   {step >= 3 && (
                     <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                       <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -657,89 +858,35 @@ export default function DetailSet() {
                     </span>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">白底主图</label>
-                    <select
-                      disabled={step >= 3}
-                      value={mainImageCount}
-                      onChange={(e) => { setMainImageCount(Number(e.target.value)); resetToInputIfEdited() }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                    >
-                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">场景图</label>
-                    <select
-                      disabled={step >= 3}
-                      value={sceneImageCount}
-                      onChange={(e) => { setSceneImageCount(Number(e.target.value)); resetToInputIfEdited() }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                    >
-                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">特写图</label>
-                    <select
-                      disabled={step >= 3}
-                      value={closeUpImageCount}
-                      onChange={(e) => { setCloseUpImageCount(Number(e.target.value)); resetToInputIfEdited() }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                    >
-                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">卖点图</label>
-                    <select
-                      disabled={step >= 3}
-                      value={Math.min(sellingPointImageCount, sellingPointsLines.length)}
-                      onChange={(e) => { setSellingPointImageCount(Number(e.target.value)); resetToInputIfEdited() }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                    >
-                      {Array.from({ length: sellingPointsLines.length + 1 }, (_, n) => (
-                        <option key={n} value={n}>{n} 张</option>
-                      ))}
-                    </select>
-                    {sellingPointsLines.length > 0 && (
-                      <p className="text-xs text-gray-400 mt-0.5">最多 {sellingPointsLines.length} 张，对应你填写的 {sellingPointsLines.length} 条卖点</p>
-                    )}
-                    {effectiveSellingPointCount > 0 && (
-                      <label className="flex items-center gap-1.5 mt-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={sellingPointShowText}
-                          onChange={(e) => setSellingPointShowText(e.target.checked)}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-xs text-gray-600">卖点图上显示文字（按所选语言）</span>
-                      </label>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">交互图</label>
-                    <select
-                      disabled={step >= 3}
-                      value={interactionImageCount}
-                      onChange={(e) => { setInteractionImageCount(Number(e.target.value)); resetToInputIfEdited() }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed"
-                    >
-                      {[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n} 张</option>)}
-                    </select>
-                    <p className="text-xs text-gray-400 mt-0.5">真人使用/手持产品的场景</p>
-                  </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {sellingPointImageCount > 0 && (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={sellingPointShowText} onChange={(e) => setSellingPointShowText(e.target.checked)} className="rounded border-gray-300" />
+                      <span className="text-xs text-gray-600">卖点图</span>
+                    </label>
+                  )}
+                  {closeUpImageCount > 0 && (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={closeUpShowText} onChange={(e) => setCloseUpShowText(e.target.checked)} className="rounded border-gray-300" />
+                      <span className="text-xs text-gray-600">特写图</span>
+                    </label>
+                  )}
+                  {sceneImageCount > 0 && (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={sceneShowText} onChange={(e) => setSceneShowText(e.target.checked)} className="rounded border-gray-300" />
+                      <span className="text-xs text-gray-600">场景图</span>
+                    </label>
+                  )}
+                  {interactionImageCount > 0 && (
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={interactionShowText} onChange={(e) => setInteractionShowText(e.target.checked)} className="rounded border-gray-300" />
+                      <span className="text-xs text-gray-600">交互图</span>
+                    </label>
+                  )}
                 </div>
-                <div className="mt-3 space-y-0.5 text-xs text-gray-500">
-                  <p>白底主图：纯白底、产品约 85%、无文字</p>
-                  <p>场景图：使用场景或生活化背景</p>
-                  <p>特写图：产品细节、材质特写</p>
-                  <p>卖点图：每张对应一条你填写的卖点，视觉化展示；可勾选「显示文字」在图上展示卖点文案</p>
-                  <p>交互图：真人使用、手持或与产品互动的场景</p>
-                </div>
+                <p className="text-xs text-gray-500 mt-1">勾选=规划与生图中显示文字，不勾选=规划与生图中均为纯视觉图（无标题/文案）</p>
               </div>
-            </div>
+            )}
 
             {analyzeError && (
               <p className="text-sm text-red-600">{analyzeError}</p>
@@ -756,7 +903,10 @@ export default function DetailSet() {
             {productImages.length > 0 && productName.trim() && totalImageCount === 0 && !analyzeError && step < 3 && (
               <p className="text-xs text-amber-600">请在「生成数量」中至少选择一种图片类型</p>
             )}
-            {step < 3 && totalImageCount > 0 && productImages.length > 0 && productName.trim() && (
+            {productImages.length > 0 && productName.trim() && totalImageCount > 0 && !canAnalyze && !analyzeError && step < 3 && (
+              <p className="text-xs text-amber-600">请完成所选类型对应的描述填写</p>
+            )}
+            {step < 3 && totalImageCount > 0 && productImages.length > 0 && productName.trim() && canAnalyze && (
               <p className="text-xs text-amber-700">
                 预计消耗 {totalImageCount * getPointsPerImage(model, clarity)} 积分（{totalImageCount} 张 × {getPointsPerImage(model, clarity)} 积分/张）
               </p>
@@ -764,15 +914,15 @@ export default function DetailSet() {
             {step < 3 && (
               <button
                 type="button"
-                disabled={analyzing || !productImages.length || !productName.trim() || totalImageCount === 0}
+                disabled={analyzing || !canAnalyze}
                 onClick={runAnalyze}
-                title={!productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : ''}
+                title={!productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : !canAnalyze ? '请完成所选类型对应的描述填写' : ''}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-800 px-4 py-3 text-sm font-medium text-white hover:bg-gray-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
-                {analyzing ? '分析中...' : !productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : '分析产品'}
+                {analyzing ? '分析中...' : !productImages.length ? '请先上传产品图' : !productName.trim() ? '请填写产品名称' : totalImageCount === 0 ? '请选择至少一种图片类型' : !canAnalyze ? '请完成描述填写' : '分析产品'}
               </button>
             )}
             {(step === 3 || step === 5) && planCount > 0 && (

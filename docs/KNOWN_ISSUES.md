@@ -62,6 +62,7 @@
 
 | 项目 | 说明 |
 |------|------|
+| **文字大小与字体** | 客户有指定生图文字大小、字体的需求，暂不实现。当前由 AI 根据设计规范自动决定。 |
 | 仓库批量保存 | 多张选文件夹时部分目录被拒，需优化方案 |
 | 多组专利查询 | 侵权深度查询可考虑多组检索策略 |
 | CPC 分类号 | 专利检索可补充分类号提高命中率 |
@@ -166,6 +167,12 @@
 ### 从作品库选择（2026-03-23）
 
 - 选图加载统一用 `loadImageFromGalleryId(id)` 走后端 `/api/gallery/image/:id`，避免 COS 跨域导致选图后图片不出现。GalleryThumb 传 `url/title/token`。从仓库「用AI编辑」带图进入时传 `id`，`loadImageFromGalleryUrl` 优先走 id 代理。
+
+### 通用电商生图（2026-03-24）
+
+- **选 X 张写 X 个描述**：卖点图/场景图/特写图/交互图各自选数量后须填写对应条数描述，白底主图无需描述。analyze 接口传 `sceneDescriptions/closeUpDescriptions/interactionDescriptions` 供 AI 严格按描述规划。
+- **是否显示文字**：卖点图、场景图、特写图、交互图各自可选「显示文字」，不勾选则生成纯视觉图（无标题/文案）。generate 接口传 `sceneShowText/closeUpShowText/interactionShowText`。详见 [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md)。
+- **分析失败**：未配置 GEMINI_API_KEY 或 AI 返回格式异常时，明确返回错误提示，不展示 mock 规划，避免客户误以为分析成功。
 
 ### 其他
 

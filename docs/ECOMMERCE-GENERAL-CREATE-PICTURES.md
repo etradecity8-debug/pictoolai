@@ -10,24 +10,23 @@
 |---|---|---|---|
 | 产品图 | 是 | 是 | 分析 + 生图 |
 | 产品名称 | 是 | 是 | 分析 |
-| 卖点（1–5 条） | 否 | 是 | 分析 |
 | 目标人群 | 否 | 是 | 分析 |
 | 风格 | 否 | 是 | 分析 |
 | 其他要求 | 否 | 是 | 分析 |
 | 白底主图张数 | 是（默认 1） | 是 | 分析 |
-| 场景图张数 | 是（默认 1） | 是 | 分析 |
-| 特写图张数 | 是（默认 1） | 是 | 分析 |
-| 卖点图张数 | 是（默认 0） | 是 | 分析 |
-| 卖点图显示文字 | 否（默认不勾） | 否 | 生图 |
-| 交互图张数 | 是（默认 0） | 是 | 分析 |
+| 卖点图张数 + 卖点描述 | 选 X 张须填 X 条 | 是 | 分析 |
+| 特写图张数 + 细节描述 | 选 X 张须填 X 条 | 是 | 分析 |
+| 场景图张数 + 场景描述 | 选 X 张须填 X 条 | 是 | 分析 |
+| 交互图张数 + 交互描述 | 选 X 张须填 X 条 | 是 | 分析 |
+| 卖点图/场景图/特写图/交互图 显示文字 | 否（默认不勾） | 是 | 分析 + 生图（与规划一致，步骤 3 后锁定） |
 | 目标语言 | 是（默认英语） | 否 | 生图 |
 | 模型 | 是（默认 Nano Banana） | 否 | 生图 |
 | 尺寸比例 | 是（默认 3:4 竖版） | 否 | 生图 |
 | 清晰度 | 是（默认 2K，Nano Banana 仅 1K） | 否 | 生图 |
 
-> **逻辑约定**：修改上半部分字段（产品信息/产品图/各类型数量）需重新分析；修改下半部分（语言/模型/尺寸/清晰度/是否显示文字）不影响已有规划，可直接「再次生成」。
+> **逻辑约定**：修改产品信息/产品图/各类型数量及描述/**是否显示文字** 需重新分析；修改语言/模型/尺寸/清晰度 不影响已有规划，可直接「再次生成」。是否显示文字与规划一起锁定，步骤 3 后不可改。
 >
-> **验证**：各类型张数之和必须 ≥ 1 才能点击「分析产品」。卖点图最大张数 = 填写的卖点条数（不能超出）。
+> **验证**：各类型张数之和必须 ≥ 1 才能点击「分析产品」。选 X 张卖点图/场景图/特写图/交互图，须分别填写 X 条对应描述。白底主图无需描述。
 
 ---
 
@@ -36,9 +35,9 @@
 | 类型 | type 值 | 说明 | 每次最多 |
 |---|---|---|---|
 | 白底主图 | `main` | 纯白背景，产品约 85%，无文字/logo | 4 张 |
+| 卖点图 | `sellingPoint` | 每张对应一条卖点，可选是否显示文字 | 0–5（≤ 卖点条数） |
+| 特写图 | `closeUp` | 产品细节/材质特写，宏观镜头，生成全新特写图（非原图裁剪） | 4 张 |
 | 场景图 | `scene` | 生活/使用场景背景，有环境氛围 | 4 张 |
-| 特写图 | `closeUp` | 产品细节/材质特写，极近距离微观 | 4 张 |
-| 卖点图 | `sellingPoint` | 每张对应一条卖点，可选是否显示文字 | = 卖点条数 |
 | 交互图 | `interaction` | 真人使用/手持产品的场景 | 4 张 |
 
 ---
@@ -47,7 +46,7 @@
 
 ### 前端组装逻辑（`runAnalyze`）
 
-五个组图要求输入框在前端拼接成一段结构化文本，再作为 `requirements` 字段发给后端：
+产品名称、目标人群、风格、其他要求，以及卖点（来自卖点图描述）在前端拼接成结构化文本，作为 `requirements` 发给后端：
 
 ```
 产品名称：便携式咖啡机
@@ -57,34 +56,44 @@
 其他要求：...
 ```
 
-只有有内容的字段才会加入，空字段不传。
+只有有内容的字段才会加入，空字段不传。场景/特写/交互的描述单独以 `sceneDescriptions`、`closeUpDescriptions`、`interactionDescriptions` 数组传递。
 
 ### 发给后端的请求体
 
 | 字段 | 来源 | 说明 |
 |---|---|---|
 | `image` | 产品图第一张（压缩后 base64） | 长边 ≤ 1024px，JPEG 0.82 |
-| `requirements` | 五个输入框拼接的结构化文本 | 有内容才传，否则 `undefined` |
+| `requirements` | 产品名称、目标人群、风格、其他、卖点（来自卖点图描述）拼接的结构化文本 | 有内容才传，否则 `undefined` |
 | `model` | 模型选择 | **后端分析阶段不使用**，固定用 `gemini-2.5-flash` |
 | `mainCount` | 白底主图张数 | 0–4 |
 | `sceneCount` | 场景图张数 | 0–4 |
 | `closeUpCount` | 特写图张数 | 0–4 |
-| `sellingPointCount` | 卖点图张数 | 0–卖点条数 |
+| `sellingPointCount` | 卖点图张数 | 0–5，须填写对应条数的卖点描述 |
 | `sellingPoints` | 填写的卖点文案数组 | 用于卖点图规划与卖点标签 |
-| `sellingPointShowText` | 布尔值 | 是否在卖点图上叠加文字 |
+| `sellingPointShowText` | 布尔值 | 是否在卖点图上叠加文字；不勾选则规划中文字内容为「此图不显示文字」 |
 | `interactionCount` | 交互图张数 | 0–4 |
+| `sceneDescriptions` | 场景描述数组 | 长度 = 场景图张数，每张对应一条 |
+| `closeUpDescriptions` | 细节描述数组 | 长度 = 特写图张数，每张对应一条 |
+| `interactionDescriptions` | 交互描述数组 | 长度 = 交互图张数，每张对应一条 |
+| `sceneShowText` | 布尔值 | 场景图是否显示文字；不勾选则规划中文字内容为「此图不显示文字」 |
+| `closeUpShowText` | 布尔值 | 特写图是否显示文字；同上 |
+| `interactionShowText` | 布尔值 | 交互图是否显示文字；同上 |
 
 ### 后端如何用（`server/index.js`）
 
-后端识别到 `mainCount` 等参数后启用「类型模式」，在 prompt 中按类型指定规划要求：
+后端识别到 `mainCount` 等参数后启用「类型模式」，在 prompt 中按类型指定规划要求。
+
+**四类（卖点/场景/特写/交互）统一逻辑：勾选 → 规划显示文字；不勾选 → 规划为「此图不显示文字，纯视觉展示」。** 后处理为唯一真相源，强制覆盖 AI 返回。
+
+当传入 `sceneDescriptions`、`closeUpDescriptions`、`interactionDescriptions` 且长度足够时，会严格要求每张图按用户指定描述设计：
 
 ```
-请按以下类型和数量输出图片规划（共 N 条）：
+请按以下类型和数量输出图片规划（共 N 条），顺序：白底主图 → 卖点图 → 特写图 → 场景图 → 交互图
 - 白底主图（type: "main"）：N1 张，纯白背景，产品约 85%，无文字无 logo
-- 场景图（type: "scene"）：N2 张，生活/使用场景背景
-- 特写图（type: "closeUp"）：N3 张，产品细节、材质特写
-- 卖点图（type: "sellingPoint"）：N4 张，对应卖点：xxx、yyy
-- 交互图（type: "interaction"）：N5 张，真人使用或手持产品的场景
+- 卖点图（type: "sellingPoint"）：N2 张，对应卖点：xxx、yyy；按 sellingPointShowText 决定是否有文字
+- 特写图（type: "closeUp"）：N3 张，若用户指定了细节描述则严格执行；按 closeUpShowText 决定是否有文字
+- 场景图（type: "scene"）：N4 张，若用户指定了场景描述则严格执行；按 sceneShowText 决定是否有文字
+- 交互图（type: "interaction"）：N5 张，若用户指定了交互描述则严格执行；按 interactionShowText 决定是否有文字
 ```
 
 每条 `imagePlan` 返回必含 `type` 字段，卖点图额外含 `sellingPointText`。
@@ -97,6 +106,8 @@
 |---|---|
 | `designSpecMarkdown` | 整体设计规范（Markdown，用户可编辑） |
 | `imagePlan` | 图片规划数组，每条含 `title`、`contentMarkdown`、`type`（以及卖点图的 `sellingPointText`） |
+
+**分析失败时**：未配置 `GEMINI_API_KEY` 或 AI 返回格式异常，接口返回 500，body 为 `{ error: "..." }`，不返回规划。详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
 
 ---
 
@@ -113,6 +124,9 @@
 | `aspectRatio` | 尺寸比例选择 | 转为 `imageConfig.aspectRatio`（如 `3:4`） |
 | `targetLanguage` | 目标语言选择 | 转为语言约束规则注入 prompt |
 | `sellingPointShowText` | 是否卖点图显文字 | 影响卖点图 prompt 是否含文字叠加要求 |
+| `sceneShowText` | 是否场景图显文字 | 不勾选则使用纯视觉 prompt，无文字 |
+| `closeUpShowText` | 是否特写图显文字 | 不勾选则使用纯视觉 prompt，无文字 |
+| `interactionShowText` | 是否交互图显文字 | 不勾选则使用纯视觉 prompt，无文字 |
 | `quantity` | `imagePlan.length` | 生图总张数（按规划条数） |
 | `image` | 产品图第一张（压缩后 base64） | 作为参考图传给生图 AI |
 
@@ -129,6 +143,10 @@
 ```
 
 **场景图 / 特写图 / 交互图（type: "scene" / "closeUp" / "interaction"）**：
+- 若 `sceneShowText` / `closeUpShowText` / `interactionShowText` 为 `true`：使用带文字 prompt（构图规则、排版规则、色彩和谐、文字安全区、语言规则等）
+- 若为 `false`：使用纯视觉 prompt，不含文字相关规则，强制「NO text, NO captions, NO labels」
+
+带文字时的 prompt 结构：
 ```
 [类型声明]  类型特定要求（场景氛围 / 极近特写 / 真人互动）
 [摆放规则]  placementRule（物理正确摆放）
@@ -143,7 +161,7 @@
 ```
 
 **卖点图（type: "sellingPoint"）**：
-- 在场景图 prompt 基础上，额外声明需视觉化表达的具体卖点文案
+- 与场景/特写/交互图一致：勾选显示文字则规划含文字内容，不勾选则规划为「此图不显示文字，纯视觉展示」
 - 若 `sellingPointShowText=true`：要求将卖点文字作为标题叠加在图上
 - 若 `sellingPointShowText=false`：只通过视觉构图表达卖点，不含文字
 
@@ -154,6 +172,8 @@
 | `images` | 生成图片数组，每项含 `id`、`title`、`type`、`url`（base64 data URL）或 `error` |
 
 前端收到后按 `type` 分组展示（白底主图一组、场景图一组……），每组显示类型标签和图片网格，每张图有独立「保存到本地」按钮。
+
+**异常**：未配置 `GEMINI_API_KEY` 时返回 503；积分不足返回 402。
 
 ### 步骤3图片规划 UI
 

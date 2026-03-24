@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">ECOMMERCE-GENERAL-CREATE-PICTURES.md → 打印版 · 2026/3/23</div>
+  <div class="meta">ECOMMERCE-GENERAL-CREATE-PICTURES.md → 打印版 · 2026/3/24</div>
   <h1>通用电商生图 · 全品类组图：字段与 AI 传参说明</h1>
 <blockquote>
 <p>本文档说明「全品类组图」页面（<code>src/pages/DetailSet.jsx</code>）中每个用户输入字段，在前端和后端的作用，以及最终如何传给 AI。</p>
@@ -69,12 +69,6 @@
 <td>分析</td>
 </tr>
 <tr>
-<td>卖点（1–5 条）</td>
-<td>否</td>
-<td>是</td>
-<td>分析</td>
-</tr>
-<tr>
 <td>目标人群</td>
 <td>否</td>
 <td>是</td>
@@ -99,34 +93,34 @@
 <td>分析</td>
 </tr>
 <tr>
-<td>场景图张数</td>
-<td>是（默认 1）</td>
+<td>卖点图张数 + 卖点描述</td>
+<td>选 X 张须填 X 条</td>
 <td>是</td>
 <td>分析</td>
 </tr>
 <tr>
-<td>特写图张数</td>
-<td>是（默认 1）</td>
+<td>特写图张数 + 细节描述</td>
+<td>选 X 张须填 X 条</td>
 <td>是</td>
 <td>分析</td>
 </tr>
 <tr>
-<td>卖点图张数</td>
-<td>是（默认 0）</td>
+<td>场景图张数 + 场景描述</td>
+<td>选 X 张须填 X 条</td>
 <td>是</td>
 <td>分析</td>
 </tr>
 <tr>
-<td>卖点图显示文字</td>
+<td>交互图张数 + 交互描述</td>
+<td>选 X 张须填 X 条</td>
+<td>是</td>
+<td>分析</td>
+</tr>
+<tr>
+<td>卖点图/场景图/特写图/交互图 显示文字</td>
 <td>否（默认不勾）</td>
-<td>否</td>
-<td>生图</td>
-</tr>
-<tr>
-<td>交互图张数</td>
-<td>是（默认 0）</td>
 <td>是</td>
-<td>分析</td>
+<td>分析 + 生图（与规划一致，步骤 3 后锁定）</td>
 </tr>
 <tr>
 <td>目标语言</td>
@@ -154,8 +148,8 @@
 </tr>
 </tbody></table>
 <blockquote>
-<p><strong>逻辑约定</strong>：修改上半部分字段（产品信息/产品图/各类型数量）需重新分析；修改下半部分（语言/模型/尺寸/清晰度/是否显示文字）不影响已有规划，可直接「再次生成」。</p>
-<p><strong>验证</strong>：各类型张数之和必须 ≥ 1 才能点击「分析产品」。卖点图最大张数 = 填写的卖点条数（不能超出）。</p>
+<p><strong>逻辑约定</strong>：修改产品信息/产品图/各类型数量及描述/<strong>是否显示文字</strong> 需重新分析；修改语言/模型/尺寸/清晰度 不影响已有规划，可直接「再次生成」。是否显示文字与规划一起锁定，步骤 3 后不可改。</p>
+<p><strong>验证</strong>：各类型张数之和必须 ≥ 1 才能点击「分析产品」。选 X 张卖点图/场景图/特写图/交互图，须分别填写 X 条对应描述。白底主图无需描述。</p>
 </blockquote>
 <hr>
 <h2>二、图片类型说明</h2>
@@ -175,22 +169,22 @@
 <td>4 张</td>
 </tr>
 <tr>
-<td>场景图</td>
-<td><code>scene</code></td>
-<td>生活/使用场景背景，有环境氛围</td>
-<td>4 张</td>
+<td>卖点图</td>
+<td><code>sellingPoint</code></td>
+<td>每张对应一条卖点，可选是否显示文字</td>
+<td>0–5（≤ 卖点条数）</td>
 </tr>
 <tr>
 <td>特写图</td>
 <td><code>closeUp</code></td>
-<td>产品细节/材质特写，极近距离微观</td>
+<td>产品细节/材质特写，宏观镜头，生成全新特写图（非原图裁剪）</td>
 <td>4 张</td>
 </tr>
 <tr>
-<td>卖点图</td>
-<td><code>sellingPoint</code></td>
-<td>每张对应一条卖点，可选是否显示文字</td>
-<td>= 卖点条数</td>
+<td>场景图</td>
+<td><code>scene</code></td>
+<td>生活/使用场景背景，有环境氛围</td>
+<td>4 张</td>
 </tr>
 <tr>
 <td>交互图</td>
@@ -202,14 +196,14 @@
 <hr>
 <h2>三、分析阶段（POST /api/detail-set/analyze）</h2>
 <h3>前端组装逻辑（<code>runAnalyze</code>）</h3>
-<p>五个组图要求输入框在前端拼接成一段结构化文本，再作为 <code>requirements</code> 字段发给后端：</p>
+<p>产品名称、目标人群、风格、其他要求，以及卖点（来自卖点图描述）在前端拼接成结构化文本，作为 <code>requirements</code> 发给后端：</p>
 <pre><code>产品名称：便携式咖啡机
 卖点：一键萃取、便携易带
 目标人群：都市白领、咖啡爱好者
 风格：简约现代、科技感
 其他要求：...
 </code></pre>
-<p>只有有内容的字段才会加入，空字段不传。</p>
+<p>只有有内容的字段才会加入，空字段不传。场景/特写/交互的描述单独以 <code>sceneDescriptions</code>、<code>closeUpDescriptions</code>、<code>interactionDescriptions</code> 数组传递。</p>
 <h3>发给后端的请求体</h3>
 <table>
 <thead>
@@ -226,7 +220,7 @@
 </tr>
 <tr>
 <td><code>requirements</code></td>
-<td>五个输入框拼接的结构化文本</td>
+<td>产品名称、目标人群、风格、其他、卖点（来自卖点图描述）拼接的结构化文本</td>
 <td>有内容才传，否则 <code>undefined</code></td>
 </tr>
 <tr>
@@ -252,7 +246,7 @@
 <tr>
 <td><code>sellingPointCount</code></td>
 <td>卖点图张数</td>
-<td>0–卖点条数</td>
+<td>0–5，须填写对应条数的卖点描述</td>
 </tr>
 <tr>
 <td><code>sellingPoints</code></td>
@@ -262,22 +256,54 @@
 <tr>
 <td><code>sellingPointShowText</code></td>
 <td>布尔值</td>
-<td>是否在卖点图上叠加文字</td>
+<td>是否在卖点图上叠加文字；不勾选则规划中文字内容为「此图不显示文字」</td>
 </tr>
 <tr>
 <td><code>interactionCount</code></td>
 <td>交互图张数</td>
 <td>0–4</td>
 </tr>
+<tr>
+<td><code>sceneDescriptions</code></td>
+<td>场景描述数组</td>
+<td>长度 = 场景图张数，每张对应一条</td>
+</tr>
+<tr>
+<td><code>closeUpDescriptions</code></td>
+<td>细节描述数组</td>
+<td>长度 = 特写图张数，每张对应一条</td>
+</tr>
+<tr>
+<td><code>interactionDescriptions</code></td>
+<td>交互描述数组</td>
+<td>长度 = 交互图张数，每张对应一条</td>
+</tr>
+<tr>
+<td><code>sceneShowText</code></td>
+<td>布尔值</td>
+<td>场景图是否显示文字；不勾选则规划中文字内容为「此图不显示文字」</td>
+</tr>
+<tr>
+<td><code>closeUpShowText</code></td>
+<td>布尔值</td>
+<td>特写图是否显示文字；同上</td>
+</tr>
+<tr>
+<td><code>interactionShowText</code></td>
+<td>布尔值</td>
+<td>交互图是否显示文字；同上</td>
+</tr>
 </tbody></table>
 <h3>后端如何用（<code>server/index.js</code>）</h3>
-<p>后端识别到 <code>mainCount</code> 等参数后启用「类型模式」，在 prompt 中按类型指定规划要求：</p>
-<pre><code>请按以下类型和数量输出图片规划（共 N 条）：
+<p>后端识别到 <code>mainCount</code> 等参数后启用「类型模式」，在 prompt 中按类型指定规划要求。</p>
+<p><strong>四类（卖点/场景/特写/交互）统一逻辑：勾选 → 规划显示文字；不勾选 → 规划为「此图不显示文字，纯视觉展示」。</strong> 后处理为唯一真相源，强制覆盖 AI 返回。</p>
+<p>当传入 <code>sceneDescriptions</code>、<code>closeUpDescriptions</code>、<code>interactionDescriptions</code> 且长度足够时，会严格要求每张图按用户指定描述设计：</p>
+<pre><code>请按以下类型和数量输出图片规划（共 N 条），顺序：白底主图 → 卖点图 → 特写图 → 场景图 → 交互图
 - 白底主图（type: &quot;main&quot;）：N1 张，纯白背景，产品约 85%，无文字无 logo
-- 场景图（type: &quot;scene&quot;）：N2 张，生活/使用场景背景
-- 特写图（type: &quot;closeUp&quot;）：N3 张，产品细节、材质特写
-- 卖点图（type: &quot;sellingPoint&quot;）：N4 张，对应卖点：xxx、yyy
-- 交互图（type: &quot;interaction&quot;）：N5 张，真人使用或手持产品的场景
+- 卖点图（type: &quot;sellingPoint&quot;）：N2 张，对应卖点：xxx、yyy；按 sellingPointShowText 决定是否有文字
+- 特写图（type: &quot;closeUp&quot;）：N3 张，若用户指定了细节描述则严格执行；按 closeUpShowText 决定是否有文字
+- 场景图（type: &quot;scene&quot;）：N4 张，若用户指定了场景描述则严格执行；按 sceneShowText 决定是否有文字
+- 交互图（type: &quot;interaction&quot;）：N5 张，若用户指定了交互描述则严格执行；按 interactionShowText 决定是否有文字
 </code></pre>
 <p>每条 <code>imagePlan</code> 返回必含 <code>type</code> 字段，卖点图额外含 <code>sellingPointText</code>。</p>
 <p>若前端传旧式 <code>quantity</code>（不含各类型数量）则降级为原有逻辑，向后兼容。</p>
@@ -298,6 +324,7 @@
 <td>图片规划数组，每条含 <code>title</code>、<code>contentMarkdown</code>、<code>type</code>（以及卖点图的 <code>sellingPointText</code>）</td>
 </tr>
 </tbody></table>
+<p><strong>分析失败时</strong>：未配置 <code>GEMINI_API_KEY</code> 或 AI 返回格式异常，接口返回 500，body 为 <code>{ error: &quot;...&quot; }</code>，不返回规划。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
 <hr>
 <h2>四、生图阶段（POST /api/detail-set/generate）</h2>
 <h3>发给后端的请求体</h3>
@@ -345,6 +372,21 @@
 <td>影响卖点图 prompt 是否含文字叠加要求</td>
 </tr>
 <tr>
+<td><code>sceneShowText</code></td>
+<td>是否场景图显文字</td>
+<td>不勾选则使用纯视觉 prompt，无文字</td>
+</tr>
+<tr>
+<td><code>closeUpShowText</code></td>
+<td>是否特写图显文字</td>
+<td>不勾选则使用纯视觉 prompt，无文字</td>
+</tr>
+<tr>
+<td><code>interactionShowText</code></td>
+<td>是否交互图显文字</td>
+<td>不勾选则使用纯视觉 prompt，无文字</td>
+</tr>
+<tr>
 <td><code>quantity</code></td>
 <td><code>imagePlan.length</code></td>
 <td>生图总张数（按规划条数）</td>
@@ -365,6 +407,11 @@
 [最终提醒]  纯白背景，禁止文字/logo/道具
 </code></pre>
 <p><strong>场景图 / 特写图 / 交互图（type: &quot;scene&quot; / &quot;closeUp&quot; / &quot;interaction&quot;）</strong>：</p>
+<ul>
+<li>若 <code>sceneShowText</code> / <code>closeUpShowText</code> / <code>interactionShowText</code> 为 <code>true</code>：使用带文字 prompt（构图规则、排版规则、色彩和谐、文字安全区、语言规则等）</li>
+<li>若为 <code>false</code>：使用纯视觉 prompt，不含文字相关规则，强制「NO text, NO captions, NO labels」</li>
+</ul>
+<p>带文字时的 prompt 结构：</p>
 <pre><code>[类型声明]  类型特定要求（场景氛围 / 极近特写 / 真人互动）
 [摆放规则]  placementRule（物理正确摆放）
 [尺寸规则]  aspectRule
@@ -378,7 +425,7 @@
 </code></pre>
 <p><strong>卖点图（type: &quot;sellingPoint&quot;）</strong>：</p>
 <ul>
-<li>在场景图 prompt 基础上，额外声明需视觉化表达的具体卖点文案</li>
+<li>与场景/特写/交互图一致：勾选显示文字则规划含文字内容，不勾选则规划为「此图不显示文字，纯视觉展示」</li>
 <li>若 <code>sellingPointShowText=true</code>：要求将卖点文字作为标题叠加在图上</li>
 <li>若 <code>sellingPointShowText=false</code>：只通过视觉构图表达卖点，不含文字</li>
 </ul>
@@ -396,6 +443,7 @@
 </tr>
 </tbody></table>
 <p>前端收到后按 <code>type</code> 分组展示（白底主图一组、场景图一组……），每组显示类型标签和图片网格，每张图有独立「保存到本地」按钮。</p>
+<p><strong>异常</strong>：未配置 <code>GEMINI_API_KEY</code> 时返回 503；积分不足返回 402。</p>
 <h3>步骤3图片规划 UI</h3>
 <ul>
 <li>每条规划显示彩色类型标签（白底主图灰色 / 场景图蓝色 / 特写图紫色 / 卖点图橙色 / 交互图绿色）</li>
