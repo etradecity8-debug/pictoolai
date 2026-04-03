@@ -8,6 +8,8 @@ import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
+import { dataUrlToImageSlot } from '../../lib/extensionImage'
+import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
 
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)' // 紫色半透明，与设计稿一致
 
@@ -33,7 +35,7 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
-export default function LocalRedraw({ initialImageFromGallery }) {
+export default function LocalRedraw({ initialImageFromGallery, initialExtensionImage, extensionMeta }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null) // { file, dataUrl }
   const [prompt, setPrompt] = useState('')
@@ -76,6 +78,31 @@ export default function LocalRedraw({ initialImageFromGallery }) {
       .catch(() => {})
   }, [initialImageFromGallery?.url])
 
+  const clearMask = () => {
+    const mask = maskCanvasRef.current
+    if (mask) {
+      const ctx = mask.getContext('2d')
+      ctx.clearRect(0, 0, mask.width, mask.height)
+    }
+  }
+
+  useEffect(() => {
+    if (!initialExtensionImage?.dataUrl) return
+    let cancelled = false
+    dataUrlToImageSlot(initialExtensionImage.dataUrl, 'extension-input.jpg')
+      .then(({ file, dataUrl }) => {
+        if (cancelled) return
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+        clearMask()
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialExtensionImage?.dataUrl])
+
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 
   const openGallery = async () => {
@@ -111,14 +138,6 @@ export default function LocalRedraw({ initialImageFromGallery }) {
     setResult(null)
     setError('')
     clearMask()
-  }
-
-  const clearMask = () => {
-    const mask = maskCanvasRef.current
-    if (mask) {
-      const ctx = mask.getContext('2d')
-      ctx.clearRect(0, 0, mask.width, mask.height)
-    }
   }
 
   // 初始化 mask canvas 尺寸（与显示图一致）
@@ -454,6 +473,7 @@ export default function LocalRedraw({ initialImageFromGallery }) {
             >
               保存到本地
             </button>
+            <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
           </div>
         </div>
       )}

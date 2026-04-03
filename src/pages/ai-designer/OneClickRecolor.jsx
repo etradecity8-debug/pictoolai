@@ -8,6 +8,8 @@ import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
+import { dataUrlToImageSlot } from '../../lib/extensionImage'
+import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
 
 // 色卡：常用颜色（hex + 名称），用户从中选 1-9 种，或使用自定义取色
 const COLOR_PALETTE = [
@@ -40,7 +42,7 @@ function isValidHex(s) {
   return /^#?[0-9A-Fa-f]{6}$/.test(s)
 }
 
-export default function OneClickRecolor({ initialImageFromGallery }) {
+export default function OneClickRecolor({ initialImageFromGallery, initialExtensionImage, extensionMeta }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [textDesc, setTextDesc] = useState('') // 如：鼠标、裙子、头发
@@ -77,6 +79,22 @@ export default function OneClickRecolor({ initialImageFromGallery }) {
       })
       .catch(() => {})
   }, [initialImageFromGallery?.url])
+
+  useEffect(() => {
+    if (!initialExtensionImage?.dataUrl) return
+    let cancelled = false
+    dataUrlToImageSlot(initialExtensionImage.dataUrl, 'extension-input.jpg')
+      .then(({ file, dataUrl }) => {
+        if (cancelled) return
+        setImage({ file, dataUrl })
+        setResults([])
+        setError('')
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialExtensionImage?.dataUrl])
 
   const openGallery = async () => {
     setGalleryPicker({ open: true })
@@ -433,6 +451,16 @@ export default function OneClickRecolor({ initialImageFromGallery }) {
               </div>
             ))}
           </div>
+          {extensionMeta && results.length > 0 && (
+            <p className="mt-3 text-xs text-gray-500 text-center">
+              「替换原网页」将使用列表中第一张换色结果。
+            </p>
+          )}
+          {extensionMeta && results.length > 0 && (
+            <div className="mt-2 flex justify-center">
+              <ExtensionReplaceButton imageDataUrl={results[0].image} extensionMeta={extensionMeta} />
+            </div>
+          )}
         </div>
       )}
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import ImageLightbox from '../components/ImageLightbox'
 import GalleryThumb from '../components/GalleryThumb'
-import { loadImageFromGalleryId } from '../lib/loadGalleryImage'
+import { loadImageFromGalleryId, loadImageFromGalleryUrl } from '../lib/loadGalleryImage'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 import GeneratingOverlay from '../components/GeneratingOverlay'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
@@ -47,7 +47,7 @@ const CubeIcon = ({ className = 'h-5 w-5' }) => (
   </svg>
 )
 
-export default function StyleClone() {
+export default function StyleClone({ initialImageFromGallery }) {
   const { getToken, refreshUser } = useAuth()
   const [tab, setTab] = useState('single')
   const [referenceImages, setReferenceImages] = useState([])
@@ -67,6 +67,20 @@ export default function StyleClone() {
   const [galleryLoading, setGalleryLoading] = useState(false)
   const refInputRef = useRef(null)
   const productInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!initialImageFromGallery?.url || !getToken) return
+    loadImageFromGalleryUrl(initialImageFromGallery.url, getToken, initialImageFromGallery.id)
+      .then(({ file, dataUrl }) => {
+        setProductImages((prev) => {
+          if (prev.length >= MAX_PRODUCT) return prev
+          return [...prev, { file, dataUrl }]
+        })
+        setResults([])
+        setError('')
+      })
+      .catch(() => {})
+  }, [initialImageFromGallery?.url])
 
   const handleModelChange = (newModel) => {
     setModel(newModel)

@@ -40,11 +40,11 @@
 </style>
 </head>
 <body>
-  <div class="meta">AI-DESIGNER.md → 打印版 · 2026/3/24</div>
+  <div class="meta">AI-DESIGNER.md → 打印版 · 2026/4/3</div>
   <h1>AI 美工完整说明</h1>
-<p>本文档说明 AI 美工（<code>/ai-designer</code>）下<strong>全部功能</strong>：图片编辑（局部重绘、局部消除、一键换色、<strong>服装3D</strong>、<strong>服装平铺</strong>、<strong>调整身材</strong>、<strong>生成场景</strong>、<strong>添加人/物</strong>）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换、<strong>文字去除</strong>）、<strong>风格变迁</strong>（<strong>风格复刻</strong>、<strong>风格改变</strong>）、<strong>水印添加</strong>、官方示例（7 种修改图片模式）。</p>
-<p><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>。侧边栏分为：图片编辑、质量提升、图像修复、抠图工具、<strong>文字修改</strong>（文字替换、语言转换、文字去除）、<strong>风格变迁</strong>（风格复刻、风格改变）、水印添加/去除、官方示例。</p>
-<p><strong>从仓库进入</strong>：仓库页每张图提供「用AI编辑」按钮，点击后弹窗以<strong>一二级菜单</strong>（与侧栏一致：图片编辑、质量提升、文字修改、风格变迁、水印添加/去除、官方示例）选择功能，跳转到对应页面并<strong>自动将该图加载为待编辑图片</strong>（<code>initialImageFromGallery</code> + <code>src/lib/loadGalleryImage.js</code>），无需再次上传。</p>
+<p>本文档说明 AI 美工（<code>/ai-designer</code>）下<strong>全部功能</strong>：图片编辑（局部重绘、局部消除、一键换色、<strong>服装3D</strong>、<strong>服装平铺</strong>、<strong>调整身材</strong>、<strong>生成场景</strong>、<strong>添加人/物</strong>）、质量提升（智能扩图、提升质感）、文字修改（文字替换、语言转换、<strong>文字去除</strong>）、<strong>风格变迁</strong>（<strong>风格复刻</strong>、<strong>风格改变</strong>）、<strong>水印</strong>（添加水印、AI 去除水印）、官方示例（7 种修改图片模式）。</p>
+<p><strong>路由</strong>：<code>/ai-designer</code>、<code>/ai-designer/:toolId</code>。侧边栏分为：图片编辑、质量提升、<strong>文字修改</strong>（文字替换、语言转换、文字去除）、<strong>风格变迁</strong>（风格复刻、风格改变）、<strong>水印</strong>（添加水印、去除水印）、官方示例。</p>
+<p><strong>从仓库进入</strong>：仓库页每张图提供「用AI编辑」按钮，点击后弹窗以<strong>一二级菜单</strong>（与侧栏一致：图片编辑、质量提升、文字修改、风格变迁、水印、官方示例）选择功能，跳转到对应页面并<strong>自动将该图加载为待编辑图片</strong>（<code>initialImageFromGallery</code> + <code>src/lib/loadGalleryImage.js</code>），无需再次上传。</p>
 <p><strong>输出设置（与官方示例一致）</strong>：局部重绘、局部消除、一键换色、智能扩图、提升质感、服装3D、服装平铺、调整身材、生成场景、添加人/物均提供「输出设置」折叠区：<strong>模型</strong>（可选 Nano Banana 2 / Pro / Nano Banana）、<strong>输出尺寸比例</strong>、<strong>清晰度</strong>，以及本次预计消耗积分。<strong>默认模型</strong>：除语言转换（默认 Nano Banana 2）外，其余模块均为 <strong>Nano Banana</strong>。组件 <code>src/components/OutputSettings.jsx</code>，请求时传 <code>model</code>、<code>aspectRatio</code>、<code>clarity</code>，后端优先使用请求参数。</p>
 <hr>
 <h2>UI 布局与广告词（2026-03 统一）</h2>
@@ -133,9 +133,15 @@
 </tr>
 <tr>
 <td>水印</td>
-<td>水印添加</td>
+<td>添加水印</td>
 <td>添加水印</td>
 <td>上传图片，设置水印文字、位置与透明度，一键生成带水印图（本地处理，不消耗积分）</td>
+</tr>
+<tr>
+<td>水印</td>
+<td>去除水印</td>
+<td>去除水印</td>
+<td>AI 去除画面中的水印与叠加层，智能填补背景（扣积分）</td>
 </tr>
 </tbody></table>
 <hr>
@@ -827,9 +833,21 @@
 <li><strong>默认模型</strong>：Nano Banana</li>
 </ul>
 <hr>
+<h2>4.2 风格复刻</h2>
+<p>侧边栏「风格变迁」组下含「风格复刻」与「风格改变」，该组位于「文字修改」与「水印」之间。<strong>风格复刻</strong>：上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。</p>
+<ul>
+<li><strong>路由</strong>：<code>/ai-designer/style-clone</code></li>
+<li><strong>文件</strong>：<code>src/pages/StyleClone.jsx</code></li>
+<li><strong>接口</strong>：<code>POST /api/style-clone</code>（需登录）</li>
+<li><strong>提示</strong>：参考图「最好只上传一种风格」；产品图「只上传一个产品」。</li>
+<li>详见 <code>docs/KNOWN_ISSUES.md</code> 风格复刻功能说明。</li>
+<li><strong>默认模型</strong>：Nano Banana</li>
+</ul>
+<hr>
 <h1>五、水印</h1>
-<h2>5.1 水印添加</h2>
-<p>侧边栏「水印添加/去除 → 添加水印」，路由 <code>/ai-designer/watermark-add</code>。</p>
+<p>侧栏统一为 <strong>「水印」</strong> 大类，便于客户在同一处完成「叠加文字水印」与「AI 去除水印」（实现方式不同，见下）。</p>
+<h2>5.1 添加水印</h2>
+<p>侧边栏「水印 → 添加水印」，路由 <code>/ai-designer/watermark-add</code>。</p>
 <ul>
 <li><strong>文件</strong>：<code>src/pages/ai-designer/AddWatermark.jsx</code></li>
 <li><strong>实现</strong>：<strong>纯前端 Canvas</strong>，不调用 AI 接口，<strong>不消耗积分</strong>。</li>
@@ -840,22 +858,17 @@
 <li>水印叠加后导出 PNG；可同时保存到仓库</li>
 </ul>
 </li>
-<li><strong>「去除水印」</strong>（<code>watermark-remove</code>）：侧边栏占位，当前 <code>available: false</code>，显示灰色不可点击，功能待后续实现。</li>
 </ul>
-<hr>
-<h2>4.2 风格复刻</h2>
-<p>侧边栏「风格变迁」组下含「风格复刻」与「风格改变」，该组位于「文字修改」与「水印添加/去除」之间。<strong>风格复刻</strong>：上传参考设计图（最多 14 张）与产品素材图（最多 6 张），AI 两阶段生成：① 分析参考图风格；② 按产品图 + 风格描述生图。</p>
+<h2>5.2 去除水印（AI）</h2>
+<p>侧边栏「水印 → 去除水印」，路由 <code>/ai-designer/watermark-remove</code>。页面仍由 <code>ImageEdit</code> 组件承载（与其它「官方示例」模式相同的技术栈），仅导航归类在「水印」下。</p>
 <ul>
-<li><strong>路由</strong>：<code>/ai-designer/style-clone</code></li>
-<li><strong>文件</strong>：<code>src/pages/StyleClone.jsx</code></li>
-<li><strong>接口</strong>：<code>POST /api/style-clone</code>（需登录）</li>
-<li><strong>提示</strong>：参考图「最好只上传一种风格」；产品图「只上传一个产品」。</li>
-<li>详见 <code>docs/KNOWN_ISSUES.md</code> 风格复刻功能说明。</li>
-<li><strong>默认模型</strong>：Nano Banana</li>
+<li><strong>接口</strong>：<code>POST /api/image-edit</code>，<code>mode: &#39;watermark-remove&#39;</code></li>
+<li><strong>说明</strong>：去除图片中的水印与叠加层并智能填补背景；<strong>消耗积分</strong>，有 before/after 官方示例图。</li>
+<li><strong>默认模型</strong>：Nano Banana（可在输出设置中切换）</li>
 </ul>
 <hr>
 <h1>六、官方示例（7 种修改图片模式）</h1>
-<p>AI 美工侧边栏「官方示例」下提供 7 种修改图片模式（与风格复刻同级），与主导航「修改图片」功能相同，均调用 <code>POST /api/image-edit</code>。每种模式有真实 before→after 示例（<code>ModeDemo</code> 组件）。<strong>默认模型</strong>：Nano Banana。</p>
+<p>AI 美工侧边栏「官方示例」下提供 7 种修改图片模式（<strong>不含</strong>去除水印；去除水印见上文「五、水印」），与 <code>ImageEdit</code> 组件一致，均调用 <code>POST /api/image-edit</code>。每种模式有真实 before→after 示例（<code>ModeDemo</code> 组件）。<strong>默认模型</strong>：Nano Banana。</p>
 <table>
 <thead>
 <tr>

@@ -6,7 +6,10 @@ export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from?.pathname || '/dashboard/gallery'
+  const fromLoc = location.state?.from
+  const redirectTo = fromLoc
+    ? `${fromLoc.pathname}${fromLoc.search || ''}${fromLoc.hash || ''}`
+    : '/dashboard/gallery'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,7 +31,7 @@ export default function Login() {
         return
       }
       login(data.token, data.user)
-      navigate(from, { replace: true })
+      navigate(redirectTo, { replace: true })
     } catch (err) {
       setError(err.message === 'Failed to fetch' ? '无法连接服务器，请确认后端已启动（在 server 目录运行 npm start）' : '网络错误，请重试')
     } finally {

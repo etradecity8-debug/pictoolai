@@ -10,6 +10,8 @@ import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
+import { dataUrlToImageSlot } from '../../lib/extensionImage'
+import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
 
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)'
 
@@ -39,7 +41,7 @@ const ERASE_PROMPT = `This image has a purple/violet semi-transparent overlay in
 
 const TEXT_REMOVE_PROMPT = `This image has a purple/violet semi-transparent overlay indicating the region that contains TEXT to REMOVE. Remove all text, letters, numbers, and typography in that marked region. Fill the area seamlessly so it matches the surrounding background with no visible text or remnants. Do not change any other part of the image.`
 
-export default function LocalErase({ variant = 'erase', initialImageFromGallery }) {
+export default function LocalErase({ variant = 'erase', initialImageFromGallery, initialExtensionImage, extensionMeta }) {
   const isTextRemove = variant === 'text-remove'
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
@@ -80,6 +82,23 @@ export default function LocalErase({ variant = 'erase', initialImageFromGallery 
       })
       .catch(() => {})
   }, [initialImageFromGallery?.url])
+
+  useEffect(() => {
+    if (!initialExtensionImage?.dataUrl) return
+    let cancelled = false
+    dataUrlToImageSlot(initialExtensionImage.dataUrl, 'extension-input.jpg')
+      .then(({ file, dataUrl }) => {
+        if (cancelled) return
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+        clearMask()
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialExtensionImage?.dataUrl])
 
   const estimatedPoints = getEstimatedPointsForDimensions(imageDims.w, imageDims.h)
 
@@ -460,6 +479,7 @@ export default function LocalErase({ variant = 'erase', initialImageFromGallery 
             <button type="button" onClick={() => setLightbox({ open: true, src: result })} className="rounded-lg overflow-hidden border border-gray-200 hover:border-gray-400 transition max-h-[220px]">
               <img src={result} alt="结果" className="max-h-[220px] w-auto object-contain" />
             </button>
+            <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
             <button
               type="button"
               onClick={handleSaveResult}

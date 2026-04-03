@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "PicToolAI",
+  "version": "1.0.5",
+  "description": "右键网页图片，使用 PicToolAI 编辑并在原页替换。",
+  "permissions": ["contextMenus", "storage", "scripting", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://pictoolai.studio/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

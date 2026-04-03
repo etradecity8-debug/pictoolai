@@ -131,6 +131,16 @@ export function getDb() {
       if (!usersNames.includes('admin_notes')) db.exec('ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT NULL')
       if (!usersNames.includes('frozen')) db.exec('ALTER TABLE users ADD COLUMN frozen INTEGER NOT NULL DEFAULT 0')
     } catch (_) {}
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS extension_imports (
+          id TEXT PRIMARY KEY,
+          user_email TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+      `)
+    } catch (_) {}
   }
   return db
 }

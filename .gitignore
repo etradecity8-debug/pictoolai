@@ -12,3 +12,4 @@ server/pictoolai.db
 server/pictoolai.db-wal
 server/pictoolai.db-shm
 server/.temp-ip-risk
+server/extension-imports

@@ -8,6 +8,8 @@ import { saveBlobWithPicker } from '../../lib/saveFileWithPicker'
 import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
+import { dataUrlToImageSlot } from '../../lib/extensionImage'
+import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
 
 const EXPANSION_RATIOS = [
   { value: 1.1, label: '原比例1.1x' },
@@ -16,7 +18,7 @@ const EXPANSION_RATIOS = [
   { value: 2, label: '原比例2x' },
 ]
 
-export default function SmartExpansion({ initialImageFromGallery }) {
+export default function SmartExpansion({ initialImageFromGallery, initialExtensionImage, extensionMeta }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [ratio, setRatio] = useState(1.5)
@@ -50,6 +52,22 @@ export default function SmartExpansion({ initialImageFromGallery }) {
       })
       .catch(() => {})
   }, [initialImageFromGallery?.url])
+
+  useEffect(() => {
+    if (!initialExtensionImage?.dataUrl) return
+    let cancelled = false
+    dataUrlToImageSlot(initialExtensionImage.dataUrl, 'extension-input.jpg')
+      .then(({ file, dataUrl }) => {
+        if (cancelled) return
+        setImage({ file, dataUrl })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialExtensionImage?.dataUrl])
 
   // 扩图后尺寸更大，积分按扩图后估算
   const estimatedPoints = getEstimatedPointsForDimensions(
@@ -321,6 +339,7 @@ export default function SmartExpansion({ initialImageFromGallery }) {
             >
               保存到本地
             </button>
+            <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
           </div>
         </div>
       )}

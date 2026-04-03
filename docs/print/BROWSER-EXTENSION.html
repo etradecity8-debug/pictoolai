@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BROWSER EXTENSION</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/3</div>
+  <h1>浏览器扩展（PicToolAI 修图）</h1>
+<h2>作用</h2>
+<p>在任意网页对 <code>&lt;img&gt;</code> 右键：<strong>PicToolAI → 子菜单</strong>，抓取图片、压缩后写入扩展存储，新开 <code>pictoolai.studio</code> 对应 AI 美工路由并带图进入；生成结果可 <strong>替换原网页图片</strong>（仅本机 DOM，不改对方服务器）。</p>
+<h2>架构要点</h2>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>background.js</code></td>
+<td>右键菜单、抓取 URL、<code>fetch</code> 转 data URL、多档压缩、<code>chrome.storage</code>、打开站点、<code>setupPicToolTab</code> 注入 <code>bridge.js</code> + MAIN 世界 <code>postMessage</code> / <code>CustomEvent</code></td>
+</tr>
+<tr>
+<td><code>bridge.js</code></td>
+<td>读 <code>pictoolai_pending</code>、向页面发 <code>PICTOOLAI_IMPORT</code>、处理 ACK 清存储、转发「替换原页」到 background</td>
+</tr>
+<tr>
+<td><code>AiDesigner.jsx</code>（<code>?ext=1</code>）</td>
+<td>模块级 <code>extensionImportPayloadCache</code>（应对 Strict Mode + ACK 清空 storage）、<code>lastAppliedExtImportKey</code> 去重（避免 MAIN 与 <code>message</code> 双投递重复 setState）、<code>extensionForTool</code> 与各子页 props</td>
+</tr>
+<tr>
+<td>大图备选</td>
+<td>登录后 <code>POST/GET /api/extension/prep-image</code>，见 <code>server/index.js</code></td>
+</tr>
+</tbody></table>
+<p>本地开发将 <code>browser-extension/background.js</code> 顶部 <code>SITE_ORIGIN</code> 改为 <code>http://localhost:5173</code>；<strong>默认仓库值为线上</strong> <code>https://pictoolai.studio</code>。</p>
+<h2>右键菜单与路由（toolId）</h2>
+<p>当前子菜单与 <code>/ai-designer/:toolId</code> 对应关系：</p>
+<table>
+<thead>
+<tr>
+<th>子菜单</th>
+<th>toolId</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>语言转换</td>
+<td><code>text-translate</code>（<code>ImageEdit</code>）</td>
+</tr>
+<tr>
+<td>文字替换</td>
+<td><code>text-replace</code></td>
+</tr>
+<tr>
+<td>文字去除</td>
+<td><code>text-remove</code>（<code>LocalErase</code> variant）</td>
+</tr>
+<tr>
+<td>一键换色</td>
+<td><code>one-click-recolor</code></td>
+</tr>
+<tr>
+<td>局部重绘</td>
+<td><code>local-redraw</code></td>
+</tr>
+<tr>
+<td>局部消除</td>
+<td><code>local-erase</code></td>
+</tr>
+<tr>
+<td>智能扩图</td>
+<td><code>smart-expansion</code></td>
+</tr>
+</tbody></table>
+<h2>AI 美工：哪些适合扩展、哪些需额外改造</h2>
+<p><strong>已接入扩展带图 + 结果区「替换原网页」</strong>（或 <code>ImageEdit</code> 内统一按钮）：上表工具 + 修改图片各模式（<code>IMAGE_EDIT_MODE_IDS</code>）。</p>
+<p><strong>可带图、界面本身有上传/选库</strong>：多数「图片编辑」「质量提升」子页；扩展写入后与「上传/作品库」等价。</p>
+<p><strong>暂未接入扩展菜单、可后续加</strong>（需在各页补 <code>initialExtensionImage</code> / <code>extensionMeta</code> 与 <code>ExtensionReplaceButton</code>，与 <code>LocalRedraw</code> 同模式）：<code>product-refinement</code>、<code>scene-generation</code>、<code>add-person-object</code>、<code>clothing-3d</code>、<code>clothing-flatlay</code>、<code>body-shape</code>、<code>style-change</code>、<code>watermark-add</code>、<code>watermark-remove</code>（侧栏「水印」分类）等。</p>
+<p><strong>需较大改造或不适合一键右键</strong>：</p>
+<ul>
+<li><strong>风格复刻</strong>（<code>StyleClone</code>）：独立全页流程，无与其它页一致的「单图上传槽」；若要支持需单独设计入口与状态。</li>
+</ul>
+<h2>调试</h2>
+<p>见 <code>browser-extension/README.md</code>（Service Worker 网络记录、须点子菜单、MAIN 世界注入、<code>origin</code> 勿误拦扩展消息等）。</p>
+
+</body>
+</html>

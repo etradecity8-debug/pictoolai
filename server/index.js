@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from '
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
-import { createHash } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import imageSize from 'image-size'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -977,6 +977,7 @@ function requireAdmin(req, res, next) {
 }
 
 const galleryRoot = join(__dirname, 'gallery')
+const extensionImportsRoot = join(__dirname, 'extension-imports')
 
 function userGalleryDir(email) {
   const hash = createHash('sha256').update(String(email).toLowerCase()).digest('hex').slice(0, 16)
@@ -1100,6 +1101,63 @@ app.delete('/api/gallery/:id', requireAuth, (req, res) => {
   } catch (e) {
     console.error(e)
     return res.status(500).json({ error: '删除失败' })
+  }
+})
+
+// ---------- 浏览器扩展：大图临时导入（一次性读取后删除）----------
+app.post('/api/extension/prep-image', requireAuth, (req, res) => {
+  try {
+    const { image } = req.body || {}
+    const parsed = parseDataUrl(image)
+    if (!parsed) return res.status(400).json({ error: '图片格式无效' })
+    if (!existsSync(extensionImportsRoot)) mkdirSync(extensionImportsRoot, { recursive: true })
+    const id = randomBytes(16).toString('hex')
+    const ext = String(parsed.mimeType || '').includes('png') ? 'png' : 'jpg'
+    const rel = `extension-imports/${id}.${ext}`
+    const abs = join(__dirname, rel)
+    writeFileSync(abs, Buffer.from(parsed.data, 'base64'))
+    const now = Date.now()
+    getDb()
+      .prepare('INSERT INTO extension_imports (id, user_email, file_path, created_at) VALUES (?, ?, ?, ?)')
+      .run(id, req.user.email, rel, now)
+    const old = now - 3600000
+    const stale = getDb().prepare('SELECT id, file_path FROM extension_imports WHERE created_at < ?').all(old)
+    for (const row of stale) {
+      try {
+        const p = join(__dirname, row.file_path)
+        if (existsSync(p)) unlinkSync(p)
+      } catch (_) {}
+      getDb().prepare('DELETE FROM extension_imports WHERE id = ?').run(row.id)
+    }
+    return res.json({ id })
+  } catch (e) {
+    console.error('[extension prep-image]', e)
+    return res.status(500).json({ error: e.message || '保存失败' })
+  }
+})
+
+app.get('/api/extension/prep-image/:id', requireAuth, (req, res) => {
+  try {
+    const row = getDb()
+      .prepare('SELECT * FROM extension_imports WHERE id = ? AND user_email = ?')
+      .get(req.params.id, req.user.email)
+    if (!row) return res.status(404).json({ error: '不存在或已过期' })
+    const abs = join(__dirname, row.file_path)
+    if (!existsSync(abs)) {
+      getDb().prepare('DELETE FROM extension_imports WHERE id = ?').run(req.params.id)
+      return res.status(404).json({ error: '文件已失效' })
+    }
+    const buf = readFileSync(abs)
+    const mime = String(row.file_path || '').endsWith('.png') ? 'image/png' : 'image/jpeg'
+    const dataUrl = `data:${mime};base64,${buf.toString('base64')}`
+    try {
+      unlinkSync(abs)
+    } catch (_) {}
+    getDb().prepare('DELETE FROM extension_imports WHERE id = ?').run(req.params.id)
+    return res.json({ image: dataUrl })
+  } catch (e) {
+    console.error('[extension prep-image get]', e)
+    return res.status(500).json({ error: e.message || '读取失败' })
   }
 })
 

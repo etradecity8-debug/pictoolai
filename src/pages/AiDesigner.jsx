@@ -1,5 +1,14 @@
-import { useState, useEffect } from 'react'
-import { Link, useLocation, Navigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation, Navigate, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import {
+  EXT_DOM_IMPORT_EVENT,
+  EXT_MSG_SOURCE,
+  EXT_MSG_IMPORT,
+  EXT_WEB_SOURCE,
+  EXT_IMPORT_ACK,
+  EXT_REQUEST_IMPORT,
+} from '../lib/extensionBridgeConstants'
 import Header from '../components/layout/Header'
 import Footer from '../components/layout/Footer'
 import LocalRedraw from './ai-designer/LocalRedraw'
@@ -19,14 +28,44 @@ import AddPersonObject from './ai-designer/AddPersonObject'
 
 const iconClass = 'w-4 h-4 shrink-0'
 
-// 图片编辑、质量提升、图像修复、抠图工具、官方示例 为同级一级分类；其下为平级子项
-// available: false 表示暂未开放，灰掉不可点
-const IMAGE_EDIT_MODE_IDS = ['add-remove', 'inpainting', 'style-transfer', 'composition', 'hi-fidelity', 'bring-to-life', 'character-360', 'text-replace', 'text-translate']
+/** React Strict Mode 会双重挂载：首次 onMessage 已发 ACK 并清空扩展 storage，第二次挂载读不到图；用模块缓存保留本次导入 */
+let extensionImportPayloadCache = null
+
+/** 与路由 /ai-designer/:toolId 对齐，去掉尾部 /，避免与扩展 payload.toolId 不一致 */
+function toolIdFromPathname(pathname) {
+  const s = String(pathname || '')
+    .replace(/^\/ai-designer\/?/i, '')
+    .replace(/\/$/, '')
+    .trim()
+  return s || null
+}
+
+// 一级分类下为平级子项；修改图片类与 `IMAGE_EDIT_MODE_IDS` 一致
+const IMAGE_EDIT_MODE_IDS = [
+  'add-remove',
+  'inpainting',
+  'style-transfer',
+  'composition',
+  'hi-fidelity',
+  'bring-to-life',
+  'character-360',
+  'text-replace',
+  'text-translate',
+  'watermark-remove',
+]
 
 const AVAILABLE_IDS = new Set([
-  'local-redraw', 'local-erase', 'one-click-recolor', 'clothing-3d', 'clothing-flatlay', 'body-shape', 'scene-generation', 'add-person-object', 'smart-expansion', 'product-refinement',
+  'local-redraw',
+  'local-erase',
+  'one-click-recolor',
+  'clothing-3d',
+  'clothing-flatlay',
+  'body-shape',
+  'scene-generation',
+  'add-person-object',
+  'smart-expansion',
+  'product-refinement',
   'style-clone',
-  'watermark-remove', // 灰掉入口，占位用
   'watermark-add',
   'style-change',
   'text-remove',
@@ -38,7 +77,6 @@ const SIDEBAR_STRUCTURE = [
     id: 'image-editing',
     label: '图片编辑',
     items: [
-      { id: 'smart-editing', label: '智能修图', icon: 'spark', available: false },
       { id: 'local-redraw', label: '局部重绘', icon: 'brush' },
       { id: 'local-erase', label: '局部消除', icon: 'eraser' },
       { id: 'one-click-recolor', label: '一键换色', icon: 'recolor' },
@@ -47,33 +85,14 @@ const SIDEBAR_STRUCTURE = [
       { id: 'body-shape', label: '调整身材', badge: 'NEW', icon: 'body' },
       { id: 'scene-generation', label: '生成场景', badge: 'NEW', icon: 'scene' },
       { id: 'add-person-object', label: '添加人/物', badge: 'NEW', icon: 'person-add' },
-      { id: 'image-crop', label: '图片裁剪', icon: 'crop', available: false },
     ],
   },
   {
     id: 'quality-enhancement',
     label: '质量提升',
     items: [
-      { id: 'hd-zoom', label: '高清放大', icon: 'zoom', available: false },
       { id: 'smart-expansion', label: '智能扩图', icon: 'expand' },
       { id: 'product-refinement', label: '提升质感', icon: 'product' },
-    ],
-  },
-  {
-    id: 'image-restoration',
-    label: '图像修复',
-    items: [
-      { id: 'color-repair', label: '色差修复', icon: 'color', available: false },
-      { id: 'print-repair', label: '印花修复', icon: 'print', available: false },
-      { id: 'hand-repair', label: '手部修复', icon: 'hand', available: false },
-    ],
-  },
-  {
-    id: 'cutout-tools',
-    label: '抠图工具',
-    items: [
-      { id: 'fine-cutout', label: '精细抠图', icon: 'cutout', available: false },
-      { id: 'batch-cutout', label: '批量抠图', icon: 'batch', available: false },
     ],
   },
   {
@@ -95,10 +114,10 @@ const SIDEBAR_STRUCTURE = [
   },
   {
     id: 'watermark-tools',
-    label: '水印添加/去除',
+    label: '水印',
     items: [
       { id: 'watermark-add', label: '添加水印', icon: 'watermark-add' },
-      { id: 'watermark-remove', label: '去除水印', icon: 'watermark', available: false },
+      { id: 'watermark-remove', label: '去除水印', icon: 'watermark' },
     ],
   },
   {
@@ -141,8 +160,6 @@ function ItemIcon({ name }) {
     ? 'M12 4v16m8-8H4'
     : name === 'edit'
     ? 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
-    : name === 'spark'
-    ? 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
     : name === 'brush'
     ? 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01'
     : name === 'eraser'
@@ -159,22 +176,10 @@ function ItemIcon({ name }) {
     ? 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'
     : name === 'scene'
     ? 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M9 22V12h6v10'
-    : name === 'crop'
-    ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
-    : name === 'zoom'
-    ? 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3m-3 3V7m3 3h3'
     : name === 'expand'
     ? 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
     : name === 'product'
     ? 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z'
-    : name === 'color'
-    ? 'M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01'
-    : name === 'print'
-    ? 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z'
-    : name === 'hand'
-    ? 'M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11'
-    : name === 'cutout'
-    ? 'M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243 0z'
     : name === 'style-clone'
     ? 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z'
     : name === 'style-change'
@@ -189,14 +194,97 @@ function ItemIcon({ name }) {
 
 export default function AiDesigner() {
   const location = useLocation()
-  const pathTool = location.pathname.replace(/^\/ai-designer\/?/, '') || null
+  const [searchParams] = useSearchParams()
+  const { getToken } = useAuth()
+  const pathTool = toolIdFromPathname(location.pathname)
+  const extMode = searchParams.get('ext') === '1'
+  const prepImportId = searchParams.get('import')
+  const prepToolId = searchParams.get('tool') || pathTool || 'text-translate'
+  const [extImport, setExtImport] = useState(null)
+  const lastPrepImportId = useRef(null)
+  const lastAppliedExtImportKey = useRef(null)
+
+  useEffect(() => {
+    if (!extMode) {
+      extensionImportPayloadCache = null
+      lastAppliedExtImportKey.current = null
+      return
+    }
+    if (extensionImportPayloadCache) {
+      lastAppliedExtImportKey.current = `${extensionImportPayloadCache.ts ?? 0}|${String(extensionImportPayloadCache.dataUrl).slice(0, 80)}`
+      setExtImport(extensionImportPayloadCache)
+    }
+    function applyImportPayload(payload) {
+      if (!payload?.dataUrl || !payload?.toolId) return
+      const key = `${payload.ts ?? 0}|${String(payload.dataUrl).slice(0, 80)}`
+      if (lastAppliedExtImportKey.current === key) return
+      lastAppliedExtImportKey.current = key
+      extensionImportPayloadCache = payload
+      setExtImport(payload)
+      window.postMessage({ source: EXT_WEB_SOURCE, type: EXT_IMPORT_ACK }, '*')
+    }
+    function onDomImport(ev) {
+      applyImportPayload(ev.detail)
+    }
+    function onMsg(ev) {
+      if (ev.data?.source !== EXT_MSG_SOURCE || ev.data?.type !== EXT_MSG_IMPORT) return
+      applyImportPayload(ev.data.payload)
+    }
+    window.addEventListener(EXT_DOM_IMPORT_EVENT, onDomImport)
+    window.addEventListener('message', onMsg)
+    window.postMessage({ source: EXT_WEB_SOURCE, type: EXT_REQUEST_IMPORT }, '*')
+    return () => {
+      window.removeEventListener(EXT_DOM_IMPORT_EVENT, onDomImport)
+      window.removeEventListener('message', onMsg)
+    }
+  }, [extMode])
+
+  useEffect(() => {
+    if (!prepImportId || !getToken) return
+    if (lastPrepImportId.current === prepImportId) return
+    lastPrepImportId.current = prepImportId
+    let cancelled = false
+    fetch(`/api/extension/prep-image/${encodeURIComponent(prepImportId)}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => {
+        if (cancelled || !data?.image) return
+        const ts = Date.now()
+        const payload = {
+          toolId: prepToolId,
+          dataUrl: data.image,
+          targetTabId: null,
+          targetUuid: null,
+          ts,
+        }
+        lastAppliedExtImportKey.current = `${ts}|${String(data.image).slice(0, 80)}`
+        setExtImport(payload)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [prepImportId, prepToolId, getToken])
+
+  const extensionForTool =
+    extImport && pathTool && extImport.toolId === pathTool ? extImport : null
   const galleryImage =
-    location.state?.fromGallery && location.state?.imageUrl
-      ? { url: location.state.imageUrl, id: location.state.imageId, title: location.state.imageTitle }
+    extensionForTool
+      ? null
+      : location.state?.fromGallery && location.state?.imageUrl
+        ? { url: location.state.imageUrl, id: location.state.imageId, title: location.state.imageTitle }
+        : null
+  const extensionImagePayload = extensionForTool?.dataUrl
+    ? { dataUrl: extensionForTool.dataUrl }
+    : null
+  const extensionMeta =
+    extensionForTool?.targetTabId != null && extensionForTool?.targetUuid
+      ? { targetTabId: extensionForTool.targetTabId, targetUuid: extensionForTool.targetUuid }
       : null
   const [expanded, setExpanded] = useState(() => {
     const open = new Set()
-    const tool = location.pathname.replace(/^\/ai-designer\/?/, '') || null
+    const tool = toolIdFromPathname(location.pathname)
     SIDEBAR_STRUCTURE.forEach((group) => {
       const hasActive = group.items.some((it) => it.id === tool)
       if (hasActive) open.add(group.id)
@@ -257,24 +345,6 @@ export default function AiDesigner() {
                         {group.items.map((item) => {
                           const to = `/ai-designer/${item.id}`
                           const isActive = pathTool === item.id
-                          const available = item.available !== false
-                          if (!available) {
-                            return (
-                              <span
-                                key={item.id}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-400 cursor-not-allowed opacity-60"
-                                title="敬请期待"
-                              >
-                                <ItemIcon name={item.icon} />
-                                <span>{item.label}</span>
-                                {item.badge && (
-                                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-gray-300 text-gray-500 font-medium">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </span>
-                            )
-                          }
                           return (
                             <Link
                               key={item.id}
@@ -306,15 +376,38 @@ export default function AiDesigner() {
 
         <main className="flex-1 min-w-0 p-6">
           {IMAGE_EDIT_MODE_IDS.includes(pathTool) ? (
-            <ImageEdit initialMode={pathTool} hideModeSelector initialImageFromGallery={galleryImage} />
+            <ImageEdit
+              initialMode={pathTool}
+              hideModeSelector
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'local-redraw' ? (
-            <LocalRedraw initialImageFromGallery={galleryImage} />
+            <LocalRedraw
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'local-erase' ? (
-            <LocalErase initialImageFromGallery={galleryImage} />
+            <LocalErase
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'text-remove' ? (
-            <LocalErase variant="text-remove" initialImageFromGallery={galleryImage} />
+            <LocalErase
+              variant="text-remove"
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'one-click-recolor' ? (
-            <OneClickRecolor initialImageFromGallery={galleryImage} />
+            <OneClickRecolor
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'clothing-3d' ? (
             <Clothing3D initialImageFromGallery={galleryImage} />
           ) : pathTool === 'clothing-flatlay' ? (
@@ -326,7 +419,11 @@ export default function AiDesigner() {
           ) : pathTool === 'add-person-object' ? (
             <AddPersonObject initialImageFromGallery={galleryImage} />
           ) : pathTool === 'smart-expansion' ? (
-            <SmartExpansion initialImageFromGallery={galleryImage} />
+            <SmartExpansion
+              initialImageFromGallery={galleryImage}
+              initialExtensionImage={extensionImagePayload}
+              extensionMeta={extensionMeta}
+            />
           ) : pathTool === 'product-refinement' ? (
             <ProductRefinement initialImageFromGallery={galleryImage} />
           ) : pathTool === 'watermark-add' ? (
@@ -334,7 +431,7 @@ export default function AiDesigner() {
           ) : pathTool === 'style-change' ? (
             <StyleChange initialImageFromGallery={galleryImage} />
           ) : pathTool === 'style-clone' ? (
-            <StyleClone />
+            <StyleClone initialImageFromGallery={galleryImage} />
           ) : pathTool && !AVAILABLE_IDS.has(pathTool) ? (
             <Navigate to="/ai-designer/local-redraw" replace />
           ) : pathTool ? (

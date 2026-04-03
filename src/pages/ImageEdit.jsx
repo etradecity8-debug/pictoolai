@@ -6,6 +6,8 @@ import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarit
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 import { loadImageFromGalleryUrl, loadImageFromGalleryId } from '../lib/loadGalleryImage'
+import { dataUrlToImageSlot } from '../lib/extensionImage'
+import ExtensionReplaceButton from '../components/ExtensionReplaceButton'
 
 // 各模式的示例展示配置
 // demo: { before, after, prompt, beforeLabel, afterLabel } — 有真实图片时填入
@@ -638,7 +640,13 @@ function ImageTextSelector({ imageSrc, onExtract, onCancel }) {
 
 const VALID_MODE_IDS = new Set(MODES.map((m) => m.id))
 
-export default function ImageEdit({ initialMode, hideModeSelector = false, initialImageFromGallery }) {
+export default function ImageEdit({
+  initialMode,
+  hideModeSelector = false,
+  initialImageFromGallery,
+  initialExtensionImage,
+  extensionMeta,
+}) {
   const { getToken, refreshUser = null } = useAuth()
   const resolvedInitial = VALID_MODE_IDS.has(initialMode) ? initialMode : MODES[0].id
   const [selectedMode, setSelectedMode] = useState(resolvedInitial)
@@ -677,7 +685,10 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
       setSelectedMode(initialMode)
       setModel(initialMode === 'text-translate' ? 'Nano Banana 2' : 'Nano Banana')
       if (hideModeSelector) {
-        setImages([])
+        // 浏览器扩展传入图时勿清空上传区，否则与 initialExtensionImage 的异步载入竞态会导致永远无图
+        if (!initialExtensionImage?.dataUrl) {
+          setImages([])
+        }
         setPrompt('')
         setTextOriginal('')
         setTextReplacement('')
@@ -691,7 +702,7 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
         setTextExtractModal({ open: false })
       }
     }
-  }, [initialMode, hideModeSelector])
+  }, [initialMode, hideModeSelector, initialExtensionImage?.dataUrl])
 
   useEffect(() => {
     if (!initialImageFromGallery?.url || !getToken) return
@@ -703,6 +714,27 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
       })
       .catch(() => {})
   }, [initialImageFromGallery?.url])
+
+  useEffect(() => {
+    if (!initialExtensionImage?.dataUrl) return
+    let cancelled = false
+    dataUrlToImageSlot(initialExtensionImage.dataUrl, 'extension-input.jpg')
+      .then(({ file, dataUrl }) => {
+        if (cancelled) return
+        setImages((prev) => {
+          prev.forEach((img) => {
+            if (img?.dataUrl?.startsWith('blob:')) URL.revokeObjectURL(img.dataUrl)
+          })
+          return [{ file, dataUrl, slot: 0 }]
+        })
+        setResult(null)
+        setError('')
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initialExtensionImage?.dataUrl])
 
   const handleModeChange = (id) => {
     setSelectedMode(id)
@@ -1201,7 +1233,8 @@ export default function ImageEdit({ initialMode, hideModeSelector = false, initi
                         本次消耗 <span className="font-semibold text-gray-700">{lastPointsUsed}</span> 积分，已自动保存至仓库
                       </div>
                     )}
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
                       <button
                         type="button"
                         onClick={async () => {

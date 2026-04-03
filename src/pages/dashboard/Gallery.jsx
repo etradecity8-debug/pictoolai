@@ -42,9 +42,10 @@ const GALLERY_EDIT_GROUPS = [
     ],
   },
   {
-    label: '水印添加/去除',
+    label: '水印',
     items: [
       { id: 'watermark-add', label: '添加水印' },
+      { id: 'watermark-remove', label: '去除水印' },
     ],
   },
   {
