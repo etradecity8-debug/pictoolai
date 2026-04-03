@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/4/3</div>
+  <div class="meta">KNOWN_ISSUES.md → 打印版 · 2026/4/4</div>
   <h1>已知问题与待办</h1>
 <blockquote>
 <p>本文档汇总<strong>当前需关注的问题</strong>、<strong>待办改进</strong>、<strong>运营须知</strong>。详细功能说明见各专项文档。</p>
@@ -186,12 +186,12 @@
 <td>多张选文件夹时部分目录被拒，需优化方案</td>
 </tr>
 <tr>
-<td>多组专利查询</td>
-<td>侵权深度查询可考虑多组检索策略</td>
+<td>CPC 分类号</td>
+<td>专利检索可补充分类号提高命中率（待定）</td>
 </tr>
 <tr>
-<td>CPC 分类号</td>
-<td>专利检索可补充分类号提高命中率</td>
+<td><strong>侵权检测专利命名同义词漏检（✅ 已部分改进）</strong></td>
+<td>美国外观专利标题可能使用完全出乎意料的命名，导致漏检。已知案例：金色纸巾架（中文：纸巾架），AI 生成词可能不含 <strong>cocktail</strong> 等专利标题用词，而该专利标题为 <strong>Cocktail napkin stand</strong>（USD1098777S1）。<strong>已实施改进（2026-04）</strong>：① <code>analysisPrompt</code> 要求 5-6 个英文词、每词 1-3 单词、多角度命名；② 后端 <code>expandPatentSynonyms</code> 通用同义词扩展；③ <code>fetchGooglePatentsMulti</code>：<strong>1 个组合查询 + 每个词 <code>&quot;词&quot; design patent</code> 精确查询</strong>，去重后最多 5 次 SerpApi；④ 综合报告 <code>patentRisk</code> 要求 Markdown 列表行，前端 <code>linkifyUrls</code> 使 URL 可点，嵌套 JSON 由 <code>ensureSectionString</code> 兜底。<strong>根本局限</strong>：关键词检索无法穷举专利标题用词，详见 <code>docs/IP-RISK.md</code> 第十节。</td>
 </tr>
 </tbody></table>
 <hr>

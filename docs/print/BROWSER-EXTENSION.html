@@ -40,10 +40,57 @@
 </style>
 </head>
 <body>
-  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/3</div>
+  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/4</div>
   <h1>浏览器扩展（PicToolAI 修图）</h1>
 <h2>作用</h2>
 <p>在任意网页对 <code>&lt;img&gt;</code> 右键：<strong>PicToolAI → 子菜单</strong>，抓取图片、压缩后写入扩展存储，新开 <code>pictoolai.studio</code> 对应 AI 美工路由并带图进入；生成结果可 <strong>替换原网页图片</strong>（仅本机 DOM，不改对方服务器）。</p>
+<hr>
+<h2>客户试用说明（运营向）</h2>
+<p>发给客户前，请自行确认：<strong>网站已部署含扩展握手的新代码</strong>、<code>browser-extension/background.js</code> 中 <code>SITE_ORIGIN</code> 为 <strong><code>https://pictoolai.studio</code></strong>（本地调试才用 <code>http://localhost:5173</code>）。打包给客户时：将 <strong><code>browser-extension</code> 文件夹</strong>打成 zip，<strong>解压后第一层可见 <code>manifest.json</code></strong>（不要多包一层空目录）。</p>
+<h3>发给客户（可直接复制）</h3>
+<p><strong>PicToolAI 浏览器扩展（试用）</strong></p>
+<ol>
+<li><strong>浏览器</strong>：请使用 <strong>Google Chrome</strong>，或使用 <strong>Microsoft Edge</strong>（Chromium 新版）。</li>
+<li><strong>解压</strong>：将收到的 zip 解压到电脑里<strong>固定文件夹</strong>（例如「文档」下的一个目录）。<strong>不要删除该文件夹</strong>，否则扩展会失效。</li>
+<li><strong>安装扩展</strong>  <ul>
+<li>地址栏输入 <code>chrome://extensions</code> 并回车（Edge 用户可试 <code>edge://extensions</code>）。  </li>
+<li>打开右上角 <strong>「开发者模式」</strong>。  </li>
+<li>点击 <strong>「加载已解压的扩展程序」</strong>。  </li>
+<li>选择解压后的 <strong><code>browser-extension</code></strong> 文件夹（文件夹内应有 <code>manifest.json</code>）。</li>
+</ul>
+</li>
+<li><strong>登录网站</strong>：新开标签页打开 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong> ，使用 PicToolAI 账号<strong>登录</strong>（扩展会打开本站；未登录无法正常使用生图与扣费）。</li>
+<li><strong>使用</strong>：在任意网页的<strong>图片上</strong>单击右键 → 点 <strong>「PicToolAI」</strong> → 再点<strong>下面某一子项</strong>（如「语言转换」「局部重绘」等）。<strong>不要只点父菜单「PicToolAI」</strong>，必须再选一级子菜单。  </li>
+<li>处理完成后，若需要可将结果 <strong>替换原网页上的那张图</strong>（仅影响当前浏览器标签页显示；电商平台后台上架需自行上传新图）。</li>
+</ol>
+<h3>常见问题（指导客户时对照）</h3>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>右键没有 PicToolAI</td>
+<td>打开扩展页确认扩展已<strong>启用</strong>；点扩展卡片上的 <strong>重新加载</strong> 后重试。</td>
+</tr>
+<tr>
+<td>点了没反应</td>
+<td>是否只点了父级「PicToolAI」？必须再点<strong>子项</strong>（如「一键换色」）。</td>
+</tr>
+<tr>
+<td>打开页面没有图</td>
+<td>请先在本站 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong> 登录后再从别的网页右键试。</td>
+</tr>
+<tr>
+<td>个别网站图抓不了</td>
+<td>仅支持普通 <code>&lt;img&gt;</code>；防盗链、懒加载或特殊结构可能导致失败，换一张图或另存为本地再上传至站内亦可。</td>
+</tr>
+</tbody></table>
+<h3>正式发行（可选）</h3>
+<p>长期可提交 <strong>Chrome 网上应用店</strong>，客户无需开启开发者模式；权限与隐私说明见 <code>browser-extension/README.md</code> 中「打包上架」。</p>
+<hr>
 <h2>架构要点</h2>
 <table>
 <thead>

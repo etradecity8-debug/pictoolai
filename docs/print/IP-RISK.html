@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">IP-RISK.md → 打印版 · 2026/4/3</div>
+  <div class="meta">IP-RISK.md → 打印版 · 2026/4/4</div>
   <h1>侵权风险检测完整说明</h1>
 <blockquote>
 <p>路由：<code>/ip-risk</code>（主导航独立模块）<br>文件：<code>src/pages/IpRisk.jsx</code>，后端接口：<code>POST /api/ai-assistant/ip-risk-check</code></p>
@@ -129,7 +129,7 @@
 <tr>
 <td>2</td>
 <td><strong>Google Patents</strong>（专利检索）</td>
-<td>AI 提取英文关键词</td>
+<td>AI 提取英文关键词 → 后处理（去泛词、限长、同义词扩展）→ <strong>1 个组合查询 + 每个词单独 <code>&quot;词&quot; design patent</code> 精确查询</strong>，去重后最多 <strong>5 次</strong> SerpApi 调用，结果合并去重</td>
 <td>专利侵权风险（美国专利库）</td>
 <td>每次都有</td>
 </tr>
@@ -162,7 +162,7 @@
 <td>每次都有</td>
 </tr>
 </tbody></table>
-<p><strong>SerpApi 实际调用次数：最少 2 次（Lens + Patents），通常 3～4 次（加商标/IP 角色检索）。</strong></p>
+<p><strong>SerpApi 实际调用次数：最少 <strong>3</strong> 次（Lens 1 + Google Patents 至少 2：组合查询 + 逐词精确），最多 <strong>8</strong> 次（Lens 1 + Patents 最多 5 + 商标 1 + IP 角色 1）。</strong> 专利汇为独立 HTTP，不经 SerpApi。</p>
 <hr>
 <h2>三、检测结果结构</h2>
 <p>深度查询返回如下分组报告（<code>sections</code> 字段）：</p>
@@ -179,7 +179,7 @@
 </tr>
 <tr>
 <td><code>patentRisk</code></td>
-<td><strong>专利综合风险</strong>（结构化：美国专利+中国/全球专利关键发现、需关注专利清单、风险等级与建议）</td>
+<td><strong>专利综合风险</strong>（字符串：综合报告要求按 Markdown 列表行写出美国/专利汇命中与链接；若 AI 误返回嵌套对象，后端 <code>ensureSectionString</code> 会转为可读文本；正文内裸 URL 由前端 <code>linkifyUrls</code> 转为可点击链接）</td>
 </tr>
 <tr>
 <td><code>designRisk</code></td>
@@ -210,11 +210,12 @@
 <td>免责声明</td>
 </tr>
 </tbody></table>
-<p>前端展示中，「高」风险等级以红色+警告图标标注；每个 section 卡片独立显示。</p>
+<p>前端展示中，各分组卡片首行若解析到风险等级为「高」或「中高」，以红色+警告图标标注；每个 section 卡片独立显示。</p>
 <p>报告同时包含：</p>
 <ul>
 <li><strong>本次检索方式汇总</strong>（<code>searchSummary</code>）：实际执行的检索服务</li>
-<li><strong>检索结果明细（按来源）</strong>（<code>retrievalDetails</code>）：各查询实际返回结果，便于区分 Google Patents 与专利汇等不同来源</li>
+<li><strong>相关专利文献链接</strong>（<code>patentLinks</code>）：数组，每项含 <code>source</code>（Google Patents / 专利汇）、<code>number</code>、<code>title</code>、<code>url</code>（可点击打开官方页）；由后端从检索结果去重合并，与文字报告并列展示</li>
+<li><strong>检索结果明细（按来源）</strong>（<code>retrievalDetails</code>）：各查询实际返回结果，便于区分 Google Patents 与专利汇等不同来源（Google Patents 条目含解析出的公开号 <code>id</code>）</li>
 </ul>
 <hr>
 <h2>四、实现原理与完整流程</h2>
@@ -240,28 +241,90 @@
 </tr>
 </tbody></table>
 <p>用户上传产品图，可选填产品名称、品类、目标市场等，选择模式后发起请求。</p>
-<h3>4.2 快速筛查（Quick）</h3>
+<hr>
+<h3>4.2 完整流程图（Mermaid）</h3>
+<pre><code class="language-mermaid">flowchart TD
+    A[&quot;用户上传产品图（1-6 张）\n可选：产品名称 / 品类 / 目标市场 / 其他说明&quot;] --&gt; B{检测模式}
+
+    B --&gt;|免费快筛| QK[&quot;① Gemini 图像分析\n图片 + 提示词 → 一次 AI 调用&quot;]
+    QK --&gt; QR[&quot;解析 JSON\n输出各分组（商标/外观/IP/平台）\n不含图片版权溯源、不含专利检索&quot;]
+    QR --&gt; END1[&quot;返回结果\n不扣积分&quot;]
+
+    B --&gt;|深度查询| CK{积分余额 ≥ 20?}
+    CK --&gt;|否| ERR[&quot;返回错误：积分不足&quot;]
+    CK --&gt;|是| D1
+
+    D1[&quot;② Gemini 初析（第 1 次 AI 调用）\n同时发送产品图 + 用户说明\n提取检索词&quot;]
+    D1 --&gt; D1R[&quot;输出 JSON：\n• quickReport — 初步视觉分析\n• patentSearchTerms — 英文专利检索词（5-6 个）\n• patentSearchTermsZH — 中文专利检索词（可选）\n• trademarkSearchTerms — 商标检索词\n• ipCharacterNames — 疑似 IP 角色名&quot;]
+
+    D1R --&gt; CLEAN[&quot;③ 后处理\n• 过滤泛词 + 超过3词的长句\n• 同义词扩展（holder↔stand↔rack 等）\n• 若全为泛词 → Gemini 纯图二次识别&quot;]
+
+    CLEAN --&gt; D3[&quot;④ 写临时图片到服务器\n生成可公开访问的临时 URL\n供 Google Lens 使用&quot;]
+
+    D3 --&gt; PAR
+
+    subgraph PAR [&quot;⑤ 并行检索 Promise.all（第一批）&quot;]
+        PA[&quot;Google Lens\n（SerpApi engine=google_lens）\n输入：首张图临时 URL\n输出：视觉相似商品 + 图片来源&quot;]
+        PB[&quot;Google Patents\n（SerpApi engine=google_patents）\n1 个组合查询 + 每个词单独精确查询\n合并去重，最多 5 组&quot;]
+        PC[&quot;专利汇\n（patenthub.cn/api/s）\n中文优先，无则英文\n仅在配置 PATENTHUB_TOKEN 时触发&quot;]
+    end
+
+    PAR --&gt; PAR2
+
+    subgraph PAR2 [&quot;⑥ 并行检索 Promise.all（第二批）&quot;]
+        PD[&quot;商标检索\n（SerpApi engine=google）\nUSPTO trademark + 品牌词\n仅在 AI 识别到品牌词时触发&quot;]
+        PE[&quot;IP 角色版权检索\n（SerpApi engine=google）\n角色名 + copyright owner...\n仅在 AI 识别到疑似 IP 角色时触发&quot;]
+    end
+
+    PAR2 --&gt; D5[&quot;⑦ 汇总各检索结果为文本摘要&quot;]
+
+    D5 --&gt; D6[&quot;⑧ Gemini 综合分析（最后 1 次 AI 调用）\n综合 quickReport + 全部检索摘要\n按严格判断规则输出结构化 JSON\n含 9 个 section&quot;]
+
+    D6 --&gt; D7[&quot;⑨ 扣除 20 积分\n删除临时图片&quot;]
+
+    D7 --&gt; END2[&quot;返回完整结构化报告\n• sections（9 个分组）\n• patentLinks（可点击链接）\n• retrievalDetails + searchSummary&quot;]
+</code></pre>
+<blockquote>
+<p><strong>说明</strong>：正常深度查询 <strong>2 次 AI 调用</strong>（初析 + 综合报告）；泛词兜底时 3 次（按需）。SerpApi 调用 <strong>最少 3 次、最多 8 次</strong>（见 4.5 节）。</p>
+</blockquote>
+<hr>
+<h3>4.3 快速筛查（Quick）详解</h3>
 <p><strong>纯 Gemini，不联网检索。</strong></p>
 <ol>
 <li><strong>输入</strong>：多张产品图 + 可选文字说明（产品名称、品类等）</li>
 <li><strong>调用</strong>：一次 Gemini API，图片 + 文本 prompt</li>
 <li><strong>输出</strong>：解析 JSON，得到各 section（商标、外观、IP、平台、综合等级等）</li>
+<li><strong>不含</strong>：图片版权溯源（<code>copyrightSourceRisk</code>）、专利检索结果</li>
 <li><strong>局限</strong>：仅 AI 视觉推断，不做专利/商标/图库检索</li>
 </ol>
-<h3>4.3 深度查询（Deep）— 六阶段流程</h3>
+<hr>
+<h3>4.4 深度查询（Deep）— 各阶段详解</h3>
 <h4>阶段 1：Gemini 初析（第 1 次 AI 调用）</h4>
-<p><strong>目的</strong>：从图+文提取检索词，供后续外部检索用。</p>
+<p><strong>目的</strong>：从图+文提取后续外部检索所需的关键词。</p>
 <ul>
-<li><strong>输入</strong>：产品图 + 用户填写信息</li>
-<li><strong>输出</strong>：JSON 含 <code>quickReport</code>、<code>patentSearchTerms</code>（英文）、<code>patentSearchTermsZH</code>（中文可选）、<code>trademarkSearchTerms</code>、<code>ipCharacterNames</code></li>
-<li><strong>兜底</strong>：若专利词过于泛化，再调一次 AI 纯看图识别品类词</li>
+<li><strong>输入</strong>：产品图（最多 5 张）+ 用户填写信息</li>
+<li><strong>输出</strong>：<ul>
+<li><code>quickReport</code>：初步视觉分析（商标/外观/IP/平台）</li>
+<li><code>patentSearchTerms</code>：英文专利检索词（5-6 个，每个 1-3 单词，覆盖多种命名角度）</li>
+<li><code>patentSearchTermsZH</code>：中文检索词（可选，用于专利汇中国专利库）</li>
+<li><code>trademarkSearchTerms</code>：商标检索词（1-3 个英文品牌词）</li>
+<li><code>ipCharacterNames</code>：疑似 IP 角色名称</li>
 </ul>
-<h4>阶段 2：临时图落地</h4>
+</li>
+</ul>
+<h4>阶段 2：检索词后处理（纯代码逻辑，无 AI 调用）</h4>
+<ol>
+<li><strong>过滤泛词</strong>：剔除 <code>product design</code>、<code>consumer product</code> 等</li>
+<li><strong>过滤长句</strong>：超过 3 个单词的描述性短语不适合专利标题搜索</li>
+<li><strong>同义词扩展</strong>（<code>expandPatentSynonyms</code>）：基于通用同义词对表自动生成变体。设计专利中 <code>holder</code>/<code>stand</code>/<code>rack</code>、<code>mount</code>/<code>bracket</code>、<code>case</code>/<code>cover</code>、<code>dispenser</code>/<code>holder</code> 等词经常互换。如 AI 生成了 <code>napkin holder</code>，系统自动补充 <code>napkin stand</code> 和 <code>napkin rack</code>。这是通用规则，不针对任何特定产品。</li>
+<li><strong>泛词兜底</strong>：若过滤后仍全为泛词，触发第二次轻量 Gemini 调用（纯看图识别品类词）</li>
+</ol>
+<h4>阶段 3：临时图落地</h4>
 <ul>
-<li>首张图写入临时目录，生成可访问 URL</li>
-<li>SerpApi 的 Google Lens 需要图片 URL</li>
+<li>首张图写入临时目录 <code>.temp-ip-risk/</code>，生成可访问 URL（Lens 需要）</li>
+<li>请求完成后自动删除</li>
 </ul>
-<h4>阶段 3：并行外部检索</h4>
+<h4>阶段 4：并行外部检索（第一批）</h4>
 <table>
 <thead>
 <tr>
@@ -269,91 +332,115 @@
 <th>服务</th>
 <th>输入</th>
 <th>触发条件</th>
-<th>接口</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>1</td>
 <td>Google Lens</td>
-<td>首张图 URL</td>
+<td>首张图临时 URL</td>
 <td>每次必做</td>
-<td>SerpApi <code>engine=google_lens</code></td>
 </tr>
 <tr>
 <td>2</td>
 <td>Google Patents</td>
-<td>英文 patentSearchTerms（前 4 个）</td>
+<td>检索词（经同义词扩展后）</td>
 <td>每次必做</td>
-<td>SerpApi <code>engine=google_patents</code></td>
 </tr>
 <tr>
 <td>3</td>
 <td>专利汇</td>
 <td>中文优先、无则英文</td>
-<td>配置了 PATENTHUB_TOKEN</td>
-<td>专利汇 <code>/api/s</code></td>
+<td>配置了 <code>PATENTHUB_TOKEN</code></td>
+</tr>
+</tbody></table>
+<p><strong>Google Patents 多组查询逻辑（<code>fetchGooglePatentsMulti</code>）</strong>：</p>
+<pre><code>查询1：前 3 个词拼接组合查询（宽泛覆盖）
+查询2-N：每个词单独做 &quot;词&quot; design patent 精确查询（精确命中）
+去重后取前 5 组
+</code></pre>
+<p><strong>核心设计思想</strong>：每个检索词都单独精确查询一次，无论它在词表中的位置。这样即使某个冷门同义词（如同义词扩展补充的 <code>napkin stand</code>）排在最后，也会被独立搜索，从而命中以该词命名的专利。</p>
+<h4>阶段 5：并行外部检索（第二批）</h4>
+<table>
+<thead>
+<tr>
+<th>服务</th>
+<th>输入</th>
+<th>触发条件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Google 搜索（商标）</td>
+<td><code>USPTO trademark + trademarkSearchTerms[0]</code></td>
+<td>AI 提取到商标词时</td>
 </tr>
 <tr>
-<td>4</td>
-<td>商标检索</td>
-<td><code>USPTO trademark + 品牌词</code></td>
-<td>trademarkSearchTerms 非空</td>
-<td>SerpApi <code>engine=google</code></td>
-</tr>
-<tr>
-<td>5</td>
-<td>IP 角色版权检索</td>
+<td>Google 搜索（IP 角色版权）</td>
 <td><code>角色名 + copyright owner...</code></td>
-<td>ipCharacterNames 非空</td>
-<td>SerpApi <code>engine=google</code></td>
+<td>AI 识别到疑似 IP 角色时</td>
+</tr>
+</tbody></table>
+<h4>阶段 6：Gemini 综合报告（最后 1 次 AI 调用）</h4>
+<ul>
+<li><strong>输入（纯文本）</strong>：<code>quickReport</code> + Lens摘要 + 专利摘要 + 商标摘要 + IP版权摘要</li>
+<li><strong>严格判断规则</strong>（写入 prompt）：<ol>
+<li>Lens 命中大量电商/品牌站同款 → <code>overallLevel</code> 不得评为「低」</li>
+<li>专利检索命中同品类外观/设计专利 → 必须在 <code>patentRisk</code> 列为需关注项</li>
+<li>专利无命中但 Lens 大量相似商品 → 须说明「关键词检索可能未覆盖」并建议 FTO</li>
+</ol>
+</li>
+<li><strong>输出</strong>：结构化 JSON，含 9 个 section（见第三节）</li>
+</ul>
+<h4>阶段 7：扣费与返回</h4>
+<ul>
+<li>扣 20 积分，删除临时图片</li>
+<li>返回：<code>sections</code>、<code>patentLinks</code>、<code>retrievalDetails</code>、<code>searchSummary</code></li>
+</ul>
+<hr>
+<h3>4.5 SerpApi 实际调用次数</h3>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>最少</th>
+<th>最多</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Lens</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Google Patents（1 组合 + 逐词 <code>&quot;词&quot; design patent</code>，去重后截断）</td>
+<td><strong>2</strong></td>
+<td><strong>5</strong></td>
+</tr>
+<tr>
+<td>专利汇（可选，1 次 HTTP，不经 SerpApi）</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>商标检索（按需）</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td>IP 角色版权检索（按需）</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>SerpApi 合计</strong></td>
+<td><strong>3</strong></td>
+<td><strong>8</strong></td>
 </tr>
 </tbody></table>
 <blockquote>
-<p>SerpApi 将 Google Lens、Patents、搜索等封装成 API，一次深度查询会调用 2～5 次 SerpApi。</p>
+<p>典型上限（有商标词、有 IP 角色、Patents 打满 5 次）：Lens(1) + Patents(5) + 商标(1) + IP(1) = <strong>8 次</strong>。</p>
 </blockquote>
-<h4>阶段 4：结果汇总</h4>
-<p>把各检索原始结果整理成文本摘要，供阶段 5 使用：</p>
-<ul>
-<li>Lens：视觉相似结果 + 图片来源（版权溯源）</li>
-<li>专利：Google Patents + 专利汇</li>
-<li>商标、IP 版权：各自网页摘要</li>
-</ul>
-<h4>阶段 5：Gemini 综合报告（第 2 次 AI 调用）</h4>
-<ul>
-<li><strong>输入</strong>：阶段 1 的 quickReport + 各检索结果汇总</li>
-<li><strong>输出</strong>：结构化 JSON（trademarkRisk、patentRisk、designRisk、ipImageRisk、copyrightSourceRisk、platformRisk、overallLevel、suggestions、disclaimer）</li>
-</ul>
-<h4>阶段 6：扣费与返回</h4>
-<ul>
-<li>扣 20 积分</li>
-<li>返回 sections、retrievalDetails、searchSummary</li>
-</ul>
-<h3>4.4 数据流示意</h3>
-<pre><code>用户上传图 + 可选说明
-        │
-        ▼
-┌───────────────────────────────────────┐
-│  Gemini 初析（1）                      │
-│  → patentSearchTerms（英）             │
-│  → patentSearchTermsZH（中，可选）     │
-│  → trademarkSearchTerms               │
-│  → ipCharacterNames                   │
-└───────────────────────────────────────┘
-        │
-        ├──────────────────┬──────────────────┬──────────────────┐
-        ▼                  ▼                  ▼                  ▼
-  Google Lens         Google Patents      专利汇           商标/IP 检索
-  （图搜图）          （英文词）        （中文优先）       （按需）
-        │                  │                  │                  │
-        └──────────────────┴──────────────────┴──────────────────┘
-                                        │
-                                        ▼
-                    ┌───────────────────────────────────────┐
-                    │  Gemini 综合报告（2）                  │
-                    │  综合全部检索结果 → 结构化风险报告     │
-                    └───────────────────────────────────────┘
-</code></pre>
-<h3>4.5 外部依赖一览</h3>
+<hr>
+<h3>4.6 外部依赖一览</h3>
 <table>
 <thead>
 <tr>
@@ -378,7 +465,7 @@
 <td><code>PATENTHUB_TOKEN</code>（可选）</td>
 </tr>
 </tbody></table>
-<p>未配置 <code>SERPAPI_KEY</code> 时，深度查询按钮会提示「深度查询暂未开放」。</p>
+<p>未配置 <code>SERPAPI_KEY</code> 时，深度查询返回「深度查询暂未开放」。</p>
 <hr>
 <h2>五、SerpApi 与 Google 的关系</h2>
 <p>SerpApi 是一个<strong>第三方付费服务</strong>，合法地把 Google Lens / Google Patents / Google 搜索的结果以 API 形式提供给开发者。</p>
@@ -442,7 +529,7 @@
 <td>SerpApi、专利汇均免费</td>
 </tr>
 </tbody></table>
-<p><strong>可支撑量</strong>：当前 SerpApi 免费版约 250 次/月，每次深度查询消耗 2～4 次，约可支撑 <strong>80 次深度查询/月</strong>。正式运营可升级 SerpApi Developer（$75/月，5,000 次），约可支撑 1,250～2,500 次/月。</p>
+<p><strong>可支撑量</strong>：当前 SerpApi 免费版约 250 次/月，每次深度查询消耗约 <strong>3～8</strong> 次 SerpApi（含 Google Patents 多组查询），粗算约可支撑 <strong>31～83 次深度查询/月</strong>（按 8 次/次与 3 次/次估算）。正式运营可升级 SerpApi Developer（$75/月，5,000 次），按同样区间粗算约可支撑 <strong>625～1,666 次/月</strong>。</p>
 <h3>用户收费</h3>
 <ul>
 <li><strong>快速筛查</strong>：免费</li>
@@ -499,11 +586,53 @@
 <hr>
 <h2>九、向客户解释时可以说</h2>
 <blockquote>
-<p>「深度查询会做 4～5 项检索：① 以图搜图（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② 专利检索（Google Patents + 专利汇）——Google Patents 查美国专利库，专利汇查中国及全球专利库（已配置时），辅助判断是否有类似专利；③ 商标检索——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告，含<strong>专利综合风险</strong>（美国专利、中国/全球专利关键发现与需关注专利清单）。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
+<p>「深度查询会做以下几项检索：① <strong>以图搜图</strong>（Google Lens）——看您的产品在全网和谁长得像，同时追踪图片来源；② <strong>专利检索</strong>（Google Patents + 专利汇）——AI 提取多组关键词，系统再自动补充同义变体（比如 holder→stand→rack），每个词单独在美国专利库精确搜索一遍，专利汇查中国及全球专利库（已配置时），合并去重；③ <strong>商标检索</strong>——以美国商标信息为主，辅助判断 Logo/品牌词侵权风险；④ 若图中检测到疑似 IP 角色/图案，还会自动查该 IP 的版权归属方。最后由 AI 综合出分组报告。报告仅供参考，不构成法律意见，高风险项建议咨询专业知识产权律师。」</p>
 </blockquote>
 <hr>
 <h2>十、漏检分析与已实施改进</h2>
-<p>针对「三齿烤串架（带滑轨推料）」等已确认侵权产品未被系统识别的案例，根因主要为<strong>专利检索关键词过于泛化</strong>（如 AI 返回 <code>product design</code>、<code>consumer product</code> 等泛词，检索不到具体产品类别的专利）。已实施以下改进：</p>
+<h3>10.1 根因一：专利检索词过于泛化</h3>
+<p>针对「三齿烤串架（带滑轨推料）」等案例，根因主要为 AI 返回 <code>product design</code>、<code>consumer product</code> 等泛词，检索不到具体产品类别的专利。</p>
+<h3>10.2 根因二：美国专利命名与日常叫法差异极大（⚠️ 难以根治）</h3>
+<p><strong>已知真实案例</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>产品</td>
+<td>金色纸巾架</td>
+</tr>
+<tr>
+<td>中文日常叫法</td>
+<td>纸巾架</td>
+</tr>
+<tr>
+<td>AI 预期生成词</td>
+<td>paper towel holder, napkin holder, towel stand</td>
+</tr>
+<tr>
+<td><strong>专利实际标题</strong></td>
+<td><strong>Cocktail napkin stand</strong></td>
+</tr>
+<tr>
+<td>专利号</td>
+<td>USD1098777S1</td>
+</tr>
+<tr>
+<td>申请时间</td>
+<td>2024-04-08</td>
+</tr>
+<tr>
+<td>下证时间</td>
+<td>2025-10-21</td>
+</tr>
+</tbody></table>
+<p><strong>根因分析</strong>：<code>cocktail</code>（鸡尾酒）这个词无法从产品图或名称「纸巾架」中预测出来。美国专利申请人可以用任意名称命名外观专利，与产品市场名称完全不同。这是关键词检索的根本局限，任何检索工具（包括人工）都难以 100% 避免。</p>
+<hr>
+<h3>10.3 已实施改进汇总</h3>
 <table>
 <thead>
 <tr>
@@ -512,24 +641,36 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>强化 prompt</td>
-<td>明确禁止泛化词，要求输出具体品类词+结构特征词+同义扩展，4-5 个词覆盖品类/结构/材质等维度</td>
+<td>强化 prompt（泛化词）</td>
+<td>明确禁止泛化词，要求具体品类词+结构特征词</td>
+</tr>
+<tr>
+<td><strong>强化 prompt（命名变体）</strong></td>
+<td>要求生成 5-6 个词，每个 1-3 单词，须从多种不同角度命名；系统对每个词单独精确查询，词越多角度越不同漏检越少</td>
 </tr>
 <tr>
 <td>双语检索词</td>
-<td><strong>patentSearchTerms</strong>（英文）用于 Google Patents；<strong>patentSearchTermsZH</strong>（中文，可选）用于专利汇中国专利库，提高中国专利命中率</td>
+<td><strong>patentSearchTerms</strong>（英文）用于 Google Patents；<strong>patentSearchTermsZH</strong>（中文，可选）用于专利汇中国专利库</td>
 </tr>
 <tr>
 <td>语言说明</td>
-<td>无论用户填中文还是英文，AI 均输出英文检索词；专利汇支持中英文，有中文词时优先用中文查中国专利</td>
+<td>AI 始终输出英文检索词；专利汇有中文词时优先中文查中国专利</td>
 </tr>
 <tr>
 <td>泛词时 AI 二次识别</td>
-<td>当 AI 返回泛词时，发起第二次轻量 AI 调用，纯根据图片识别产品品类并输出检索词</td>
+<td>AI 返回泛词时发起第二次轻量调用，纯看图识别品类词</td>
+</tr>
+<tr>
+<td><strong>逐词精确查询</strong></td>
+<td><code>fetchGooglePatentsMulti</code> 对每个检索词单独做 <code>&quot;词&quot; design patent</code> 精确查询，最多 5 组，确保每个词（含同义词扩展的变体）都被独立搜索</td>
+</tr>
+<tr>
+<td><strong>通用同义词扩展</strong></td>
+<td><code>expandPatentSynonyms</code> 基于 10 对同义词（holder↔stand↔rack、mount↔bracket、case↔cover 等）自动补充变体词，不针对任何特定产品</td>
 </tr>
 <tr>
 <td>检索词数量</td>
-<td>Google Patents 与专利汇均使用前 4 个词，提高检索全面性</td>
+<td>AI 输出 5-6 个词，同义词扩展后最多 10 个；专利汇用前 4 个词拼接单次查询</td>
 </tr>
 <tr>
 <td>前端引导</td>
@@ -540,8 +681,8 @@
 <td>去除正文开头的「风险。」「等。」等多余片段</td>
 </tr>
 </tbody></table>
-<p><strong>使用建议</strong>：尽量填写「产品名称」和「品类」（如「三齿烤串架」「烧烤用具」），有助于提高专利检索命中率。</p>
-<p><strong>后续可考虑</strong>：多组专利查询、CPC 分类号补充、Lens 强相似时增加醒目提示。</p>
+<p><strong>使用建议</strong>：尽量填写「产品名称」和「品类」，有助于提高专利检索命中率。对于高客单价、高备货量的产品，系统报告应作为<strong>初步参考</strong>，建议搭配人工关键词搜索（直接在 <a href="https://patents.google.com">Google Patents</a> 搜索产品主类词）或咨询知识产权律师做 FTO（Freedom-to-Operate）分析。</p>
+<p><strong>后续可考虑</strong>：CPC 分类号补充（查到专利后，用其 CPC 码反查同类其他专利）、Lens 强相似时增加醒目提示。</p>
 <h3>检索词语言与数据源</h3>
 <table>
 <thead>
@@ -604,6 +745,7 @@
 <li>侵权判定是复杂的法律问题，涉及地域、使用方式、相似程度等多重因素。</li>
 <li>对于「高」风险结论，强烈建议咨询专业知识产权律师后再做决策。</li>
 <li>快速筛查仅基于 AI 视觉分析，深度查询也有一定漏判率，不能保证 100% 准确。</li>
+<li><strong>深度查询中的专利检索为关键词驱动的公开库检索</strong>，受 AI 提取词、专利标题命名习惯、索引与排序等限制，<strong>无法替代律师或检索机构做的 FTO（自由实施）分析</strong>；对高备货、高客单价产品仍建议人工在 <a href="https://patents.google.com">Google Patents</a> 等渠道补充检索。</li>
 </ul>
 
 </body>

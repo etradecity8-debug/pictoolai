@@ -280,12 +280,37 @@ const stripMarkdown = (s) => String(s || '').replace(/\*{1,2}([^*]+)\*{1,2}/g, '
 function ensureSectionString(val) {
   if (val == null) return ''
   if (typeof val === 'string') return val.trim()
+  // AI 有时把 patentRisk 返回成嵌套对象，转成可读文本而非 JSON 字符串
   if (typeof val === 'object' && !Array.isArray(val)) {
+    const LABEL_MAP = {
+      level: '风险等级', usPatents: '美国专利（Google Patents）',
+      cnGlobalPatents: '中国/全球专利（专利汇）', suggestions: '建议',
+    }
     return Object.entries(val)
       .filter(([, v]) => v != null && v !== '')
       .map(([k, v]) => {
-        const str = typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)
-        return `**${k}**\n\n${str}`
+        const label = LABEL_MAP[k] || k
+        let str
+        if (Array.isArray(v)) {
+          // 数组：每项输出为 Markdown 列表行，对象取常见字段
+          str = v.map((item) => {
+            if (typeof item === 'object' && item !== null) {
+              const parts = []
+              if (item.patentId || item.id || item.number) parts.push(item.patentId || item.id || item.number)
+              if (item.title) parts.push(item.title)
+              if (item.applicant) parts.push(item.applicant)
+              const link = item.link || item.url
+              if (link) parts.push(link)
+              return '- ' + (parts.length ? parts.join(' ') : JSON.stringify(item))
+            }
+            return '- ' + String(item)
+          }).join('\n')
+        } else if (typeof v === 'object') {
+          str = JSON.stringify(v, null, 2)
+        } else {
+          str = String(v)
+        }
+        return `**${label}**\n${str}`
       })
       .join('\n\n')
   }
@@ -3927,6 +3952,190 @@ Output ONLY valid JSON (no markdown fences):
 
 // ── AI 运营助手 · 侵权风险检测（免费快筛 MVP + 付费深度查询 SerpApi）────────────────
 const IP_RISK_DEEP_POINTS = 20
+const GENERIC_PATENT_TERMS = ['product design', 'consumer product', 'consumer goods', 'product']
+
+// 设计专利常见同义词对——A 和 B 在专利标题中经常互换
+// 如 "paper towel holder" ↔ "paper towel stand"、"phone mount" ↔ "phone bracket"
+const PATENT_SYNONYM_PAIRS = [
+  ['holder', 'stand'],
+  ['holder', 'rack'],
+  ['stand', 'rack'],
+  ['mount', 'bracket'],
+  ['mount', 'holder'],
+  ['tray', 'holder'],
+  ['shelf', 'rack'],
+  ['dispenser', 'holder'],
+  ['organizer', 'holder'],
+  ['case', 'cover'],
+]
+
+/** 对词表做同义词扩展：如有 "X holder" 自动补 "X stand"/"X rack" 等 */
+function expandPatentSynonyms(terms) {
+  const termSet = new Set(terms.map((t) => t.toLowerCase()))
+  const variants = []
+  for (const term of terms) {
+    const lower = term.toLowerCase()
+    for (const [a, b] of PATENT_SYNONYM_PAIRS) {
+      const re = new RegExp(`\\b${a}\\b`, 'i')
+      if (re.test(lower)) {
+        const v = term.replace(re, b).trim()
+        if (v.split(/\s+/).length <= 3 && !termSet.has(v.toLowerCase())) {
+          termSet.add(v.toLowerCase())
+          variants.push(v)
+        }
+      }
+      const reB = new RegExp(`\\b${b}\\b`, 'i')
+      if (reB.test(lower)) {
+        const v = term.replace(reB, a).trim()
+        if (v.split(/\s+/).length <= 3 && !termSet.has(v.toLowerCase())) {
+          termSet.add(v.toLowerCase())
+          variants.push(v)
+        }
+      }
+    }
+  }
+  return variants
+}
+
+function mergePatentOrganicResults(...arrays) {
+  const seen = new Set()
+  const out = []
+  for (const arr of arrays) {
+    for (const item of arr || []) {
+      const key = item.link || item.title || ''
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      out.push(item)
+    }
+  }
+  return out
+}
+
+/**
+ * 多组 Google Patents 查询合并去重。
+ * 策略：1 个组合查询 + N 个单词精确查询（每个词单独搜一次）
+ * 这样无论 AI 把关键词放在什么位置，每个词都有被精确命中的机会。
+ */
+async function fetchGooglePatentsMulti(serpApiKey, terms) {
+  const t = (terms || []).filter(Boolean)
+  if (!t.length || !serpApiKey) return { organic_results: [], patent_queries_used: [] }
+  const queries = []
+  // 组合查询：前 3 个词拼在一起，覆盖最常见名称
+  queries.push(t.slice(0, 3).join(' '))
+  // 逐个精确查询：每个词独立搜索 + "design patent"，确保不遗漏
+  for (const term of t) {
+    queries.push(`"${term}" design patent`)
+  }
+  // 去重后取前 5 组（SerpApi 调用量可控）
+  const uniqueQueries = [...new Set(queries.map((q) => q.trim()).filter(Boolean))].slice(0, 5)
+  const resultArrays = await Promise.all(
+    uniqueQueries.map(async (q) => {
+      try {
+        const patentRes = await fetch(
+          `https://serpapi.com/search.json?engine=google_patents&q=${encodeURIComponent(q)}&api_key=${serpApiKey}`
+        )
+        if (!patentRes.ok) return []
+        const j = await patentRes.json()
+        return j?.organic_results || []
+      } catch (e) {
+        console.error('[IP Risk] SerpApi Google Patents 单条失败', q, e.message)
+        return []
+      }
+    })
+  )
+  const organic_results = mergePatentOrganicResults(...resultArrays)
+  console.log('[IP Risk] Google Patents 多组检索', uniqueQueries.join(' || '), '合并条数', organic_results.length)
+  return { organic_results, patent_queries_used: uniqueQueries }
+}
+
+/** 供前端直接展示：专利号/标题 + 可点击链接（Google Patents / 专利汇） */
+function buildIpRiskPatentLinks(patentsData, patenthubData) {
+  const out = []
+  const seenUrl = new Set()
+  const push = (row) => {
+    const u = row.url
+    if (!u || seenUrl.has(u)) return
+    seenUrl.add(u)
+    out.push(row)
+  }
+
+  for (const p of patentsData?.organic_results || []) {
+    const url = (p.link || '').trim()
+    if (!url || !/^https?:\/\//i.test(url)) continue
+    let number = (p.publication_number || p.publication_number_raw || '').trim()
+    if (!number) {
+      const m = url.match(/patents\.google\.com\/patent\/([^/?#]+)/i)
+      if (m) number = decodeURIComponent(m[1])
+    }
+    const title = (p.title || '').trim() || number || 'Patent'
+    push({
+      source: 'Google Patents',
+      number: number || title.slice(0, 48),
+      title,
+      url,
+    })
+    if (out.length >= 10) break
+  }
+
+  for (const p of patenthubData?.patents || []) {
+    const id = (p.id || p.documentNumber || '').trim()
+    if (!id) continue
+    const url = `https://www.patenthub.cn/patent/${encodeURIComponent(id)}`
+    push({
+      source: '专利汇',
+      number: id,
+      title: (p.title || '').trim() || id,
+      url,
+      applicant: (p.applicant || '').trim() || undefined,
+    })
+    if (out.length >= 12) break
+  }
+
+  return out
+}
+
+async function fetchPatenthubIpRisk(patenthubToken, patenthubQueryTerms) {
+  if (!patenthubToken || !patenthubQueryTerms?.length) {
+    return { patenthubData: null, patenthubStatus: '', patenthubCalled: false }
+  }
+  const patenthubCalled = true
+  try {
+    const phq = patenthubQueryTerms.slice(0, 4).join(' ')
+    const phUrl = `https://www.patenthub.cn/api/s?ds=all&t=${encodeURIComponent(patenthubToken)}&q=${encodeURIComponent(phq)}&v=1&ps=5&p=1`
+    const phRes = await fetch(phUrl)
+    let phJson = null
+    try {
+      phJson = await phRes.json()
+    } catch (_) {
+      phJson = null
+    }
+    if (phJson?.success && Array.isArray(phJson?.patents) && phJson.patents.length > 0) {
+      console.log('[IP Risk] 专利汇 成功，检索词:', phq, '返回', phJson.patents.length, '条，总匹配', phJson.total ?? '?')
+      return { patenthubData: phJson, patenthubStatus: '', patenthubCalled }
+    }
+    const total = phJson?.total ?? 0
+    const code = phJson?.code ?? (phRes.ok ? 200 : phRes.status)
+    const errMsg = phJson?.message ?? phJson?.msg ?? ''
+    let patenthubStatus = ''
+    if (phRes.ok && total > 0 && (!phJson?.patents || phJson.patents.length === 0)) {
+      patenthubStatus = `已检索，共匹配 ${total} 条，但未返回专利列表（接口异常）`
+    } else if (phRes.ok && total === 0) {
+      patenthubStatus = '已检索，未匹配到相关专利'
+    } else if (!phRes.ok) {
+      patenthubStatus = `调用失败 (HTTP ${phRes.status})`
+    } else if (code !== 200 && code !== undefined) {
+      patenthubStatus = `API 返回 code=${code}${errMsg ? ': ' + errMsg : ''}`
+    } else {
+      patenthubStatus = '已检索，未匹配到相关专利'
+    }
+    console.log('[IP Risk] 专利汇 无结果或失败，检索词:', phq, 'code:', code, 'total:', total, 'patents:', phJson?.patents?.length ?? 0, errMsg ? 'msg:' + errMsg : '')
+    return { patenthubData: null, patenthubStatus, patenthubCalled }
+  } catch (e) {
+    console.error('[IP Risk] 专利汇 API 失败', e.message)
+    return { patenthubData: null, patenthubStatus: `调用异常: ${e.message}`, patenthubCalled: true }
+  }
+}
+
 const tempIpRiskDir = join(__dirname, '.temp-ip-risk')
 
 function ensureTempIpRiskDir() {
@@ -3981,6 +4190,8 @@ app.post('/api/ai-assistant/ip-risk-check', requireAuth, async (req, res) => {
 
     if (resolvedMode === 'quick') {
       const prompt = `你是一位跨境电商知识产权与合规顾问。用户上传了产品图片（可能多张）和可选说明，请基于图片与说明做一次侵权与专利风险的快速初筛。
+
+【重要】快筛未连接专利数据库与以图搜图，存在明显漏检可能。不得仅凭「常见日用品」「结构简单」「公模」等理由就将 overallLevel 标为「低」。凡属可工业量产的具体产品造型，若无法从视觉上排除与他人外观专利或在售独有款冲突，应标为「中」并说明理由；仅在明显无具体造型争议（如纯色块、无识别度的平面）时可标「低」。必须在 suggestions 中提醒：如需在上架前排查专利与全网相似款，请使用站内「深度查询」（含专利库与以图搜图）。
 
 用户提供的信息：
 ${hintText || '（无文字说明）'}
@@ -4037,7 +4248,12 @@ ${hintText || '（无文字说明）'}
 
 请输出唯一一个 JSON 对象，包含：
 - "quickReport": "2-4 段简短文字，概括商标/外观/IP 形象/平台合规的初步判断与风险等级（高/中/低）"
-- "patentSearchTerms": ["英文词1", "英文词2", "英文词3", "英文词4", "英文词5"]  // 【重要】用于 Google Patents（美国专利）与专利汇（全球专利）检索外观/设计专利。①无论用户填中文还是英文，都必须输出英文检索词；②必须包含：具体品类词（如 barbecue skewer, water bottle, coffee maker）+ 显著结构/设计特征词（如 three prong, sliding pusher, insulated, leak-proof）；③避免泛化词：禁止 product design、consumer product、consumer goods；④若用户填写了产品名称/品类，据此输出；⑤建议 4-5 个词，覆盖品类、结构、材质等不同维度，提高检索全面性。示例：烤串架→["barbecue skewer", "grill skewer", "three prong", "sliding pusher", "BBQ skewer holder"]；水瓶→["water bottle", "drinking bottle", "insulated tumbler", "leak-proof design"]
+- "patentSearchTerms": ["term1", "term2", "term3", "term4", "term5", "term6"]
+  // 用于 Google Patents 与专利汇检索外观/设计专利。规则：
+  // ①输出英文，每个词 1-3 个单词（模拟专利标题），禁止长句
+  // ②输出 5-6 个词：含主流名称、同义词、以及从不同角度描述该产品的变体（美国专利标题可能与日常叫法完全不同，须多角度覆盖）
+  // ③禁止泛化词：product design、consumer product、consumer goods
+  // ④系统会对每个词单独做精确检索，所以每个词都很重要——越多不同角度的命名，漏检越少
 - "patentSearchTermsZH": ["中文词1", "中文词2"]  // 可选，用于专利汇中国专利库检索。当产品有中国专利时，输出 2-4 个中文检索词（如 烤串架、烧烤签、推料器）。若无相关中文专利预期可填空数组 []。用户填英文时也可输出对应中文同义词以增强中国专利覆盖。
 - "trademarkSearchTerms": ["词1", "词2"]  // 用于商标检索：图中出现的品牌名、Logo 描述、产品名等，用英文，1-3 个词，便于在商标库/USPTO 中检索近似商标
 - "ipCharacterNames": ["角色名1"]  // 若图中出现疑似受版权保护的角色、卡通形象、艺术图案（如 Mickey Mouse、Pikachu、Hello Kitty 等），列出英文名称；若无可疑 IP 元素则为空数组 []`
@@ -4058,7 +4274,7 @@ ${hintText || '（无文字说明）'}
       const parsed = extractAnalyzeJson(analysisText, true)
       if (parsed?.quickReport) quickReport = String(parsed.quickReport)
       if (Array.isArray(parsed?.patentSearchTerms) && parsed.patentSearchTerms.length > 0) {
-        patentSearchTerms = parsed.patentSearchTerms.slice(0, 5).map((t) => String(t).trim()).filter(Boolean)
+        patentSearchTerms = parsed.patentSearchTerms.slice(0, 6).map((t) => String(t).trim()).filter(Boolean)
       }
       if (Array.isArray(parsed?.patentSearchTermsZH) && parsed.patentSearchTermsZH.length > 0) {
         patentSearchTermsZH = parsed.patentSearchTermsZH.slice(0, 4).map((t) => String(t).trim()).filter(Boolean)
@@ -4071,9 +4287,22 @@ ${hintText || '（无文字说明）'}
       }
     } catch (_) {}
 
+    patentSearchTerms = patentSearchTerms
+      .filter((t) => !GENERIC_PATENT_TERMS.includes(t.toLowerCase()))
+      .filter((t) => t.split(/\s+/).length <= 3) // 过滤超过 3 词的长句
+    if (patentSearchTerms.length === 0) {
+      patentSearchTerms = ['product design', 'consumer product']
+    }
+
+    // 同义词扩展（holder↔stand↔rack, mount↔bracket 等通用互换对）
+    const synonymVariants = expandPatentSynonyms(patentSearchTerms)
+    if (synonymVariants.length > 0) {
+      patentSearchTerms = [...patentSearchTerms, ...synonymVariants].slice(0, 10)
+      console.log('[IP Risk] 同义词扩展:', synonymVariants.join(', '))
+    }
+
     // 当 AI 返回泛化词时，基于图片二次识别产品品类（纯 AI，无人工映射表）
-    const genericTerms = ['product design', 'consumer product', 'consumer goods', 'product']
-    const isGeneric = patentSearchTerms.length <= 2 && patentSearchTerms.every((t) => genericTerms.includes(t.toLowerCase()))
+    const isGeneric = patentSearchTerms.length <= 2 && patentSearchTerms.every((t) => GENERIC_PATENT_TERMS.includes(t.toLowerCase()))
     if (isGeneric) {
       try {
         const imgFallbackPrompt = `Look at this product image. Output ONLY a JSON object (no other text): {"patentSearchTerms": ["term1", "term2", "term3"]}
@@ -4089,7 +4318,7 @@ Rules: patentSearchTerms must be 3-5 specific English product/design terms for s
         const imgParsed = extractAnalyzeJson(imgFallbackText, false)
         if (Array.isArray(imgParsed?.patentSearchTerms) && imgParsed.patentSearchTerms.length > 0) {
           const derived = imgParsed.patentSearchTerms.slice(0, 5).map((t) => String(t).trim()).filter(Boolean)
-          const stillGeneric = derived.every((t) => genericTerms.includes(t.toLowerCase()))
+          const stillGeneric = derived.every((t) => GENERIC_PATENT_TERMS.includes(t.toLowerCase()))
           if (!stillGeneric) {
             patentSearchTerms = derived
             console.log('[IP Risk] 专利检索词兜底：纯图二次识别，使用', patentSearchTerms.join(', '))
@@ -4112,112 +4341,91 @@ Rules: patentSearchTerms must be 3-5 specific English product/design terms for s
     const imageUrl = `${baseUrl}/api/temp-ip-risk-image/${tempToken}`
 
     const serpApiKey = process.env.SERPAPI_KEY
-    let lensData = null
-    let patentsData = null
-    let trademarksData = null
-
-    try {
-      const lensRes = await fetch(
-        `https://serpapi.com/search.json?engine=google_lens&url=${encodeURIComponent(imageUrl)}&api_key=${serpApiKey}`
-      )
-      if (lensRes.ok) lensData = await lensRes.json()
-    } catch (e) {
-      console.error('[IP Risk] SerpApi Google Lens 失败', e.message)
-    }
-    try {
-      const q = patentSearchTerms.slice(0, 4).join(' ') // 使用前 4 个词，提高检索全面性
-      const patentRes = await fetch(
-        `https://serpapi.com/search.json?engine=google_patents&q=${encodeURIComponent(q)}&api_key=${serpApiKey}`
-      )
-      if (patentRes.ok) patentsData = await patentRes.json()
-    } catch (e) {
-      console.error('[IP Risk] SerpApi Google Patents 失败', e.message)
-    }
-
-    // ── 专利汇 API：补充中国+全球专利检索（可选）────────────────────────────────────
-    // 专利汇支持中英文：优先用中文词检索中国专利，无中文词时用英文
-    let patenthubData = null
-    let patenthubCalled = false
-    let patenthubStatus = '' // 用于前端展示：已调用但无结果时的说明
     const patenthubToken = process.env.PATENTHUB_TOKEN
     const patenthubQueryTerms = patentSearchTermsZH.length > 0 ? patentSearchTermsZH : patentSearchTerms
-    if (patenthubToken && patenthubQueryTerms.length > 0) {
-      patenthubCalled = true
-      try {
-        const phq = patenthubQueryTerms.slice(0, 4).join(' ') // 使用前 4 个词
-        const phUrl = `https://www.patenthub.cn/api/s?ds=all&t=${encodeURIComponent(patenthubToken)}&q=${encodeURIComponent(phq)}&v=1&ps=5&p=1`
-        const phRes = await fetch(phUrl)
-        let phJson = null
-        try {
-          phJson = await phRes.json()
-        } catch (_) {
-          phJson = null
-        }
-        if (phJson?.success && Array.isArray(phJson?.patents) && phJson.patents.length > 0) {
-          patenthubData = phJson
-          console.log('[IP Risk] 专利汇 成功，检索词:', phq, '返回', phJson.patents.length, '条，总匹配', phJson.total ?? '?')
-        } else {
-          const total = phJson?.total ?? 0
-          const code = phJson?.code ?? (phRes.ok ? 200 : phRes.status)
-          const errMsg = phJson?.message ?? phJson?.msg ?? ''
-          if (phRes.ok && total > 0 && (!phJson?.patents || phJson.patents.length === 0)) {
-            patenthubStatus = `已检索，共匹配 ${total} 条，但未返回专利列表（接口异常）`
-          } else if (phRes.ok && total === 0) {
-            patenthubStatus = '已检索，未匹配到相关专利'
-          } else if (!phRes.ok) {
-            patenthubStatus = `调用失败 (HTTP ${phRes.status})`
-          } else if (code !== 200 && code !== undefined) {
-            patenthubStatus = `API 返回 code=${code}${errMsg ? ': ' + errMsg : ''}`
-          } else {
-            patenthubStatus = '已检索，未匹配到相关专利'
-          }
-          console.log('[IP Risk] 专利汇 无结果或失败，检索词:', phq, 'code:', code, 'total:', total, 'patents:', phJson?.patents?.length ?? 0, errMsg ? 'msg:' + errMsg : '')
-        }
-      } catch (e) {
-        patenthubStatus = `调用异常: ${e.message}`
-        console.error('[IP Risk] 专利汇 API 失败', e.message)
-      }
-    }
-    if (trademarkSearchTerms.length > 0) {
-      try {
-        const tq = `USPTO trademark ${trademarkSearchTerms[0]}`
-        const trademarkRes = await fetch(
-          `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(tq)}&api_key=${serpApiKey}`
-        )
-        if (trademarkRes.ok) trademarksData = await trademarkRes.json()
-      } catch (e) {
-        console.error('[IP Risk] SerpApi Google 商标检索失败', e.message)
-      }
-    }
 
-    // ── A：IP 角色版权专项检索 ───────────────────────────────────────────────────
-    let ipCopyrightData = null
+    // Lens、Google Patents、专利汇互不依赖，并行以降低深度查询总耗时
+    const [lensData, patentsData, patenthubOutcome] = await Promise.all([
+      (async () => {
+        try {
+          const lensRes = await fetch(
+            `https://serpapi.com/search.json?engine=google_lens&url=${encodeURIComponent(imageUrl)}&api_key=${serpApiKey}`
+          )
+          if (lensRes.ok) return await lensRes.json()
+        } catch (e) {
+          console.error('[IP Risk] SerpApi Google Lens 失败', e.message)
+        }
+        return null
+      })(),
+      fetchGooglePatentsMulti(serpApiKey, patentSearchTerms).catch((e) => {
+        console.error('[IP Risk] SerpApi Google Patents 失败', e.message)
+        return { organic_results: [], patent_queries_used: [] }
+      }),
+      fetchPatenthubIpRisk(patenthubToken, patenthubQueryTerms),
+    ])
+
+    const { patenthubData, patenthubStatus, patenthubCalled } = patenthubOutcome
+
     const ipCharacterQuery = ipCharacterNames.length > 0
       ? `${ipCharacterNames[0]} copyright owner intellectual property trademark`
       : ''
-    if (ipCharacterQuery) {
-      try {
-        const ipRes = await fetch(
-          `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(ipCharacterQuery)}&api_key=${serpApiKey}`
-        )
-        if (ipRes.ok) ipCopyrightData = await ipRes.json()
-      } catch (e) {
-        console.error('[IP Risk] IP 角色版权检索失败', e.message)
-      }
-    }
+
+    // 商标与 IP 角色检索互不依赖，并行
+    const [trademarksData, ipCopyrightData] = await Promise.all([
+      (async () => {
+        if (trademarkSearchTerms.length === 0) return null
+        try {
+          const tq = `USPTO trademark ${trademarkSearchTerms[0]}`
+          const trademarkRes = await fetch(
+            `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(tq)}&api_key=${serpApiKey}`
+          )
+          if (trademarkRes.ok) return await trademarkRes.json()
+        } catch (e) {
+          console.error('[IP Risk] SerpApi Google 商标检索失败', e.message)
+        }
+        return null
+      })(),
+      (async () => {
+        if (!ipCharacterQuery) return null
+        try {
+          const ipRes = await fetch(
+            `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(ipCharacterQuery)}&api_key=${serpApiKey}`
+          )
+          if (ipRes.ok) return await ipRes.json()
+        } catch (e) {
+          console.error('[IP Risk] IP 角色版权检索失败', e.message)
+        }
+        return null
+      })(),
+    ])
 
     deepResults = { lens: lensData, patents: patentsData, patenthub: patenthubData, trademarks: trademarksData, ipCopyright: ipCopyrightData }
 
     // ── B：从 Lens 结果中提取图片来源（版权溯源） ───────────────────────────────
     const lensSourceSummary = lensData?.visual_matches?.slice?.(0, 6)
       .filter((m) => m.link)
-      .map((m) => `${m.title || ''} - ${m.source || new URL(m.link).hostname} (${m.link})`)
+      .map((m) => {
+        let host = m.source || ''
+        if (!host && m.link) {
+          try {
+            host = new URL(m.link).hostname
+          } catch {
+            host = ''
+          }
+        }
+        return `${m.title || ''} - ${host} (${m.link})`
+      })
       .join('\n') || '（无来源数据）'
 
     const lensSummary =
       lensData?.visual_matches?.slice?.(0, 8).map((m) => `${m.title || ''} ${m.link || ''}`).join('\n') || '（无视觉匹配结果）'
-    const googlePatentLines = patentsData?.organic_results?.slice?.(0, 5).map((p) => `[Google Patents] ${p.title || ''} - ${p.link || ''}`) || []
-    const phPatentLines = patenthubData?.patents?.slice?.(0, 5).map((p) => `[专利汇] ${p.title || ''} (${p.id || ''}) - ${p.applicant || ''}`) || []
+    const googlePatentLines = patentsData?.organic_results?.slice?.(0, 10).map((p) => `[Google Patents] ${p.title || ''} - ${p.link || ''}`) || []
+    const phPatentLines =
+      patenthubData?.patents?.slice?.(0, 5).map((p) => {
+        const id = p.id || p.documentNumber || ''
+        const phLink = id ? `https://www.patenthub.cn/patent/${encodeURIComponent(id)}` : ''
+        return `[专利汇] ${p.title || ''} (${id}) — 查看：${phLink} — ${p.applicant || ''}`
+      }) || []
     const patentSummary =
       [...googlePatentLines, ...phPatentLines].length > 0
         ? [...googlePatentLines, ...phPatentLines].join('\n')
@@ -4229,6 +4437,11 @@ Rules: patentSearchTerms must be 3-5 specific English product/design terms for s
       : ipCharacterNames.length > 0 ? '（检索失败）' : '（图中未检测到已知 IP 角色/图案）'
 
     const synthesizePrompt = `你是一位跨境电商知识产权顾问。已有初步分析、Google Lens 视觉匹配与来源溯源、专利检索、商标检索，以及 IP 角色版权专项检索结果，请合成侵权风险报告。
+
+【判断规则 — 须严格遵守】
+1) 若「Google Lens 视觉匹配」中出现多条来自 Amazon、eBay、品牌官网、沃尔玛等电商或品牌站的同款或高度相似商品，外观设计风险至少为「中」；若高度雷同在售链接较多，overallLevel 不得评为「低」，应评为「中」或「高」并说明依据。
+2) 若专利检索结果中出现与该产品同品类、用途相近的美国外观专利（Design patent / USD 开头）或中国外观专利，即使标题文字与用户产品名不完全一致，也须在 patentRisk 中列为需关注项，并相应提高风险等级；不得因「未逐条比对权利要求」而写成无风险。
+3) 若专利检索无命中但 Lens 显示大量相似在售品，仍须在 patentRisk 中说明「关键词检索可能未覆盖全部相关专利」，建议人工或律师做 FTO。
 
 === 初步分析 ===
 ${quickReport || '（无）'}
@@ -4252,11 +4465,14 @@ ${ipCopyrightSummary}
 
 请严格输出一个 JSON 对象（仅此对象，不要 markdown 代码块、不要其他文字），包含以下字段，每个字段为字符串（可含换行）：
 - "trademarkRisk": 商标/Logo 风险（结合初析与商标检索结果，指出可能冲突或近似的商标及建议）
-- "patentRisk": **专利综合风险**（必须结构化输出，格式如下）：
-  ① 风险等级（高/中/低）+ 一句话结论
-  ② 美国专利（Google Patents）：是否有需关注的相关外观/设计专利？若有，列出 1～3 条关键专利（专利号+标题+简要风险点）
-  ③ 中国/全球专利（专利汇）：是否有需关注的相关专利？若有，列出 1～3 条关键专利（专利号+标题+申请人+简要风险点）
-  ④ 建议（如需规避、进一步检索、咨询律师等）
+- "patentRisk": 专利综合风险。【严格要求：本字段必须是纯文本字符串，禁止输出嵌套 JSON 对象或数组。按以下格式输出，各段之间空一行】
+  第一行：风险等级结论，格式为"高 - 一句话说明"或"中 - 一句话说明"或"低 - 一句话说明"
+  第二段标题：【美国专利（Google Patents）】
+  内容：若有命中，每条专利单独一行，格式为"- 专利号 标题 https://完整链接"（链接从上方专利检索结果中直接复制，勿改写）；若无命中则写"- 暂无命中"
+  第三段标题：【中国/全球专利（专利汇）】
+  内容：若有命中，每条专利单独一行，格式为"- 专利号 标题 申请人 https://www.patenthub.cn/patent/..."；若无命中则写"- 暂无命中"
+  第四段标题：【建议】
+  内容：规避方向、是否需要人工 FTO 检索或咨询律师等
 - "designRisk": 外观设计风险（结合初析与 Lens 视觉匹配结果，说明产品外观与网络相似商品的对比情况，是否需进一步规避；与专利风险区分：此处侧重「视觉相似性」）
 - "ipImageRisk": IP 形象/版权风险（结合 IP 角色专项检索结果，说明图中是否有受版权保护的角色或图案，版权持有方是谁）
 - "copyrightSourceRisk": 图片版权溯源（基于 Google Lens 来源追踪：该产品图片主要来自哪些渠道，是否有迹象表明图片本身来源于有版权限制的网站/摄影师作品/知名品牌官方资料；若无异常来源也请明确说明）
@@ -4298,7 +4514,10 @@ ${ipCopyrightSummary}
       if (existsSync(fp)) try { unlinkSync(fp) } catch (e) { console.error('[IP Risk] 删临时图失败', e.message) }
     }
 
-    const patentQuery = patentSearchTerms.slice(0, 2).join(' ')
+    const patentQuery =
+      patentsData?.patent_queries_used?.length > 0
+        ? patentsData.patent_queries_used.join(' | ')
+        : patentSearchTerms.slice(0, 2).join(' ')
     const trademarkQuery = trademarkSearchTerms.length > 0 ? `USPTO trademark ${trademarkSearchTerms[0]}` : ''
 
     // 按来源拆分的检索结果明细（便于用户区分各查询产出）
@@ -4312,9 +4531,17 @@ ${ipCopyrightSummary}
     if (patentsData?.organic_results?.length) {
       retrievalDetails.push({
         method: '专利检索',
-        service: 'Google Patents',
+        service: 'Google Patents（多组查询合并）',
         query: patentQuery || '（未获取到检索词）',
-        results: (patentsData.organic_results.slice(0, 5) || []).map((p) => ({ title: p.title || '', link: p.link || '' })),
+        results: (patentsData.organic_results.slice(0, 8) || []).map((p) => {
+          const link = (p.link || '').trim()
+          let id = (p.publication_number || p.publication_number_raw || '').trim()
+          if (!id && link) {
+            const m = link.match(/patents\.google\.com\/patent\/([^/?#]+)/i)
+            if (m) id = decodeURIComponent(m[1])
+          }
+          return { title: p.title || '', link, id: id || undefined }
+        }),
       })
     }
     if (patenthubCalled) {
@@ -4365,8 +4592,8 @@ ${ipCopyrightSummary}
         service: patenthubData ? 'Google Patents + 专利汇' : 'Google Patents',
         content: patentQuery || '（未获取到检索词）',
         purpose: patenthubData
-          ? 'Google Patents 主要检索美国专利；专利汇补充检索中国及全球专利库，覆盖更全面的外观/设计专利'
-          : '主要在美国专利库中检索相关外观/设计专利（也可能包含其他地区），辅助判断专利侵权风险',
+          ? '对同一批检索词发起多组 Google Patents 查询（含 design patent 等）并合并去重，提高外观专利命中率；专利汇补充中国及全球专利库'
+          : '对同一批检索词发起多组 Google Patents 查询并合并去重，辅助判断外观/设计专利风险（仍非穷尽检索）',
       },
     ]
     if (trademarkQuery) {
@@ -4386,12 +4613,21 @@ ${ipCopyrightSummary}
       })
     }
 
+    const patentLinks = buildIpRiskPatentLinks(patentsData, patenthubData)
+
     const payload = {
       mode: 'deep',
       pointsUsed: IP_RISK_DEEP_POINTS,
       newBalance,
       ipCharacterNames,
-      deepResults: { hasLens: !!lensData, hasPatents: !!patentsData, hasPatentHub: !!patenthubData, hasTrademarks: !!trademarksData, hasIpCopyright: !!ipCopyrightData },
+      patentLinks, // 结构化专利号/标题 + 官方网页链接，供前端直接展示
+      deepResults: {
+        hasLens: !!lensData,
+        hasPatents: !!(patentsData?.organic_results?.length > 0),
+        hasPatentHub: !!patenthubData,
+        hasTrademarks: !!trademarksData,
+        hasIpCopyright: !!ipCopyrightData,
+      },
       searchSummary,
       retrievalDetails, // 按来源拆分的检索结果，便于用户区分各查询产出
     }

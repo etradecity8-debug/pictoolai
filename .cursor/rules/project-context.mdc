@@ -58,6 +58,20 @@ alwaysApply: true
 - **1688 智能选品**：**已封存**（`AI_TOOLBOX_ENABLED = false`，`src/lib/featureFlags.js`）。原实现：DajiAPI 以图搜图；因 1688 以图搜图几乎无匹配而暂时关闭。代码与 API 保留，详见 KNOWN_ISSUES 1.1。
 - **一致性**：PROJECT-OVERVIEW、KNOWN_ISSUES、ECOMMERCE-AI-ASSISTANT 中侵权积分已统一为 20。
 
+## 近期大改（2026-04-03，不丢失记忆）
+
+- **浏览器扩展（Chromium MV3）**：目录 `browser-extension/`（`background.js`、`bridge.js`、`manifest.json`）。右键 **PicToolAI →** 7 子项：语言转换、文字替换、文字去除、一键换色、局部重绘、局部消除、智能扩图；打开 `SITE_ORIGIN/ai-designer/{toolId}?ext=1`；`SITE_ORIGIN` **默认应为** `https://pictoolai.studio`，本地开发改为 `http://localhost:5173`。站内 `AiDesigner` 扩展握手、`ExtensionReplaceButton` 替换原页 `<img>`；大图备选 `POST/GET /api/extension/prep-image`。**给客户用的安装与可复制说明**：`docs/BROWSER-EXTENSION.md` → **「客户试用说明」**；`browser-extension/README.md` 顶部指向该节。上架与权限说明见 `browser-extension/README.md`「打包上架」。
+- **AI 美工侧栏**：已去掉灰色占位分类；**「水印」** 大类下含 **添加水印** + **去除水印**（`/ai-designer/watermark-remove` 仍走 `ImageEdit`）；**官方示例** 为 **7 种** ImageEdit 模式（不含去水印）。**风格复刻** `StyleClone` 已支持 `initialImageFromGallery`（仓库带图进产品素材）。**图库**「用AI编辑」分组与侧栏一致。
+
+## 近期大改（2026-04，侵权风险检测 `/ip-risk` 强化，不丢失记忆）
+
+- **后端** `server/index.js`：`POST /api/ai-assistant/ip-risk-check` 深度模式 — **`fetchGooglePatentsMulti`**：前 3 词组合 1 次 + 每个检索词 `"词" design patent` 各 1 次，去重后 **`slice(0, 5)`** 控制 SerpApi 用量，结果 `mergePatentOrganicResults` 合并去重；剔除泛词 **`GENERIC_PATENT_TERMS`**，过滤 **>3 词** 长句；**`expandPatentSynonyms`**（`PATENT_SYNONYM_PAIRS`）扩展后总词表最多 10 个；泛词仍全占时 **纯图二次 Gemini** 抽词；**Lens、专利汇** 与 Patents 第一批 `Promise.all`；**商标**（`USPTO trademark ${trademarkSearchTerms[0]}`）与 **IP 角色版权** 第二批 `Promise.all`（均 SerpApi `engine=google`，按需触发）。
+- **深度响应**：**`patentLinks`** — `buildIpRiskPatentLinks`；**`retrievalDetails`**；综合报告 **`synthesizePrompt`** 要求 **`patentRisk` 为纯文本**，按 Markdown 列表行写专利与 URL；**`ensureSectionString`** 若 AI 仍返回嵌套对象则格式化为可读文本（含列表行 `-`）。
+- **前端** `src/pages/IpRisk.jsx`：**`linkifyUrls`** 将正文裸 URL 转为 `[url](url)` 供 ReactMarkdown 可点击；**「相关专利文献」** 卡片；**`isHigh`**：`高` 或 `中高` 红色警告图标。
+- **SerpApi 次数（与文档一致）**：深度单次约 **3～8** 次（Lens 1 + Patents 2～5 + 可选商标 1 + 可选 IP 1）；专利汇为独立 HTTP。
+- **文档** `docs/IP-RISK.md`：流程图、**4.5** SerpApi 表、第十节漏检、第十二节免责（关键词检索非 FTO）；**局限**：专利命中依赖 AI 词与公开库，**不能替代专业 FTO**。
+- **定位**：产品侧可继续把本模块视为**上架前粗筛**；若后续下线或弱化入口，以业务决策为准，技术说明仍以 `docs/IP-RISK.md` 为准。
+
 ## 近期大改（2026-03-23，不丢失记忆）
 
 - **管理后台**：备注列显示真实内容；「编辑备注」按钮在操作列；操作按钮（冻结/编辑备注/充值/流水/删除）单行 flex-nowrap；可拖拽调节列宽（localStorage `pictoolai_admin_col_widths`）；按余额/已消耗/到期/注册时间排序；用户冻结（`users.frozen`、`PATCH /api/admin/users/:email/freeze`）；冻结用户登录 403 + 前端琥珀色提示；仅普通用户可冻结。
@@ -72,7 +86,7 @@ alwaysApply: true
 - **修改图片**（`ImageEdit`，路由为 `/ai-designer/:modeId`）：**10 种**模式——添加/移除元素、局部重绘、风格迁移、高级合成（多图）、高保真细节保留、让草图变生动、角色一致性360°、文字替换、语言转换、去除水印。后端接口 `/api/image-edit` 含重试逻辑（Pro/Nano2 最多3次）。每种模式顶部有真实 before→after 可视化示例（`ModeDemo` 组件）。修改后图片自动入图库，显示积分消耗，支持从仓库选图（`GalleryThumb` 组件 fetch+blob URL 认证加载）。
 - **亚马逊 A+ 详情页**（`/amazon-aplus`）：**暂不实现**。代码与接口仍在（4步流程、`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate`），但导航已隐藏，不对用户开放。详见 `docs/KNOWN_ISSUES.md`。
 - **导航栏**：当前显示「**通用电商生图**」「AI美工」「电商AI运营助手」「**侵权风险检测**」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「**AI 电商工具箱**」（智能选品已封存）「服装组图」「万能画布」。
-- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测已独立**为顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；深度查询（SerpApi：Google Lens+来源溯源、Google Patents、商标检索、IP 角色版权检索，20 积分）；**可选专利汇**（`PATENTHUB_TOKEN`）补充中国+全球专利检索。专利检索词：AI 输出英文（patentSearchTerms）用于 Google Patents，中文（patentSearchTermsZH，可选）用于专利汇；用户填中/英文均可。报告含 copyrightSourceRisk（图片版权溯源）。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。服务构成与费用、客户沟通话术见 `docs/IP-RISK.md`。
+- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测已独立**为顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；深度查询（约 **3～8** 次 SerpApi：Lens、Google Patents 多组、按需商标与 IP 角色检索，20 积分）；**可选专利汇**（`PATENTHUB_TOKEN`）独立 HTTP；正文 **`linkifyUrls`** 使报告 URL 可点。专利检索词：AI 输出英文（patentSearchTerms）用于 Google Patents，中文（patentSearchTermsZH，可选）用于专利汇；用户填中/英文均可。报告含 copyrightSourceRisk（图片版权溯源）。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。服务构成与费用、客户沟通话术见 `docs/IP-RISK.md`。
 - **亚马逊 Listing 工具链**：
   - **优化 Listing**：诊断+一键优化（A9/Cosmo/Rufus/GEO 四维度），不扣积分。双语诊断报告（原文/中文切换）；合规自检 9 大类（error/warning/info 三级）。
   - **A/B 文案变体**：优化/生成 Listing 结果区可点「生成 A/B 变体」，后端 `/api/ai-assistant/amazon/generate-variants`，生成 2-3 套不同策略角度文案，Tab 切换对比，不扣积分。

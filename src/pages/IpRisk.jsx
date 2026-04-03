@@ -3,6 +3,13 @@ import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { useAuth } from '../context/AuthContext'
 
+// 把正文里的裸 URL 转成 Markdown 链接格式，让 ReactMarkdown 可以渲染为可点击链接
+// 跳过已经在 [text](url) 或 <url> 格式中的 URL，避免双重转换
+function linkifyUrls(text) {
+  if (!text || typeof text !== 'string') return text
+  return text.replace(/(?<!\]\()https?:\/\/[^\s)\]>"']+/g, (url) => `[${url}](${url})`)
+}
+
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -103,7 +110,7 @@ export default function IpRisk() {
         {/* 页头 */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-900">侵权风险检测</h1>
-          <p className="text-sm text-gray-500 mt-0.5">上传产品图与说明，AI 分析商标/专利/外观设计/IP 形象/图片版权风险，出具结构化分组报告（深度查询含 Google Patents + 专利汇 多库专利检索）</p>
+          <p className="text-sm text-gray-500 mt-0.5">上传产品图与说明，AI 分析商标/专利/外观设计/IP 形象/图片版权风险，出具结构化分组报告。上架、备货前若需尽量发现侵权隐患，请优先使用「深度查询」（含以图搜图 + 多组专利库检索）；免费快筛未连外部专利库，漏检更多。</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
@@ -243,6 +250,41 @@ export default function IpRisk() {
                 )}
               </div>
 
+              {result.mode === 'deep' && Array.isArray(result.patentLinks) && result.patentLinks.length > 0 && (
+                <div className="rounded-xl border border-indigo-200 bg-white overflow-hidden shadow-sm">
+                  <div className="px-4 py-2.5 bg-indigo-50/90 border-b border-indigo-100">
+                    <h4 className="text-sm font-semibold text-gray-900">相关专利文献（可点击打开）</h4>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      系统从 Google Patents / 专利汇 检索结果中提取的公开链接，便于您直接核对专利号与全文；与下方文字报告互为补充。
+                    </p>
+                  </div>
+                  <ul className="divide-y divide-gray-100">
+                    {result.patentLinks.map((pl, i) => (
+                      <li key={i} className="px-4 py-3 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[11px] uppercase tracking-wide text-indigo-600 font-medium">{pl.source}</span>
+                          <div className="text-gray-900 font-medium mt-0.5 leading-snug">{pl.title || '—'}</div>
+                          {pl.number && (
+                            <div className="text-xs text-gray-600 font-mono mt-1 break-all">{pl.number}</div>
+                          )}
+                          {pl.applicant && <div className="text-xs text-gray-500 mt-0.5">{pl.applicant}</div>}
+                        </div>
+                        {pl.url && (
+                          <a
+                            href={pl.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-medium hover:bg-gray-800"
+                          >
+                            在浏览器中打开
+                          </a>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {result.mode === 'deep' && result.searchSummary && result.searchSummary.length > 0 && (
                 <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                   <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -348,7 +390,7 @@ export default function IpRisk() {
                     let restContent = riskMatch ? content.slice(riskMatch[0].length).trim() : content
                     // 去除 AI 输出中多余的开头片段（标题已含「xxx风险」，正文勿重复；「等。」多为截断残片）
                     restContent = restContent.replace(/^(风险[。：、\s]+)/, '').replace(/^(等[。、\s]+)/, '').trim()
-                    const isHigh = level === '高'
+                    const isHigh = level === '高' || level === '中高'
                     return (
                       <div key={key} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                         <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
@@ -367,7 +409,9 @@ export default function IpRisk() {
                           </h4>
                         </div>
                         <div className="p-4 prose prose-sm max-w-none text-gray-700">
-                          <ReactMarkdown remarkPlugins={[remarkBreaks]}>{level ? (restContent || '—') : content}</ReactMarkdown>
+                          <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+                            {linkifyUrls(level ? (restContent || '—') : content)}
+                          </ReactMarkdown>
                         </div>
                       </div>
                     )
