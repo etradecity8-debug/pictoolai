@@ -60,7 +60,7 @@ alwaysApply: true
 
 ## 近期大改（2026-04-03，不丢失记忆）
 
-- **浏览器扩展（Chromium MV3）**：目录 `browser-extension/`（`background.js`、`bridge.js`、`manifest.json`）。右键 **PicToolAI →** 7 子项：语言转换、文字替换、文字去除、一键换色、局部重绘、局部消除、智能扩图；打开 `SITE_ORIGIN/ai-designer/{toolId}?ext=1`；`SITE_ORIGIN` **默认应为** `https://pictoolai.studio`，本地开发改为 `http://localhost:5173`。站内 `AiDesigner` 扩展握手、`ExtensionReplaceButton` 替换原页 `<img>`；大图备选 `POST/GET /api/extension/prep-image`。**给客户用的安装与可复制说明**：`docs/BROWSER-EXTENSION.md` → **「客户试用说明」**；`browser-extension/README.md` 顶部指向该节。上架与权限说明见 `browser-extension/README.md`「打包上架」。
+- **浏览器扩展（Chromium MV3，v1.0.6）**：目录 `browser-extension/`（`background.js`、`bridge.js`、`manifest.json`）。右键 **PicToolAI →** 7 AI美工直接项（语言转换、文字替换、文字去除、一键换色、局部重绘、局部消除、智能扩图）+ **通用电商生图** 子菜单组（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图，共 5 项）。AI美工各项打开 `SITE_ORIGIN/ai-designer/{toolId}?ext=1`；通用电商生图各项打开 `SITE_ORIGIN/detail-set?ext=1`，toolId 以 `detail-set-` 开头。`SITE_ORIGIN` **默认应为** `https://pictoolai.studio`，本地开发改为 `http://localhost:5173`。站内 `AiDesigner` 与 **`DetailSet`** 均实现扩展握手（两段 useEffect：Step1 同步握手写 extImport state；Step2 带 cancelled 的 async 转图）、`ExtensionReplaceButton` 替换原页 `<img>`（`DetailSet` 步骤 5 每张生成图旁）；大图备选 `POST/GET /api/extension/prep-image`。**给客户用的安装与可复制说明**：`docs/BROWSER-EXTENSION.md` → **「客户试用说明」**；上架与权限说明见 `browser-extension/README.md`「打包上架」。
 - **AI 美工侧栏**：已去掉灰色占位分类；**「水印」** 大类下含 **添加水印** + **去除水印**（`/ai-designer/watermark-remove` 仍走 `ImageEdit`）；**官方示例** 为 **7 种** ImageEdit 模式（不含去水印）。**风格复刻** `StyleClone` 已支持 `initialImageFromGallery`（仓库带图进产品素材）。**图库**「用AI编辑」分组与侧栏一致。
 
 ## 近期大改（2026-04，侵权风险检测 `/ip-risk` 强化，不丢失记忆）

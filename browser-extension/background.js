@@ -4,7 +4,7 @@
  */
 const SITE_ORIGIN = 'https://pictoolai.studio'
 
-/** [menuId, 子菜单标题, ai-designer 路由 toolId] */
+/** [menuId, 子菜单标题, toolId]（AI 美工直接项） */
 const CONTEXT_MENU_ENTRIES = [
   ['pictoolai-text-translate', '语言转换', 'text-translate'],
   ['pictoolai-text-replace', '文字替换', 'text-replace'],
@@ -15,9 +15,22 @@ const CONTEXT_MENU_ENTRIES = [
   ['pictoolai-smart-expansion', '智能扩图', 'smart-expansion'],
 ]
 
-const MENU_TO_TOOL = Object.fromEntries(
-  CONTEXT_MENU_ENTRIES.map(([id, , tool]) => [id, tool])
-)
+/**
+ * 通用电商生图子菜单（嵌套在 pictoolai-detail-set-group 下）。
+ * toolId 以 detail-set- 开头，DetailSet.jsx 根据后缀预设对应图片类型与张数。
+ */
+const DETAIL_SET_ENTRIES = [
+  ['pictoolai-detail-set-main',         '白底主图',  'detail-set-main'],
+  ['pictoolai-detail-set-closeup',       '特写图',    'detail-set-closeup'],
+  ['pictoolai-detail-set-sellingpoint',  '卖点图',    'detail-set-sellingpoint'],
+  ['pictoolai-detail-set-scene',         '场景图',    'detail-set-scene'],
+  ['pictoolai-detail-set-interaction',   '交互图',    'detail-set-interaction'],
+]
+
+const MENU_TO_TOOL = {
+  ...Object.fromEntries(CONTEXT_MENU_ENTRIES.map(([id, , tool]) => [id, tool])),
+  ...Object.fromEntries(DETAIL_SET_ENTRIES.map(([id, , tool]) => [id, tool])),
+}
 
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -93,12 +106,17 @@ function installContextMenus() {
       contexts: ['image'],
     })
     for (const [id, title] of CONTEXT_MENU_ENTRIES) {
-      chrome.contextMenus.create({
-        id,
-        parentId: 'pictoolai-root',
-        title,
-        contexts: ['image'],
-      })
+      chrome.contextMenus.create({ id, parentId: 'pictoolai-root', title, contexts: ['image'] })
+    }
+    // 通用电商生图：嵌套子菜单
+    chrome.contextMenus.create({
+      id: 'pictoolai-detail-set-group',
+      parentId: 'pictoolai-root',
+      title: '通用电商生图',
+      contexts: ['image'],
+    })
+    for (const [id, title] of DETAIL_SET_ENTRIES) {
+      chrome.contextMenus.create({ id, parentId: 'pictoolai-detail-set-group', title, contexts: ['image'] })
     }
   })
 }
@@ -167,7 +185,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     return
   }
 
-  const url = `${SITE_ORIGIN}/ai-designer/${encodeURIComponent(toolId)}?ext=1`
+  const url = String(toolId).startsWith('detail-set')
+    ? `${SITE_ORIGIN}/detail-set?ext=1`
+    : `${SITE_ORIGIN}/ai-designer/${encodeURIComponent(toolId)}?ext=1`
   const created = await chrome.tabs.create({ url })
   if (created?.id != null) {
     setupPicToolTab(created.id, savedPayload)

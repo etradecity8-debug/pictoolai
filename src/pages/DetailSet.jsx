@@ -1,13 +1,50 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { getClarityOptionsForModel, resolveClarityForModel } from '../lib/clarityByModel'
 import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectByModel'
 import { getPointsPerImage } from '../lib/pointsConfig'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 import ImageLightbox from '../components/ImageLightbox'
+import {
+  EXT_DOM_IMPORT_EVENT,
+  EXT_MSG_SOURCE,
+  EXT_MSG_IMPORT,
+  EXT_WEB_SOURCE,
+  EXT_IMPORT_ACK,
+  EXT_REQUEST_IMPORT,
+} from '../lib/extensionBridgeConstants'
+import { requestReplaceOnOriginalPage } from '../lib/extensionReplace'
+
+/** React Strict Mode 双重挂载时，ACK 会清空 storage，用模块缓存保留本次导入 */
+let detailSetExtImportCache = null
+
+/**
+ * 扩展 toolId → 图片类型
+ * 与 background.js DETAIL_SET_ENTRIES 的 toolId 对应；未识别时回落到 main。
+ */
+const TYPE_FROM_TOOL_ID = {
+  'detail-set':               'main',
+  'detail-set-main':          'main',
+  'detail-set-closeup':       'closeup',
+  'detail-set-sellingpoint':  'sellingpoint',
+  'detail-set-scene':         'scene',
+  'detail-set-interaction':   'interaction',
+}
+
+/**
+ * 把扩展传入的 base64 data URL 转换为 { file, dataUrl } 产品图槽位。
+ * dataUrl 用 createObjectURL，与 handleFileChange 保持一致（file 供后续压缩用）。
+ */
+async function dataUrlToProductSlot(base64DataUrl) {
+  const res = await fetch(base64DataUrl)
+  const blob = await res.blob()
+  const file = new File([blob], 'extension-input.jpg', { type: blob.type || 'image/jpeg' })
+  const objectUrl = URL.createObjectURL(file)
+  return { file, dataUrl: objectUrl }
+}
 
 const STEPS = [
   { id: 1, label: '输入' },
@@ -210,10 +247,103 @@ export default function DetailSet() {
   /** 自定义确认弹窗（不显示 localhost，字体可调大） */
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null })
   const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
+  /** 扩展来源信息，用于步骤 5「替换原网页图片」；仅从扩展进入时有值 */
+  const [extensionMeta, setExtensionMeta] = useState(null)
 
   /** 分析首次返回的原始内容（只在 runAnalyze 成功时写入，用户编辑不会覆盖），重置时恢复到此状态 */
   const originalDesignSpecRef = useRef('')
   const originalImagePlanRef = useRef([])
+
+  // ── 浏览器扩展握手（完全对齐 AiDesigner.jsx 已验证模式）──────────────────────
+  const [searchParams] = useSearchParams()
+  const extMode = searchParams.get('ext') === '1'
+  const lastAppliedExtImportKey = useRef(null)
+  /** 扩展传入的原始 payload（同步存入 state，由下方独立 useEffect 做 async 转换） */
+  const [extImport, setExtImport] = useState(null)
+
+  // Step 1：与 bridge.js 握手，payload 同步写入 extImport state（不做任何 async 操作）
+  useEffect(() => {
+    if (!extMode) {
+      detailSetExtImportCache = null
+      lastAppliedExtImportKey.current = null
+      return
+    }
+    // Strict Mode 第二次挂载：cache 已由第一次挂载的事件处理填充，直接 replay
+    if (detailSetExtImportCache) {
+      lastAppliedExtImportKey.current = `${detailSetExtImportCache.ts ?? 0}|${String(detailSetExtImportCache.dataUrl).slice(0, 80)}`
+      setExtImport(detailSetExtImportCache)
+    }
+    function applyImportPayload(payload) {
+      if (!payload?.dataUrl || !String(payload.toolId || '').startsWith('detail-set')) return
+      const key = `${payload.ts ?? 0}|${String(payload.dataUrl).slice(0, 80)}`
+      if (lastAppliedExtImportKey.current === key) return
+      lastAppliedExtImportKey.current = key
+      detailSetExtImportCache = payload
+      setExtImport(payload)
+      window.postMessage({ source: EXT_WEB_SOURCE, type: EXT_IMPORT_ACK }, '*')
+    }
+    function onDomImport(ev) { applyImportPayload(ev.detail) }
+    function onMsg(ev) {
+      if (ev.data?.source !== EXT_MSG_SOURCE || ev.data?.type !== EXT_MSG_IMPORT) return
+      applyImportPayload(ev.data.payload)
+    }
+    window.addEventListener(EXT_DOM_IMPORT_EVENT, onDomImport)
+    window.addEventListener('message', onMsg)
+    window.postMessage({ source: EXT_WEB_SOURCE, type: EXT_REQUEST_IMPORT }, '*')
+    return () => {
+      window.removeEventListener(EXT_DOM_IMPORT_EVENT, onDomImport)
+      window.removeEventListener('message', onMsg)
+    }
+  }, [extMode])
+
+  // Step 2：extImport 变化后做 async 转换并更新各 state（带 cancelled 防 Strict Mode 竞态）
+  useEffect(() => {
+    if (!extImport?.dataUrl) return
+    let cancelled = false
+
+    // extensionMeta 同步设置（不依赖 async）
+    setExtensionMeta(
+      extImport.targetTabId != null && extImport.targetUuid
+        ? { targetTabId: extImport.targetTabId, targetUuid: extImport.targetUuid }
+        : null
+    )
+
+    // 根据 toolId 预设图片类型与张数
+    const imgType = TYPE_FROM_TOOL_ID[extImport.toolId] || 'main'
+    setMainImageCount(         imgType === 'main'          ? 1 : 0)
+    setCloseUpImageCount(      imgType === 'closeup'       ? 1 : 0)
+    setSellingPointImageCount( imgType === 'sellingpoint'  ? 1 : 0)
+    setSceneImageCount(        imgType === 'scene'         ? 1 : 0)
+    setInteractionImageCount(  imgType === 'interaction'   ? 1 : 0)
+    setCloseUpDescs(      imgType === 'closeup'      ? [''] : [])
+    setSellingPointDescs( imgType === 'sellingpoint' ? [''] : [])
+    setSceneDescs(        imgType === 'scene'        ? [''] : [])
+    setInteractionDescs(  imgType === 'interaction'  ? [''] : [])
+
+    // 重置分析/生成状态
+    setStep(1)
+    setDesignSpecMarkdown('')
+    setImagePlan([])
+    setGeneratedImages([])
+    setAnalyzeError('')
+    setGenerateError('')
+    originalDesignSpecRef.current = ''
+    originalImagePlanRef.current = []
+
+    // async 转换图片（cancelled 防止 Strict Mode 双挂载时旧 promise 污染）
+    dataUrlToProductSlot(extImport.dataUrl)
+      .then(slot => {
+        if (cancelled) return
+        setProductImages(prev => {
+          prev.forEach(item => item.dataUrl && URL.revokeObjectURL(item.dataUrl))
+          return [slot]
+        })
+      })
+      .catch(() => {})
+
+    return () => { cancelled = true }
+  }, [extImport?.dataUrl])
+  // ── 扩展握手结束 ─────────────────────────────────────────────────────────────
 
   const handleModelChange = (newModel) => {
     setModel(newModel)
@@ -1109,6 +1239,29 @@ export default function DetailSet() {
                         </svg>
                         保存到本地
                       </button>
+                      {extensionMeta?.targetTabId && extensionMeta?.targetUuid && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(img.url)
+                              const blob = await res.blob()
+                              const dataUrl = await new Promise((resolve) => {
+                                const reader = new FileReader()
+                                reader.onload = () => resolve(reader.result)
+                                reader.readAsDataURL(blob)
+                              })
+                              requestReplaceOnOriginalPage(dataUrl, extensionMeta)
+                            } catch (_) {}
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/60 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100/80"
+                        >
+                          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          替换原网页图片
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

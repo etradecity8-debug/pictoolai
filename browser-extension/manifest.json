@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PicToolAI",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "右键网页图片，使用 PicToolAI 编辑并在原页替换。",
   "permissions": ["contextMenus", "storage", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
