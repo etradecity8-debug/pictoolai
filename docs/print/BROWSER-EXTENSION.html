@@ -40,10 +40,15 @@
 </style>
 </head>
 <body>
-  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/4</div>
+  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/5</div>
   <h1>浏览器扩展（PicToolAI 修图）</h1>
 <h2>作用</h2>
-<p>在任意网页对 <code>&lt;img&gt;</code> 右键：<strong>PicToolAI → 子菜单</strong>，抓取图片、压缩后写入扩展存储，新开 <code>pictoolai.studio</code> 对应 AI 美工路由并带图进入；生成结果可 <strong>替换原网页图片</strong>（仅本机 DOM，不改对方服务器）。</p>
+<p>在任意网页对 <code>&lt;img&gt;</code> 右键：<strong>PicToolAI → 子菜单</strong>，抓取图片、压缩后写入扩展存储，新开 <code>pictoolai.studio</code> 对应页面并带图进入：</p>
+<ul>
+<li><strong>AI 美工</strong>各功能（语言转换、局部重绘等）→ <code>/ai-designer/:toolId?ext=1</code></li>
+<li><strong>通用电商生图</strong>（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）→ <code>/detail-set?ext=1</code></li>
+</ul>
+<p>生成结果请在 PicToolAI 内 <strong>保存到本地</strong>（或从仓库下载），再上传到电商平台 / ERP（如店小秘）；<strong>不会</strong>自动写回对方后台。</p>
 <hr>
 <h2>客户试用说明（运营向）</h2>
 <p>发给客户前，请自行确认：<strong>网站已部署含扩展握手的新代码</strong>、<code>browser-extension/background.js</code> 中 <code>SITE_ORIGIN</code> 为 <strong><code>https://pictoolai.studio</code></strong>（本地调试才用 <code>http://localhost:5173</code>）。打包给客户时：将 <strong><code>browser-extension</code> 文件夹</strong>打成 zip，<strong>解压后第一层可见 <code>manifest.json</code></strong>（不要多包一层空目录）。</p>
@@ -60,8 +65,12 @@
 </ul>
 </li>
 <li><strong>登录网站</strong>：新开标签页打开 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong> ，使用 PicToolAI 账号<strong>登录</strong>（扩展会打开本站；未登录无法正常使用生图与扣费）。</li>
-<li><strong>使用</strong>：在任意网页的<strong>图片上</strong>单击右键 → 点 <strong>「PicToolAI」</strong> → 再点<strong>下面某一子项</strong>（如「语言转换」「局部重绘」等）。<strong>不要只点父菜单「PicToolAI」</strong>，必须再选一级子菜单。  </li>
-<li>处理完成后，若需要可将结果 <strong>替换原网页上的那张图</strong>（仅影响当前浏览器标签页显示；电商平台后台上架需自行上传新图）。</li>
+<li><strong>使用</strong>：在任意网页的<strong>图片上</strong>单击右键 → 点 <strong>「PicToolAI」</strong> → 再点<strong>下面某一子项</strong>（如「语言转换」「局部重绘」，或「通用电商生图 → 白底主图」等）。<strong>不要只点父菜单「PicToolAI」</strong>，必须再选一级子菜单。  <ul>
+<li><strong>AI 美工类</strong>功能（语言转换、局部重绘等）：图片自动带入，直接操作即可。  </li>
+<li><strong>通用电商生图类</strong>（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）：图片自动带入，还需<strong>填写产品名称</strong>（特写图、卖点图、场景图、交互图还需填写对应描述），填完后点「分析产品」，步骤 5 可 <strong>保存到本地</strong> 后自行上传至 ERP / 平台后台。</li>
+</ul>
+</li>
+<li>上架用图请以各平台 / ERP <strong>后台实际上传的文件</strong>为准；扩展仅缩短「网页上的图 → 带进 PicToolAI」的路径。</li>
 </ol>
 <h3>常见问题（指导客户时对照）</h3>
 <table>
@@ -77,11 +86,19 @@
 </tr>
 <tr>
 <td>点了没反应</td>
-<td>是否只点了父级「PicToolAI」？必须再点<strong>子项</strong>（如「一键换色」）。</td>
+<td>是否只点了父级「PicToolAI」或「通用电商生图」？必须点到<strong>最终子项</strong>（如「一键换色」「白底主图」）。</td>
 </tr>
 <tr>
 <td>打开页面没有图</td>
 <td>请先在本站 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong> 登录后再从别的网页右键试。</td>
+</tr>
+<tr>
+<td>通用电商生图页面图片区空白</td>
+<td>图片载入需要 1~2 秒；若仍为空，可点「上传图片」手动上传。</td>
+</tr>
+<tr>
+<td>通用电商生图无法点「分析产品」</td>
+<td>白底主图只需填产品名称；特写图 / 卖点图 / 场景图 / 交互图还需在对应描述框填写内容后才能分析。</td>
 </tr>
 <tr>
 <td>个别网站图抓不了</td>
@@ -105,11 +122,15 @@
 </tr>
 <tr>
 <td><code>bridge.js</code></td>
-<td>读 <code>pictoolai_pending</code>、向页面发 <code>PICTOOLAI_IMPORT</code>、处理 ACK 清存储、转发「替换原页」到 background</td>
+<td>读 <code>pictoolai_pending</code>、向页面发 <code>PICTOOLAI_IMPORT</code>、处理 ACK 清存储</td>
 </tr>
 <tr>
 <td><code>AiDesigner.jsx</code>（<code>?ext=1</code>）</td>
 <td>模块级 <code>extensionImportPayloadCache</code>（应对 Strict Mode + ACK 清空 storage）、<code>lastAppliedExtImportKey</code> 去重（避免 MAIN 与 <code>message</code> 双投递重复 setState）、<code>extensionForTool</code> 与各子页 props</td>
+</tr>
+<tr>
+<td><code>DetailSet.jsx</code>（<code>?ext=1</code>）</td>
+<td>模块级 <code>detailSetExtImportCache</code> + 两段 useEffect（Step 1 同步握手写 <code>extImport</code> state；Step 2 带 <code>cancelled</code> 的 async 转图，按 toolId 预设对应类型张数）</td>
 </tr>
 <tr>
 <td>大图备选</td>
@@ -118,47 +139,86 @@
 </tbody></table>
 <p>本地开发将 <code>browser-extension/background.js</code> 顶部 <code>SITE_ORIGIN</code> 改为 <code>http://localhost:5173</code>；<strong>默认仓库值为线上</strong> <code>https://pictoolai.studio</code>。</p>
 <h2>右键菜单与路由（toolId）</h2>
-<p>当前子菜单与 <code>/ai-designer/:toolId</code> 对应关系：</p>
+<p>当前子菜单对应关系（<code>PicToolAI &gt;</code> 父菜单下）：</p>
 <table>
 <thead>
 <tr>
 <th>子菜单</th>
-<th>toolId</th>
+<th>打开路由</th>
+<th>说明</th>
 </tr>
 </thead>
 <tbody><tr>
 <td>语言转换</td>
-<td><code>text-translate</code>（<code>ImageEdit</code>）</td>
+<td><code>/ai-designer/text-translate?ext=1</code></td>
+<td><code>ImageEdit</code></td>
 </tr>
 <tr>
 <td>文字替换</td>
-<td><code>text-replace</code></td>
+<td><code>/ai-designer/text-replace?ext=1</code></td>
+<td><code>ImageEdit</code></td>
 </tr>
 <tr>
 <td>文字去除</td>
-<td><code>text-remove</code>（<code>LocalErase</code> variant）</td>
+<td><code>/ai-designer/text-remove?ext=1</code></td>
+<td><code>LocalErase</code> variant</td>
 </tr>
 <tr>
 <td>一键换色</td>
-<td><code>one-click-recolor</code></td>
+<td><code>/ai-designer/one-click-recolor?ext=1</code></td>
+<td><code>OneClickRecolor</code></td>
 </tr>
 <tr>
 <td>局部重绘</td>
-<td><code>local-redraw</code></td>
+<td><code>/ai-designer/local-redraw?ext=1</code></td>
+<td><code>LocalRedraw</code></td>
 </tr>
 <tr>
 <td>局部消除</td>
-<td><code>local-erase</code></td>
+<td><code>/ai-designer/local-erase?ext=1</code></td>
+<td><code>LocalErase</code></td>
 </tr>
 <tr>
 <td>智能扩图</td>
-<td><code>smart-expansion</code></td>
+<td><code>/ai-designer/smart-expansion?ext=1</code></td>
+<td><code>SmartExpansion</code></td>
+</tr>
+<tr>
+<td><strong>通用电商生图 ▶</strong>（子菜单组）</td>
+<td>—</td>
+<td>以下 5 项均打开 <code>/detail-set?ext=1</code>，带入产品图并预设对应类型 × 1；需填产品名称（+ 描述）后点分析</td>
+</tr>
+<tr>
+<td>└ 白底主图</td>
+<td><code>/detail-set?ext=1</code> toolId=<code>detail-set-main</code></td>
+<td>无需额外描述，填产品名即可分析</td>
+</tr>
+<tr>
+<td>└ 特写图</td>
+<td><code>/detail-set?ext=1</code> toolId=<code>detail-set-closeup</code></td>
+<td>需填 1 条特写细节描述</td>
+</tr>
+<tr>
+<td>└ 卖点图</td>
+<td><code>/detail-set?ext=1</code> toolId=<code>detail-set-sellingpoint</code></td>
+<td>需填 1 条卖点描述</td>
+</tr>
+<tr>
+<td>└ 场景图</td>
+<td><code>/detail-set?ext=1</code> toolId=<code>detail-set-scene</code></td>
+<td>需填 1 条场景描述</td>
+</tr>
+<tr>
+<td>└ 交互图</td>
+<td><code>/detail-set?ext=1</code> toolId=<code>detail-set-interaction</code></td>
+<td>需填 1 条交互描述</td>
 </tr>
 </tbody></table>
+<p>步骤 5 生成结果：每张图旁 <strong>保存到本地</strong>；上架请在 ERP / 平台后台上传该文件。</p>
 <h2>AI 美工：哪些适合扩展、哪些需额外改造</h2>
-<p><strong>已接入扩展带图 + 结果区「替换原网页」</strong>（或 <code>ImageEdit</code> 内统一按钮）：上表工具 + 修改图片各模式（<code>IMAGE_EDIT_MODE_IDS</code>）。</p>
+<p><strong>已接入扩展菜单带图</strong>：上表 7 项工具 + 修改图片各模式（<code>IMAGE_EDIT_MODE_IDS</code>，通过 <code>ImageEdit</code> 进入）。</p>
 <p><strong>可带图、界面本身有上传/选库</strong>：多数「图片编辑」「质量提升」子页；扩展写入后与「上传/作品库」等价。</p>
-<p><strong>暂未接入扩展菜单、可后续加</strong>（需在各页补 <code>initialExtensionImage</code> / <code>extensionMeta</code> 与 <code>ExtensionReplaceButton</code>，与 <code>LocalRedraw</code> 同模式）：<code>product-refinement</code>、<code>scene-generation</code>、<code>add-person-object</code>、<code>clothing-3d</code>、<code>clothing-flatlay</code>、<code>body-shape</code>、<code>style-change</code>、<code>watermark-add</code>、<code>watermark-remove</code>（侧栏「水印」分类）等。</p>
+<p><strong>暂未接入扩展菜单、可后续加</strong>（需在各页补 <code>initialExtensionImage</code>，与 <code>LocalRedraw</code> 同模式）：<code>product-refinement</code>、<code>scene-generation</code>、<code>add-person-object</code>、<code>clothing-3d</code>、<code>clothing-flatlay</code>、<code>body-shape</code>、<code>style-change</code>、<code>watermark-add</code>、<code>watermark-remove</code>（侧栏「水印」分类）等。</p>
 <p><strong>需较大改造或不适合一键右键</strong>：</p>
 <ul>
 <li><strong>风格复刻</strong>（<code>StyleClone</code>）：独立全页流程，无与其它页一致的「单图上传槽」；若要支持需单独设计入口与状态。</li>

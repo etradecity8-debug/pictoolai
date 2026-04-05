@@ -16,7 +16,6 @@ import {
   EXT_IMPORT_ACK,
   EXT_REQUEST_IMPORT,
 } from '../lib/extensionBridgeConstants'
-import { requestReplaceOnOriginalPage } from '../lib/extensionReplace'
 
 /** React Strict Mode 双重挂载时，ACK 会清空 storage，用模块缓存保留本次导入 */
 let detailSetExtImportCache = null
@@ -247,8 +246,6 @@ export default function DetailSet() {
   /** 自定义确认弹窗（不显示 localhost，字体可调大） */
   const [confirmModal, setConfirmModal] = useState({ open: false, message: '', onConfirm: null })
   const [lightbox, setLightbox] = useState({ open: false, src: null, alt: '' })
-  /** 扩展来源信息，用于步骤 5「替换原网页图片」；仅从扩展进入时有值 */
-  const [extensionMeta, setExtensionMeta] = useState(null)
 
   /** 分析首次返回的原始内容（只在 runAnalyze 成功时写入，用户编辑不会覆盖），重置时恢复到此状态 */
   const originalDesignSpecRef = useRef('')
@@ -300,13 +297,6 @@ export default function DetailSet() {
   useEffect(() => {
     if (!extImport?.dataUrl) return
     let cancelled = false
-
-    // extensionMeta 同步设置（不依赖 async）
-    setExtensionMeta(
-      extImport.targetTabId != null && extImport.targetUuid
-        ? { targetTabId: extImport.targetTabId, targetUuid: extImport.targetUuid }
-        : null
-    )
 
     // 根据 toolId 预设图片类型与张数
     const imgType = TYPE_FROM_TOOL_ID[extImport.toolId] || 'main'
@@ -1239,29 +1229,6 @@ export default function DetailSet() {
                         </svg>
                         保存到本地
                       </button>
-                      {extensionMeta?.targetTabId && extensionMeta?.targetUuid && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(img.url)
-                              const blob = await res.blob()
-                              const dataUrl = await new Promise((resolve) => {
-                                const reader = new FileReader()
-                                reader.onload = () => resolve(reader.result)
-                                reader.readAsDataURL(blob)
-                              })
-                              requestReplaceOnOriginalPage(dataUrl, extensionMeta)
-                            } catch (_) {}
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-600/60 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900 hover:bg-emerald-100/80"
-                        >
-                          <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                          </svg>
-                          替换原网页图片
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 /**
  * 仅在 PicToolAI 站点注入：从 session 读取待导入图片并 postMessage 给页面；
- * 转发「替换原网页」与「请求重发导入」到 background。
+ * 转发「请求重发导入」到 background。
  * background 也会 executeScript 注入本文件；防重复注册监听与多次 flush。
  */
 ;(function () {
@@ -44,17 +44,6 @@
     if (d.type === 'PICTOOLAI_REQUEST_IMPORT') {
       flushPending()
       return
-    }
-
-    if (d.type === 'PICTOOLAI_REPLACE_PAGE') {
-      chrome.runtime
-        .sendMessage({
-          type: 'REPLACE_ORIGINAL_PAGE',
-          imageDataUrl: d.imageDataUrl,
-          targetTabId: d.targetTabId,
-          targetUuid: d.targetUuid,
-        })
-        .catch(() => {})
     }
   })
 

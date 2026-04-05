@@ -278,10 +278,6 @@ export default function AiDesigner() {
   const extensionImagePayload = extensionForTool?.dataUrl
     ? { dataUrl: extensionForTool.dataUrl }
     : null
-  const extensionMeta =
-    extensionForTool?.targetTabId != null && extensionForTool?.targetUuid
-      ? { targetTabId: extensionForTool.targetTabId, targetUuid: extensionForTool.targetUuid }
-      : null
   const [expanded, setExpanded] = useState(() => {
     const open = new Set()
     const tool = toolIdFromPathname(location.pathname)
@@ -381,32 +377,27 @@ export default function AiDesigner() {
               hideModeSelector
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'local-redraw' ? (
             <LocalRedraw
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'local-erase' ? (
             <LocalErase
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'text-remove' ? (
             <LocalErase
               variant="text-remove"
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'one-click-recolor' ? (
             <OneClickRecolor
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'clothing-3d' ? (
             <Clothing3D initialImageFromGallery={galleryImage} />
@@ -422,7 +413,6 @@ export default function AiDesigner() {
             <SmartExpansion
               initialImageFromGallery={galleryImage}
               initialExtensionImage={extensionImagePayload}
-              extensionMeta={extensionMeta}
             />
           ) : pathTool === 'product-refinement' ? (
             <ProductRefinement initialImageFromGallery={galleryImage} />

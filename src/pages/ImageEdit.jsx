@@ -7,7 +7,6 @@ import { getAspectOptionsForModel, resolveAspectForModel } from '../lib/aspectBy
 import { saveBlobWithPicker } from '../lib/saveFileWithPicker'
 import { loadImageFromGalleryUrl, loadImageFromGalleryId } from '../lib/loadGalleryImage'
 import { dataUrlToImageSlot } from '../lib/extensionImage'
-import ExtensionReplaceButton from '../components/ExtensionReplaceButton'
 
 // 各模式的示例展示配置
 // demo: { before, after, prompt, beforeLabel, afterLabel } — 有真实图片时填入
@@ -645,7 +644,6 @@ export default function ImageEdit({
   hideModeSelector = false,
   initialImageFromGallery,
   initialExtensionImage,
-  extensionMeta,
 }) {
   const { getToken, refreshUser = null } = useAuth()
   const resolvedInitial = VALID_MODE_IDS.has(initialMode) ? initialMode : MODES[0].id
@@ -1234,7 +1232,6 @@ export default function ImageEdit({
                       </div>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
                       <button
                         type="button"
                         onClick={async () => {

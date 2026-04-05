@@ -9,8 +9,6 @@ import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 import { dataUrlToImageSlot } from '../../lib/extensionImage'
-import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
-
 const EXPANSION_RATIOS = [
   { value: 1.1, label: '原比例1.1x' },
   { value: 1.2, label: '原比例1.2x' },
@@ -18,7 +16,7 @@ const EXPANSION_RATIOS = [
   { value: 2, label: '原比例2x' },
 ]
 
-export default function SmartExpansion({ initialImageFromGallery, initialExtensionImage, extensionMeta }) {
+export default function SmartExpansion({ initialImageFromGallery, initialExtensionImage }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null)
   const [ratio, setRatio] = useState(1.5)
@@ -339,7 +337,6 @@ export default function SmartExpansion({ initialImageFromGallery, initialExtensi
             >
               保存到本地
             </button>
-            <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 /**
- * 右键菜单、抓取与压缩图片、标记原页 img、打开 PicToolAI、在原页替换图片。
+ * 右键菜单、抓取与压缩图片、标记原页 img、打开 PicToolAI。
  * 本地开发：将 SITE_ORIGIN 改为 http://localhost:5173（与 Vite 端口一致）。
  */
 const SITE_ORIGIN = 'https://pictoolai.studio'
@@ -235,30 +235,3 @@ function setupPicToolTab(tabId, payload) {
     }
   }).catch(() => {})
 }
-
-function replaceOnPage(uuid, imageDataUrl) {
-  const el = document.querySelector('img[data-pictoolai-target="' + uuid + '"]')
-  if (el) el.src = imageDataUrl
-}
-
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type !== 'REPLACE_ORIGINAL_PAGE') return false
-  const { targetTabId, targetUuid, imageDataUrl } = msg
-  if (!targetTabId || !targetUuid || !imageDataUrl) {
-    sendResponse({ ok: false, error: 'missing fields' })
-    return false
-  }
-
-  chrome.tabs
-    .get(targetTabId)
-    .then(() =>
-      chrome.scripting.executeScript({
-        target: { tabId: targetTabId },
-        func: replaceOnPage,
-        args: [targetUuid, imageDataUrl],
-      })
-    )
-    .then(() => sendResponse({ ok: true }))
-    .catch((e) => sendResponse({ ok: false, error: String(e?.message || e) }))
-  return true
-})

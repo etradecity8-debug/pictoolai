@@ -9,8 +9,6 @@ import { getEstimatedPointsForDimensions } from '../../lib/pointsEstimate'
 import GeneratingOverlay from '../../components/GeneratingOverlay'
 import { loadImageFromGalleryUrl } from '../../lib/loadGalleryImage'
 import { dataUrlToImageSlot } from '../../lib/extensionImage'
-import ExtensionReplaceButton from '../../components/ExtensionReplaceButton'
-
 const MASK_COLOR = 'rgba(139, 92, 246, 0.6)' // 紫色半透明，与设计稿一致
 
 function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
@@ -35,7 +33,7 @@ function fileToCompressedDataUrl(file, maxSize = 1024, quality = 0.82) {
   })
 }
 
-export default function LocalRedraw({ initialImageFromGallery, initialExtensionImage, extensionMeta }) {
+export default function LocalRedraw({ initialImageFromGallery, initialExtensionImage }) {
   const { getToken, refreshUser } = useAuth()
   const [image, setImage] = useState(null) // { file, dataUrl }
   const [prompt, setPrompt] = useState('')
@@ -473,7 +471,6 @@ export default function LocalRedraw({ initialImageFromGallery, initialExtensionI
             >
               保存到本地
             </button>
-            <ExtensionReplaceButton imageDataUrl={result} extensionMeta={extensionMeta} />
           </div>
         </div>
       )}

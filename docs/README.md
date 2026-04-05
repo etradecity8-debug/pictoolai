@@ -22,7 +22,7 @@
 | 做 eBay Listing（80 字符标题、Item Specifics、Cassini） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 二、eBay |
 | 做速卖通 Listing（128 字符标题、产品属性） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 三、速卖通 |
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/生成场景/风格复刻/文字修改） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
-| 浏览器扩展（右键带图、替换原网页；**含客户试用说明**） | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) |
+| 浏览器扩展（右键带图进 PicToolAI；**含客户试用说明**） | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) |
 | 了解侵权风险检测（功能/实现原理/费用/漏检/外部数据源） | [IP-RISK.md](./IP-RISK.md) |
 | 了解 1688 智能选品匹配方案（卖家精灵→自动匹配供应商→利润核算） | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
 

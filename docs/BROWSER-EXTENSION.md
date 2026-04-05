@@ -6,7 +6,7 @@
 - **AI 美工**各功能（语言转换、局部重绘等）→ `/ai-designer/:toolId?ext=1`
 - **通用电商生图**（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）→ `/detail-set?ext=1`
 
-生成结果可 **替换原网页图片**（仅本机 DOM，不改对方服务器）。
+生成结果请在 PicToolAI 内 **保存到本地**（或从仓库下载），再上传到电商平台 / ERP（如店小秘）；**不会**自动写回对方后台。
 
 ---
 
@@ -28,8 +28,8 @@
 4. **登录网站**：新开标签页打开 **https://pictoolai.studio** ，使用 PicToolAI 账号**登录**（扩展会打开本站；未登录无法正常使用生图与扣费）。
 5. **使用**：在任意网页的**图片上**单击右键 → 点 **「PicToolAI」** → 再点**下面某一子项**（如「语言转换」「局部重绘」，或「通用电商生图 → 白底主图」等）。**不要只点父菜单「PicToolAI」**，必须再选一级子菜单。  
    - **AI 美工类**功能（语言转换、局部重绘等）：图片自动带入，直接操作即可。  
-   - **通用电商生图类**（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）：图片自动带入，还需**填写产品名称**（特写图、卖点图、场景图、交互图还需填写对应描述），填完后点「分析产品」，最终在步骤 5 可下载或替换原页图片。
-6. 处理完成后，若需要可将结果 **替换原网页上的那张图**（仅影响当前浏览器标签页显示；电商平台后台上架需自行上传新图）。
+   - **通用电商生图类**（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）：图片自动带入，还需**填写产品名称**（特写图、卖点图、场景图、交互图还需填写对应描述），填完后点「分析产品」，步骤 5 可 **保存到本地** 后自行上传至 ERP / 平台后台。
+6. 上架用图请以各平台 / ERP **后台实际上传的文件**为准；扩展仅缩短「网页上的图 → 带进 PicToolAI」的路径。
 
 ### 常见问题（指导客户时对照）
 
@@ -53,9 +53,9 @@
 | 环节 | 说明 |
 |------|------|
 | `background.js` | 右键菜单、抓取 URL、`fetch` 转 data URL、多档压缩、`chrome.storage`、打开站点、`setupPicToolTab` 注入 `bridge.js` + MAIN 世界 `postMessage` / `CustomEvent` |
-| `bridge.js` | 读 `pictoolai_pending`、向页面发 `PICTOOLAI_IMPORT`、处理 ACK 清存储、转发「替换原页」到 background |
+| `bridge.js` | 读 `pictoolai_pending`、向页面发 `PICTOOLAI_IMPORT`、处理 ACK 清存储 |
 | `AiDesigner.jsx`（`?ext=1`） | 模块级 `extensionImportPayloadCache`（应对 Strict Mode + ACK 清空 storage）、`lastAppliedExtImportKey` 去重（避免 MAIN 与 `message` 双投递重复 setState）、`extensionForTool` 与各子页 props |
-| `DetailSet.jsx`（`?ext=1`） | 模块级 `detailSetExtImportCache` + 两段 useEffect（Step 1 同步握手写 `extImport` state；Step 2 带 `cancelled` 的 async 转图，按 toolId 预设对应类型张数）；`extensionMeta` 供步骤 5「替换原网页图片」 |
+| `DetailSet.jsx`（`?ext=1`） | 模块级 `detailSetExtImportCache` + 两段 useEffect（Step 1 同步握手写 `extImport` state；Step 2 带 `cancelled` 的 async 转图，按 toolId 预设对应类型张数） |
 | 大图备选 | 登录后 `POST/GET /api/extension/prep-image`，见 `server/index.js` |
 
 本地开发将 `browser-extension/background.js` 顶部 `SITE_ORIGIN` 改为 `http://localhost:5173`；**默认仓库值为线上** `https://pictoolai.studio`。
@@ -80,15 +80,15 @@
 | └ 场景图 | `/detail-set?ext=1` toolId=`detail-set-scene` | 需填 1 条场景描述 |
 | └ 交互图 | `/detail-set?ext=1` toolId=`detail-set-interaction` | 需填 1 条交互描述 |
 
-步骤 5 生成结果：若从扩展进入，每张图旁除「保存到本地」外还显示绿色**「替换原网页图片」**按钮，点击后在来源标签页替换被右键的那张图（仅本机 DOM）。
+步骤 5 生成结果：每张图旁 **保存到本地**；上架请在 ERP / 平台后台上传该文件。
 
 ## AI 美工：哪些适合扩展、哪些需额外改造
 
-**已接入扩展带图 + 结果区「替换原网页」**（或 `ImageEdit` 内统一按钮）：上表工具 + 修改图片各模式（`IMAGE_EDIT_MODE_IDS`）。
+**已接入扩展菜单带图**：上表 7 项工具 + 修改图片各模式（`IMAGE_EDIT_MODE_IDS`，通过 `ImageEdit` 进入）。
 
 **可带图、界面本身有上传/选库**：多数「图片编辑」「质量提升」子页；扩展写入后与「上传/作品库」等价。
 
-**暂未接入扩展菜单、可后续加**（需在各页补 `initialExtensionImage` / `extensionMeta` 与 `ExtensionReplaceButton`，与 `LocalRedraw` 同模式）：`product-refinement`、`scene-generation`、`add-person-object`、`clothing-3d`、`clothing-flatlay`、`body-shape`、`style-change`、`watermark-add`、`watermark-remove`（侧栏「水印」分类）等。
+**暂未接入扩展菜单、可后续加**（需在各页补 `initialExtensionImage`，与 `LocalRedraw` 同模式）：`product-refinement`、`scene-generation`、`add-person-object`、`clothing-3d`、`clothing-flatlay`、`body-shape`、`style-change`、`watermark-add`、`watermark-remove`（侧栏「水印」分类）等。
 
 **需较大改造或不适合一键右键**：
 
