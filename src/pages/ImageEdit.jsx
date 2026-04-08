@@ -221,15 +221,7 @@ const MODES = [
 
 const MODEL_OPTIONS = ['Nano Banana 2', 'Nano Banana Pro', 'Nano Banana']
 
-// 与 server/points.js POINTS_MAP 保持一致
-const POINTS_MAP = {
-  'Nano Banana':     { '1K 标准': 4 },
-  'Nano Banana Pro': { '1K 标准': 12, '2K 高清': 12, '4K 超清': 20 },
-  'Nano Banana 2':   { '0.5K 快速': 4, '1K 标准': 6, '2K 高清': 10, '4K 超清': 14 },
-}
-function getPointsEstimate(model, clarity) {
-  return POINTS_MAP[model]?.[clarity] ?? 4
-}
+import { getPointsPerImage } from '../lib/pointsConfig'
 
 const LANGUAGE_OPTIONS = [
   { value: 'Simplified Chinese',  label: '简体中文' },
@@ -1194,7 +1186,7 @@ export default function ImageEdit({
                     <svg className="h-3.5 w-3.5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v4.59L7.3 9.24a.75.75 0 00-1.1 1.02l3 3.25a.75.75 0 001.1 0l3-3.25a.75.75 0 10-1.1-1.02l-1.95 2.1V6.75z" clipRule="evenodd" />
                     </svg>
-                    {getPointsEstimate(model, clarity)} 积分
+                    {getPointsPerImage(model, clarity)} 积分
                   </span>
                 </div>
 

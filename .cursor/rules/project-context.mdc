@@ -10,38 +10,41 @@ alwaysApply: true
 - 核心流程：全品类组图 = 上传产品图 + 组图要求 → 分析（文+图→文）→ 确认规划 → 生图（Nano Banana/2/Pro）→ 完成。
 
 ## 关键文件
-- **前端**：`src/pages/DetailSet.jsx`（步骤 1–5、分析/生成、**5种图片类型分别选张数**（白底主图/场景图/特写图/卖点图/交互图）、整体设计规范与图片规划 Markdown 渲染（含类型彩色标签）、步骤5结果按类型分组展示、重置、步骤5 返回上一步/新建项目、自定义确认弹窗、生成图保存到本地）、`src/pages/ImageEdit.jsx`（**修改图片**，10种编辑模式，含 ModeDemo 可视化示例）、`src/components/GalleryThumb.jsx`（**从作品库选择**缩略图：COS 绝对 URL 直接 img src，相对路径 Token fetch 转 blob，选图弹窗加载更快）、`src/components/OutputSettings.jsx`（**输出设置**：模型/比例/清晰度+积分预估，AI 美工各模块与官方示例一致）、`src/pages/AmazonAPlus.jsx`（**A+ 详情页生成**，4步流程，MVP）、`src/pages/AiAssistant.jsx`（**电商AI运营助手 → 亚马逊 → 生成 Listing**：Step 1 分析 → Step 2 标题/关键词/五点/描述 → Step 3 产品图 → Step 4 A+ 文案与图片；保存到 Listing 历史、导出 CSV）、`src/pages/dashboard/ListingHistory.jsx`（Listing 历史列表与详情）、`src/pages/AiToolbox.jsx`（**AI 电商工具箱**，路由 `/ai-toolbox`）、`src/pages/ai-toolbox/SupplierMatching.jsx`（**智能选品**，上传卖家精灵 Excel → 以图搜图 1688 → Top 3 匹配 → 利润核算，1 积分/条，须有商品主图）、`src/pages/StyleClone.jsx`（**风格复刻**，参考图+产品图→两阶段生图，入口在 AI美工 侧边栏）、`src/pages/Admin.jsx`（**管理后台**：客户列表、备注列显示真实内容、编辑备注/充值/流水/冻结/删除在操作列单行、可拖拽调节列宽、按余额/已消耗/到期/注册时间排序、冻结仅对普通用户、冻结用户登录显示琥珀色提示）、`src/pages/dashboard/Gallery.jsx`（仓库列表、按日期分组、多选、批量保存/删除、**用AI编辑**：每张图「用AI编辑」→ 一二级菜单选功能 → 跳转 AI 美工并自动带图）、`src/lib/loadGalleryImage.js`（**loadImageFromGalleryId(id)** 选图统一走后端避免 COS 跨域；**loadImageFromGalleryUrl(url, getToken, id)** 有 id 时走 id 代理，供仓库→AI编辑及各页 initialImageFromGallery）、`src/components/layout/DashboardLayout.jsx`（侧栏含「仓库」「Listing 历史」）、`src/components/layout/Header.jsx`（导航：电商生图/AI美工/电商AI运营助手/**AI 电商工具箱**，风格复刻在 AI美工 下，隐藏 A+ 页面/服装组图/万能画布）、`src/pages/AiDesigner.jsx`（**AI美工**，路由 `/ai-designer`、`/ai-designer/:toolId`，侧边栏含图片编辑/质量提升/**文字修改**（文字替换、语言转换、文字去除）/**风格变迁**（风格复刻、风格改变）/水印（添加、去除）/官方示例；接收 `location.state` 传 **initialImageFromGallery** 给各子页）、`src/pages/ai-designer/AddPersonObject.jsx`（**添加人/物**：人物最多3位+物品最多3件，自定义位置、真实比例，add-remove/composition）、`src/pages/ai-designer/LocalRedraw.jsx`（局部重绘）、`src/pages/ai-designer/LocalErase.jsx`（局部消除）、`src/pages/ai-designer/OneClickRecolor.jsx`（**一键换色**）、`src/pages/ai-designer/ProductRefinement.jsx`（**提升质感**，8 Tab 材质预设（电子/塑料/纺织/木质/玻璃/工业/自然/轻奢）+ 自定义输入）+ 保存按钮紧贴精修后图）、`src/pages/ai-designer/SmartExpansion.jsx`（**智能扩图**）、`src/pages/ai-designer/SceneGeneration.jsx`（**生成场景**，产品图+**多场景描述（最多6个）**+风格→批量生图，顺序调用接口，实时进度条，结果网格展示，每张独立保存）、`src/lib/clarityByModel.js`（模型与清晰度联动）、`src/lib/pointsEstimate.js`（积分预估）、`src/lib/exportListingCsv.js`（导出亚马逊/eBay/速卖通 Listing CSV/JSON）、`src/context/AuthContext.jsx`（getToken 用于生成与仓库；`isAdmin` 便捷属性判断角色）。
+> 全量路由与目录见 `docs/PROJECT-OVERVIEW.md`。下列为最常改动的路径。
+- **导航与开关**：`src/lib/siteFeatures.js`（`SITE_NAV_HIDDEN`：侵权 / 1688 选品 / A+）、`src/components/layout/Header.jsx`（常显导航 + 扩展 zip；隐藏项随开关）、`src/App.jsx`（隐藏路由重定向首页）。
+- **组图与修改图**：`src/pages/DetailSet.jsx`（5 步、5 类型张数与描述、Markdown 规划、`?ext=1` 扩展握手）；`src/pages/ImageEdit.jsx`（10 模式 + ModeDemo）。
+- **AI 美工**：`src/pages/AiDesigner.jsx` + `src/pages/ai-designer/*`（局部重绘/消除/换色、质感 8 Tab、智能扩图、场景最多 6 条、添加人/物等）；`OutputSettings.jsx`、`GalleryThumb.jsx`；侧栏与模式清单见 `docs/AI-DESIGNER.md`。
+- **仓库与登录**：`src/pages/dashboard/Gallery.jsx`（多选、用AI编辑跳转带图）、`src/lib/loadGalleryImage.js`、`DashboardLayout.jsx`、`src/context/AuthContext.jsx`。
+- **Listing / A+ / 工具箱 / 管理**：`AiAssistant.jsx`（亚马逊 Step 4 随 `SITE_NAV_HIDDEN.amazonAplus`）、`AmazonAPlus.jsx`、`ListingHistory.jsx`、`exportListingCsv.js`；`AiToolbox.jsx`、`SupplierMatching.jsx`、`StyleClone.jsx`；`Admin.jsx`。
+- **积分联动**：`clarityByModel.js`、`pointsEstimate.js`（引用 `pointsConfig.js`） 与 `server/points.js`、`src/lib/pointsConfig.js` 的 **`POINTS_MAP` 须前后端两处同步**（前端唯一定义在 `pointsConfig.js`）。
 - **后端**：`server/index.js`（注册/登录、**注册时 grantSignupBonus 送 150 积分**、分析、生图、**仓库 API**、`/api/image-edit`（修改图片，含 inpainting/add-remove/**recolor** 等模式）；**AI 助手亚马逊**：`/api/ai-assistant/amazon/*`；`/api/amazon-aplus/*`；**风格复刻**：`/api/style-clone`；**智能选品**：`/api/supplier-matching/*`（解析 Excel、启动任务、任务进度、报告）；**管理员 API**（`/api/admin/users` 列表/充值/删除/流水/备注/冻结/改角色）；启动时自动迁移 users.json → SQLite、自动提升 ADMIN_EMAIL 为管理员）、`server/db.js`（SQLite：users/gallery/user_points/points_transactions/amazon_listing_snapshots/supplier_matching_reports 等表）、`server/daji.js`（DajiAPI 1688 以图搜图 imageQuery、上传图片 uploadImage）、`server/supplier-matching.js`（解析 Excel、以图搜图 1688、利润核算，无关键词兜底）、`server/points.js`（积分规则、getBalance 含惰性清零、grantPoints/grantSignupBonus、getSubscriptionInfo）、`server/gemini-models.js`（IMAGE_MODEL_IDS、分析模型，Nano 仅 1K 清晰度）。
-- **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY、**ADMIN_EMAIL、ADMIN_PASSWORD**、**DAJI_APP_KEY/DAJI_APP_SECRET**（智能选品，需联系 Daji 激活）、**COS_SECRET_ID/COS_SECRET_KEY/COS_BUCKET/COS_REGION**（可选，COS 加速）），从 `.env.example` 复制，不提交。
+- **配置**：`server/.env`（GEMINI_API_KEY、HTTPS_PROXY、**ADMIN_EMAIL、ADMIN_PASSWORD**、**DAJI_APP_KEY/DAJI_APP_SECRET**（智能选品；生产已激活，新环境或换钥见 `docs/KNOWN_ISSUES.md` §1.2）、**COS_SECRET_ID/COS_SECRET_KEY/COS_BUCKET/COS_REGION**（可选，COS 加速）），从 `.env.example` 复制，不提交。
 - **静态演示图**：`public/demo-*.png`（修改图片各模式 before/after 示例图，共 14 张）；`public/local-redraw-demo-*.png`、`public/local-erase-demo-*.png`、`public/recolor-demo-*.png`；**文字去除**占位图在 `src/assets/text-remove-demo-*.png`，LocalErase 通过 import 引用（打包进 dist，不依赖 public）；`public/demo-smart-expansion-before.png`、`public/demo-smart-expansion-after.png`（智能扩图）；`public/demo-add-person-object-before.png`、`public/demo-add-person-object-after.png`（添加人/物示例）。
 
-## 文档结构（2026-03，含 BROWSER-EXTENSION 等，见 docs/README.md）
+## 文档索引（`docs/`）
 
-- **docs/README.md**：总索引，含「快速找文档」表。
-- **PROJECT-OVERVIEW.md**：项目结构、技术栈、功能一览。
-- **ECOMMERCE-GENERAL-CREATE-PICTURES.md**：通用电商生图（全品类组图）字段与 AI 传参。
-- **ECOMMERCE-AI-ASSISTANT.md**：电商 AI 运营助手（亚马逊 / eBay / 速卖通 Listing）。
-- **IP-RISK.md**：侵权风险检测完整说明——功能、费用、漏检分析、外部数据源集成可行性（含专利汇/美国版权局）。
-- **1688-SUPPLIER-MATCHING.md**：1688 智能选品——卖家精灵表格→Daji 以图搜图→利润核算，须有商品主图，Daji 需激活。
-- **AI-DESIGNER.md**：AI 美工全部功能（局部重绘/消除/换色/服装/场景/文字修改/风格/水印/官方示例等）。
-- **DEPLOY.md**：运维手册（首次部署、更新上线、SerpApi、COS 加速、用户管理与数据库操作）。
-- **KNOWN_ISSUES.md**：已知问题与待办。
-- **PRICING-COST.md**：积分规则、API 成本核算、固定成本、盈利分析（内部参考）。
-- **PRODUCT-INTRO.md**：网站功能介绍（对外宣传，可直接发给客户）。
-- **打印版**：`docs/print/`，`npm run docs:print` 生成；`index.html` 手工维护链接。
+- **README.md**：总索引与「快速找文档」表。
+- **PROJECT-OVERVIEW.md**：结构、技术栈、路由与 API 一览。
+- **KNOWN_ISSUES.md**：**已知问题、待办、隐私话术、运维快查**（§一～§四）；改产品边界或排期时优先更新。
+- **TEMPORARILY-HIDDEN-FEATURES.md**：`SITE_NAV_HIDDEN` 与三大隐藏模块说明。
+- **ECOMMERCE-GENERAL-CREATE-PICTURES.md** / **ECOMMERCE-AI-ASSISTANT.md**：组图字段与 AI 传参；Listing 助手（亚马逊/eBay/速卖通）。
+- **AI-DESIGNER.md** / **BROWSER-EXTENSION.md** / **USER-MANUAL.md**：AI 美工；扩展 zip 与用户安装；终端操作说明。
+- **IP-RISK.md** / **1688-SUPPLIER-MATCHING.md**：侵权检测；智能选品。
+- **DEPLOY.md** / **PRICING-COST.md** / **PRODUCT-INTRO.md**：运维；内部成本；客户向介绍与积分表。
+- **打印版**：根目录 `npm run docs:print` → `docs/print/*.html`；浏览器直接打开各 HTML 查看。
 
 ## 文档约定（重要，不丢失）
 
 - **根目录**：只有 **README.md** 一个文档，仅做入口（项目一句话介绍、快速开始、指向 docs 的链接表）。不在此写长说明、不重复 docs 里的内容。
 - **所有详细文档都在 `docs/`**：产品设计、运维部署、已知问题、项目概览等，一律写在 `docs/*.md`。**新增或大改文档时，只往 docs 里放，不要在外面新建散落的 .md。**
 - **`docs/README.md` = 文档总索引**：新增或重命名文档后，**必须**在 `docs/README.md` 里对应分类下加一行（表格或列表），写清文件名和一句话说明，避免文档「找不到」。
-- **打印版**：`docs/print/` 下为可打印 HTML。生成方式：项目根目录执行 `npm run docs:print`（会遍历 `docs/*.md` 生成 HTML）。若在 `docs/print/index.html` 里做了手工链接，新增文档后记得在索引页补一条。
+- **打印版**：`docs/print/` 下为可打印 HTML。生成方式：项目根目录执行 `npm run docs:print`（遍历 `docs/*.md` 生成 HTML）。浏览器直接打开各 HTML 查看。
 - **写文档时**：新功能/新设计/运维说明 → 在 `docs/` 下新建或更新对应 .md → 更新 `docs/README.md` 索引。不确定放哪时，优先放在「项目与功能」或「已知问题」类，或新建一个语义清晰的文件名（如 `XXX-SPEC.md`、`XXX-GUIDE.md`）。
 
 ## 约定
 - 分析模型默认 `gemini-2.5-flash`（`server/gemini-models.js` 中 `ANALYSIS_MODEL_ID`，可通过环境变量 `GEMINI_ANALYSIS_MODEL` 覆盖）；主备模型相同，503 重试机制保留但实际不切换。生图用 `getImageModelId(displayName)`。
 - **组图要求输入字段**：产品名称（必填）、目标人群、风格、其他要求；以及按类型「选 X 张写 X 个描述」——卖点图、场景图、特写图、交互图各自对应描述数组。前端在 `runAnalyze` 中组装 requirements 并传 `sceneDescriptions/closeUpDescriptions/interactionDescriptions`。产品名称未填、总张数为 0 或必填描述未完成则禁止分析。
-- **通用电商生图图片类型**：5 种类型分别选张数——白底主图、卖点图、特写图、场景图、交互图（顺序与左侧一致）。主图/场景/特写/交互各 0～4 张；卖点图 0～5 张。analyze 接口传各类型数量、`sellingPointShowText/sceneShowText/closeUpShowText/interactionShowText`、`sceneDescriptions/closeUpDescriptions/interactionDescriptions`。四类是否显示文字：勾选→规划显示文字，不勾选→「此图不显示文字」；后处理为唯一真相源。generate 接口传 4 个 showText，按 type 使用差异化 prompt。**文字大小与字体**：客户有需求，暂不实现，见 KNOWN_ISSUES。
+- **通用电商生图图片类型**：5 种类型分别选张数——白底主图、卖点图、特写图、场景图、交互图（顺序与左侧一致）。主图/场景/特写/交互各 0～4 张；卖点图 0～5 张。analyze 接口传各类型数量、`sellingPointShowText/sceneShowText/closeUpShowText/interactionShowText`、`sceneDescriptions/closeUpDescriptions/interactionDescriptions`。四类是否显示文字：勾选→规划显示文字，不勾选→「此图不显示文字」；后处理为唯一真相源。generate 接口传 4 个 showText，按 type 使用差异化 prompt。**文字大小与字体**：客户有需求，暂不实现，见 `docs/KNOWN_ISSUES.md` §2.2。
 - 生成完成后：改「产品名称/卖点/目标人群/风格/其他/产品图/各类型数量及描述/是否显示文字」→ 回到步骤 1 并清空分析/生成结果；改「目标语言、模型、尺寸、清晰度」→ 可直接再次生成。特写图 prompt 强调生成全新宏观特写，非原图裁剪。
 - 生图 prompt 中已含产品自然摆放约束（避免凳子站在桌子上等）；**文字安全区**：safeAreaRule 要求整段标题完整在画面内、四周留足边距、禁止单词在边缘被裁切。
 - **仓库**：侧栏只有「仓库」链接到 `/dashboard/gallery`；`/dashboard` 重定向到 `/dashboard/gallery`；仓库页支持多选、批量保存到本地、批量删除选中。**用AI编辑**：每张图有「用AI编辑」按钮，点击后弹窗**一二级菜单**（与 AI 美工侧栏一致：图片编辑、质量提升、文字修改（3 项）、风格变迁、水印（添加/去除）、官方示例（7 项））选功能，跳转 `/ai-designer/:toolId` 并通过 `state` 传入图片信息，各 AI 美工页通过 `initialImageFromGallery` + `loadImageFromGalleryUrl` 自动加载该图。**业务逻辑（全站统一）**：只要生图成功，图片都**自动进入仓库**；生图完成后图片旁仅「保存到本地」，不提供单独的「保存到仓库」按钮。**COS 加速（可选）**：配置 `COS_*` 环境变量后，新图自动上传腾讯云 COS，列表返回临时签名 URL（1 小时有效）；未配置时仅用本地文件，行为不变。Gallery 页对 COS 绝对 URL 直接 img src 展示（不 fetch，避免 CORS）；相对路径用 Token fetch 转 blob 展示；下载/批量下载统一走 `/api/gallery/image/:id`（带 Token，从本地文件读取）。拉图失败时显示「加载失败」+「点击重试」。详见 `docs/DEPLOY.md` 第四节。
@@ -55,12 +58,12 @@ alwaysApply: true
 - **文字修改**：① **语言转换**默认模型改为 **Nano Banana 2**（Nano Banana 经常无法处理该任务）；② **文字去除**增加占位图 `text-remove-demo-before.png`/`text-remove-demo-after.png`，OutputSettings 显示 hint「文字编辑任务建议选择 Nano Banana 2 或 Pro」；文字替换、文字去除默认仍为 Nano Banana。
 - **侵权风险检测**：已独立为 `/ip-risk`，IpRisk.jsx；主文档 `docs/IP-RISK.md`。
 - **文档**：新增 PRICING-COST.md（含 Cursor 固定成本、竞品对比、试用用户影响）、PRODUCT-INTRO.md（对外宣传）。
-- **1688 智能选品**：**已封存**（`AI_TOOLBOX_ENABLED = false`，`src/lib/featureFlags.js`）。原实现：DajiAPI 以图搜图；因 1688 以图搜图几乎无匹配而暂时关闭。代码与 API 保留，详见 KNOWN_ISSUES 1.1。
-- **一致性**：PROJECT-OVERVIEW、KNOWN_ISSUES、ECOMMERCE-AI-ASSISTANT 中侵权积分已统一为 20。
+- **1688 智能选品**：**顶栏默认隐藏**（`SITE_NAV_HIDDEN.aiToolboxSupplier`）；Daji 以图搜图对多数亚马逊主图在 1688 上匹配率仍可能很低，详见 KNOWN_ISSUES 1.1、[TEMPORARILY-HIDDEN-FEATURES.md](docs/TEMPORARILY-HIDDEN-FEATURES.md)。
+- **一致性**：PROJECT-OVERVIEW、KNOWN_ISSUES、[IP-RISK.md](docs/IP-RISK.md) 等文档中侵权深度查询积分已统一为 20。
 
 ## 近期大改（2026-04-03，不丢失记忆）
 
-- **浏览器扩展（Chromium MV3，v1.0.7）**：目录 `browser-extension/`（`background.js`、`bridge.js`、`manifest.json`）。右键 **PicToolAI →** 7 AI美工直接项 + **通用电商生图** 子菜单（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）。AI美工打开 `SITE_ORIGIN/ai-designer/{toolId}?ext=1`；通用电商生图打开 `SITE_ORIGIN/detail-set?ext=1`，toolId 以 `detail-set-` 开头。`SITE_ORIGIN` **默认应为** `https://pictoolai.studio`，本地开发改为 `http://localhost:5173`。站内 `AiDesigner` 与 **`DetailSet`** 均实现扩展握手（两段 useEffect；Strict Mode 用模块级缓存）。**已移除**结果区「替换原网页图片」（避免误解为已写回 ERP）；上架请在各平台后台上传本站保存的文件。大图备选 `POST/GET /api/extension/prep-image`。**给客户用的说明**：`docs/BROWSER-EXTENSION.md` → **「客户试用说明」**；上架与权限见 `browser-extension/README.md`「打包上架」。
+- **浏览器扩展（Chromium MV3，v1.0.7）**：目录 `browser-extension/`（`background.js`、`bridge.js`、`manifest.json`）。右键 **PicToolAI →** 7 AI美工直接项 + **通用电商生图** 子菜单（白底主图 / 特写图 / 卖点图 / 场景图 / 交互图）。AI美工打开 `SITE_ORIGIN/ai-designer/{toolId}?ext=1`；通用电商生图打开 `SITE_ORIGIN/detail-set?ext=1`，toolId 以 `detail-set-` 开头。`SITE_ORIGIN` **默认应为** `https://pictoolai.studio`，本地开发改为 `http://localhost:5173`。站内 `AiDesigner` 与 **`DetailSet`** 均实现扩展握手（两段 useEffect；Strict Mode 用模块级缓存）。**已移除**结果区「替换原网页图片」（避免误解为已写回 ERP）；上架请在各平台后台上传本站保存的文件。大图备选 `POST/GET /api/extension/prep-image`。**扩展 zip**：用户登录后顶栏下载 `public/pictoolai-browser-extension.zip`，说明与可复制安装步骤见 `docs/BROWSER-EXTENSION.md`；上架与权限见 `browser-extension/README.md`「打包上架」。
 - **AI 美工侧栏**：已去掉灰色占位分类；**「水印」** 大类下含 **添加水印** + **去除水印**（`/ai-designer/watermark-remove` 仍走 `ImageEdit`）；**官方示例** 为 **7 种** ImageEdit 模式（不含去水印）。**风格复刻** `StyleClone` 已支持 `initialImageFromGallery`（仓库带图进产品素材）。**图库**「用AI编辑」分组与侧栏一致。
 
 ## 近期大改（2026-04，侵权风险检测 `/ip-risk` 强化，不丢失记忆）
@@ -78,15 +81,17 @@ alwaysApply: true
 - **从作品库选择**：选图统一 `loadImageFromGalleryId(item.id)` 走后端，避免 COS 跨域；GalleryThumb 必须传 `url/title/token`；`loadImageFromGalleryUrl(url, getToken, id)` 有 id 时优先走后端；已修复 OneClickRecolor 缺 id、AddWatermark/StyleChange 错误传 `item`、AddPersonObject 无 token 时 loading 不 reset。
 - **文档**：KNOWN_ISSUES 新增管理后台与从作品库选择 2026-03-23 变更；DEPLOY 第四节补充选图走后端说明；`npm run docs:print` 已同步。
 
-## 待办 / 已知问题（不丢失记忆）
+## 全站行为约定（简记）
+
+**完整清单以 [`docs/KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md) 为准**（能力边界 §1.1、环境 §1.2、待办 §二、隐私 §三）。下列为编码时高频对照，避免与上文冲突即可。
 
 - 设计规范与图片规划**已改为 Markdown 渲染**（`react-markdown` + `remark-breaks`），不再做自定义换行解析。仓库已用 **SQLite**（`server/db.js` + `pictoolai.db`）+ `server/gallery/` 存图；登录用户生成图**自动写入仓库**；侧栏仅「仓库」、支持多选与**批量保存到本地、批量删除**；生图 prompt 已强化文字不裁切（safeAreaRule）。步骤 5 有「返回上一步」「新建项目」及自定义确认弹窗。
 - **组图要求**：产品名称（必填）、目标人群、风格、其他。**生成数量与描述**：选 X 张卖点图/场景图/特写图/交互图，须分别填写 X 条对应描述；白底主图无需描述。详细字段与 AI 传参见 `docs/ECOMMERCE-GENERAL-CREATE-PICTURES.md`。
 - **AI美工 - 生成场景**：已支持**多场景批量生成**（最多 6 个场景，每场景一张图）。用户输入多条场景描述，前端顺序调用接口（不并行），实时进度条+已完成图片实时展示，结果网格展示，每张图独立「保存到本地」。风格（8种预设+自定义）所有场景共用。
 - **修改图片**（`ImageEdit`，路由为 `/ai-designer/:modeId`）：**10 种**模式——添加/移除元素、局部重绘、风格迁移、高级合成（多图）、高保真细节保留、让草图变生动、角色一致性360°、文字替换、语言转换、去除水印。后端接口 `/api/image-edit` 含重试逻辑（Pro/Nano2 最多3次）。每种模式顶部有真实 before→after 可视化示例（`ModeDemo` 组件）。修改后图片自动入图库，显示积分消耗，支持从仓库选图（`GalleryThumb` 组件 fetch+blob URL 认证加载）。
-- **亚马逊 A+ 详情页**（`/amazon-aplus`）：**暂不实现**。代码与接口仍在（4步流程、`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate`），但导航已隐藏，不对用户开放。详见 `docs/KNOWN_ISSUES.md`。
-- **导航栏**：当前显示「**通用电商生图**」「AI美工」「电商AI运营助手」「**侵权风险检测**」；右侧含「订阅」「联系我们」链接；**风格复刻** 已移入 AI美工 侧边栏；**已隐藏**：「A+ 页面」「**AI 电商工具箱**」（智能选品已封存）「服装组图」「万能画布」。
-- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测已独立**为顶部导航模块，路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；深度查询（约 **3～8** 次 SerpApi：Lens、Google Patents 多组、按需商标与 IP 角色检索，20 积分）；**可选专利汇**（`PATENTHUB_TOKEN`）独立 HTTP；正文 **`linkifyUrls`** 使报告 URL 可点。专利检索词：AI 输出英文（patentSearchTerms）用于 Google Patents，中文（patentSearchTermsZH，可选）用于专利汇；用户填中/英文均可。报告含 copyrightSourceRisk（图片版权溯源）。`POST /api/ai-assistant/ip-risk-check`，深度需 `SERPAPI_KEY`。服务构成与费用、客户沟通话术见 `docs/IP-RISK.md`。
+- **亚马逊 A+ 详情页**（`/amazon-aplus`）：**顶栏与 Listing Step 4 默认隐藏**（`SITE_NAV_HIDDEN.amazonAplus`）；接口仍保留：`/api/amazon-aplus/analyze`、`/api/amazon-aplus/generate`。恢复见 `docs/TEMPORARILY-HIDDEN-FEATURES.md`。
+- **导航栏**：**常显**「通用电商生图」「AI美工」「电商AI运营助手」、**浏览器扩展 zip**、「订阅」「联系我们」。**A+ 页面 / AI 电商工具箱 / 侵权风险检测** 由 `src/lib/siteFeatures.js` 的 `SITE_NAV_HIDDEN` 控制（默认均隐藏）。**风格复刻** 在 AI美工 侧边栏。已移除实验页：服装组图、一键智能产品精修（原路由已删除）。
+- **电商AI运营助手**：Header 无下拉，点击直接进 `/ai-assistant`，平台在 AiAssistant 页左侧侧边栏选。**亚马逊**功能卡片：生成 Listing、优化 Listing、竞品对比、关键词研究；**eBay** 和 **速卖通** 功能卡片：生成 Listing、优化 Listing。**侵权风险检测** 路由 `/ip-risk`，页面 `IpRisk.jsx`；**默认无顶栏入口**，深度查询（约 **3～8** 次 SerpApi，20 积分）等说明见 `docs/IP-RISK.md`、`docs/TEMPORARILY-HIDDEN-FEATURES.md`。
 - **亚马逊 Listing 工具链**：
   - **优化 Listing**：诊断+一键优化（A9/Cosmo/Rufus/GEO 四维度），不扣积分。双语诊断报告（原文/中文切换）；合规自检 9 大类（error/warning/info 三级）。
   - **A/B 文案变体**：优化/生成 Listing 结果区可点「生成 A/B 变体」，后端 `/api/ai-assistant/amazon/generate-variants`，生成 2-3 套不同策略角度文案，Tab 切换对比，不扣积分。
@@ -98,11 +103,11 @@ alwaysApply: true
 - **智能粘贴**：`/api/ai-assistant/smart-paste`，用户可全选复制 Listing 页面内容一次性粘贴，AI 自动提取标题/五点/属性/描述等字段填充到表单。三处前端入口：亚马逊优化 Listing、eBay/速卖通优化 Listing、竞品对比。
 - **联系我们**：`/contact` 仅微信，有「返回主页」；定价页选套餐弹 ContactModal；Header 有入口。
 - **主页**：Hero 黑色块居中、FeatureCards/FAQ 左对齐、CTA 黑色块；全用 `max-w-7xl` 与 Header 对齐；产品页与 ProductShowcase 已删；Footer「关于我们」「帮助中心」灰掉。
-- **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。约束见 `docs/KNOWN_ISSUES.md`。
-- **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除（快捷按钮改为 30天/180天/1年，默认 1年）。**新用户注册默认赠送 150 积分**（30 天有效期，`grantSignupBonus`）；注册页有「新注册用户赠送 150 积分供您体验」提示。**删除用户**：`DELETE /api/admin/users/:email` 会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`、`supplier_matching_reports`；**删除后该邮箱可重新注册**（注册只查 users 表）。**管理员客户备注**：`users` 表有 `admin_notes` 字段；管理后台「备注」列显示真实内容，「编辑备注」在操作列；`PATCH /api/admin/users/:email/notes`。**用户冻结**：`users` 表 `frozen` 字段；`PATCH /api/admin/users/:email/freeze`；冻结用户登录返回 403 且前端琥珀色提示；仅普通用户可冻结。**列宽**：可拖拽调节，localStorage 持久化。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。**安全**：已移除旧的 `/api/points/credit` 自助充值端点和前端按钮，积分充值仅限管理员 `/api/admin/users/:email/grant`。**积分预估**：`src/lib/pointsEstimate.js` 的 `getEstimatedPointsForDimensions` 已模拟前端压缩（compressMaxSize=1024），与后端实际扣费一致。**定价**：¥200/1000积分/购买之日起1年有效（`SUBSCRIPTION_PLANS` 单一标准套餐）；积分扣费新规：Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Nano Banana Pro 各挡 12/12/20、侵权深度查询=20 积分/次。`grantPoints` 默认有效期改为 365 天；Admin 充值快捷按钮改为 30天/180天/1年，默认1年。待后续：支付接入、到期提醒邮件、注册审批。详见 `docs/PRICING-COST.md`。
+- **仓库保存/下载**：单张用 showSaveFilePicker（另存为）正常；多张用 showDirectoryPicker（选一次文件夹），部分目录会被浏览器拒绝（「含有系统文件」），**待后续再改**。用户侧说明见 `docs/USER-MANUAL.md`（使用前准备、仓库「保存选中到本地」）。
+- **客户积分管理**：已实现手动运营版。`users` 表替代 users.json；`user_points` 含 `expires_at`（到期惰性清零）；管理后台 `/admin`（仅 admin）支持充值/流水/删除（快捷按钮改为 30天/180天/1年，默认 1年）。**新用户注册默认赠送 150 积分**（30 天有效期，`grantSignupBonus`）；注册页有「新注册用户赠送 150 积分供您体验」提示。**删除用户**：`DELETE /api/admin/users/:email` 会同时删除该用户的 `users`、`user_points`、`points_transactions`、`gallery`（及本地/COS 文件）、`amazon_listing_snapshots`、`ebay_listing_snapshots`、`aliexpress_listing_snapshots`、`supplier_matching_reports`；**删除后该邮箱可重新注册**（注册只查 users 表）。**管理员客户备注**：`users` 表有 `admin_notes` 字段；管理后台「备注」列显示真实内容，「编辑备注」在操作列；`PATCH /api/admin/users/:email/notes`。**用户冻结**：`users` 表 `frozen` 字段；`PATCH /api/admin/users/:email/freeze`；冻结用户登录返回 403 且前端琥珀色提示；仅普通用户可冻结。**列宽**：可拖拽调节，localStorage 持久化。`server/.env` 配置 `ADMIN_EMAIL`+`ADMIN_PASSWORD` 启动时自动提升。**安全**：已移除旧的 `/api/points/credit` 自助充值端点和前端按钮，积分充值仅限管理员 `/api/admin/users/:email/grant`。**积分预估**：`src/lib/pointsEstimate.js` 的 `getEstimatedPointsForDimensions` 已模拟前端压缩（compressMaxSize=1024），与后端实际扣费一致。**定价**：¥200/1000积分/购买之日起1年有效（`SUBSCRIPTION_PLANS` 单一标准套餐）；积分扣费新规：Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Nano Banana Pro 各挡 12/12/20、侵权深度查询=20 积分/次。`grantPoints` 默认有效期改为 365 天；Admin 充值快捷按钮改为 30天/180天/1年，默认1年。待后续：支付接入；到期提醒（邮件/短信，依赖注册校验）见 `docs/KNOWN_ISSUES.md` §2.1。详见 `docs/PRICING-COST.md`。
 - **部署**：美国硅谷已部署完成（腾讯云轻量，43.162.87.60，域名 pictoolai.studio，Nginx 反代 + **HTTPS**）；**HTTPS** 已启用（Let's Encrypt/certbot，免费且自动续期）；腾讯云轻量**防火墙须放行 TCP 443**；PM2 需 `--cwd /home/ubuntu/app/server` 以正确加载 .env；香港已暂停（Gemini 不可用）。SSH 空闲断线常见，重连不影响 Nginx/PM2 等服务。详见 `docs/DEPLOY.md`、`docs/KNOWN_ISSUES.md`。
 - **品牌与数据**：品牌名统一 **PicToolAI**，技术标识 **pictoolai**（`pictoolai.db`、`pictoolai_token`/`pictoolai_user`、PM2 示例 `pictoolai-server`）。旧 picaitool.db 与旧 gallery 已清理，仅用新库与新 gallery 目录。
-- **亚马逊 Listing 生成与合规**：电商AI运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant` 选亚马逊）。**流程**：Step 1 分析 → Step 2 标题/后台关键词/五点/描述（不扣积分）→ Step 3 产品图（主图白底，扣积分）；**保存到 Listing / 导出 CSV** 放在所有步骤结束后单独一块。**A+ 模块（Step 4 + 独立 A+ 页面）暂不实现**：Step 4 已锁定（`APLUS_STEP_ENABLED = false`），独立 A+ 页面导航已隐藏，详见 `KNOWN_ISSUES.md`。**合规**：prompt 与后端已按 `docs/ECOMMERCE-AI-ASSISTANT.md` 约束；标题返回后去除 `! $ ? _ { } ^ ¬ ¦` 并截断。
+- **亚马逊 Listing 生成与合规**：电商AI运营助手 → 亚马逊 → 生成 Listing（`/ai-assistant`）。**流程**：Step 1 分析 → Step 2 文案（不扣积分）→ Step 3 产品图（扣积分）；**保存 / 导出 CSV·JSON** 在步骤结束后。**A+（Step 4 + 独立 `/amazon-aplus`）**：由 `SITE_NAV_HIDDEN.amazonAplus` 控制（`AiAssistant.jsx` 内 `APLUS_STEP_ENABLED = !SITE_NAV_HIDDEN.amazonAplus`）；隐藏时 Step 4 不出现、独立页重定向。局限见 `docs/KNOWN_ISSUES.md` §1.1。**合规**：`docs/ECOMMERCE-AI-ASSISTANT.md`；标题去 `! $ ? _ { } ^ ¬ ¦` 并截断。
 - **生成 Listing prompt 优化**：analyze 要求提取 Rufus 可用的具体参数（尺寸、重量、材质、认证等）写入 productSummary/keyAttributes；generate-listing 要求标题前 50–80 字符含核心词与属性、五点每条对应一个利益或买家问题并可含痛点→方案/场景/硬数据，并含五类违禁与替代说明。
 - **Gemini 智能体/指令参考**：用户自有若干 Gemini 搭建 Listing 智能体相关文档（含工作流、指令模板、合规与违禁词等）；用户已删除此前转成的 txt，计划自行阅读后截取有用部分再提供给 AI 做后续优化。
 - **保存 Listing**：所有步骤结束后有「保存到我的 Listing」「导出 CSV」「导出 JSON」；导出统一实现在 `src/lib/exportListingCsv.js`（支持亚马逊/eBay/速卖通）。保存时传 `mainImageId`/`aplusImageIds`，Listing 历史详情可展示关联主图与 A+ 图。Logo 已接入（`public/logo.png`），Header 内不溢出、与导航栏同底。

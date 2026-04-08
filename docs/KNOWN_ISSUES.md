@@ -1,6 +1,7 @@
 # 已知问题与待办
 
-> 本文档汇总**当前需关注的问题**、**待办改进**、**运营须知**。详细功能说明见各专项文档。
+> **用途**：汇总能力边界、环境依赖、**待办**、**运营/隐私沟通**与运维快查。各功能深度说明见 [文档总索引](./README.md)。  
+> **谁看哪块**：产品/商务 → §一 §三；排期 → §二；运维 → §四。
 
 ---
 
@@ -16,83 +17,75 @@
 
 ## 一、已知问题
 
-### 1.1 功能暂不开放
+> 含：前台与能力边界（§1.1）、第三方与环境（§1.2）、已落实项备查（§1.3）。
+
+### 1.1 前台入口与能力边界
+
+**入口**：侵权检测、智能选品、A+（含亚马逊 Listing 第 4 步）默认**不在顶栏**；恢复方式见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md)（`src/lib/siteFeatures.js` · `SITE_NAV_HIDDEN`）。
 
 | 项目 | 说明 |
 |------|------|
-| **A+ 模块** | 生成 Listing Step 4「A+ 文案与图片」+ 独立 A+ 详情页（`/amazon-aplus`）**暂不实现**。Step 4 已锁定（`APLUS_STEP_ENABLED = false`），A+ 页面导航已隐藏。原因：生图效果待优化，用户需求差异大。 |
-| **智能选品（1688 供应商匹配）** | AI 电商工具箱 → 智能选品 **已封存**，前台不显示。原因：Daji 以图搜图对亚马逊主图在 1688 上几乎无匹配——用户用相同图片手动在 1688 搜索，也找不到完全一样的商品；诊断显示主图拉取、Daji 上传、图搜接口均成功，但 1688 返回 0 条。大概率因亚马逊商品与 1688 并非一一对应，1688 少有同款。代码与 API 保留，后续是否删除待定。 |
-| **恢复方式** | A+：前端改 `APLUS_STEP_ENABLED = true`；Header 移除 A+ 的 `hidden: true`。智能选品：前端改 `AI_TOOLBOX_ENABLED = true`。 |
+| **智能选品（1688）** | **局限**：Daji 以图搜图对多数**亚马逊主图**在 1688 上常 **0 条或极少匹配**（货源非同款）。见 [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md)。须 `DAJI_APP_KEY` / `DAJI_APP_SECRET`；**生产已激活**。 |
+| **侵权风险检测** | **局限**：公开检索 + AI 抽词，**大量产品/风险无法检出**，仅上架前粗筛；**非 FTO**。深度约 **20 积分/次**。机理见 [IP-RISK.md](./IP-RISK.md)。 |
+| **A+** | **局限**：**当前形态与输出不符合客户实际需求**，宜按真实上架场景重做或弱化。独立页与 Listing **Step 4** 同开关；品牌/类目差异大。 |
 
-### 1.2 体验问题
-
-| 项目 | 现象 | 约束 |
-|------|------|------|
-| **仓库多张保存** | 选文件夹保存时，部分目录（含系统/隐藏文件）会被浏览器拒绝，提示「含有系统文件」 | 多张不能改为「每张弹一次另存为」（选 1 万张要点 1 万次），需在浏览器限制下找更好方案 |
-| **角色一致性 360°** | 女模特的「左侧侧面」「右侧侧面」指令常生成相反结果 | 可能为模型对左右视图理解偏差或中文→英文指令偏差，待调试 |
-
-### 1.3 配置与依赖
+### 1.2 环境与第三方服务
 
 | 项目 | 说明 |
 |------|------|
-| **智能选品 Daji 激活** | （功能已封存）配置 `DAJI_APP_KEY` / `DAJI_APP_SECRET` 后，需联系 Daji 平台激活 1688 接口（微信 openapi2019 / WhatsApp +8618820777181），否则会报错「请创建应用，再联系平台进行激活」 |
+| **Daji** | **生产已激活**。新环境在 `server/.env` 配 `DAJI_APP_KEY`、`DAJI_APP_SECRET`；换钥后若提示「请创建应用…再激活」→ 联系 Daji（微信 openapi2019 / WhatsApp +8618820777181）。 |
+| **其余密钥** | 与 **§4.3** 同表。部署步骤见 [DEPLOY.md](./DEPLOY.md)。 |
 
-### 1.4 已实现（记录备查）
+### 1.3 已落实能力（备查）
 
 | 项目 | 说明 |
 |------|------|
-| 仓库 COS 加速 | 配置 `COS_*` 后新图自动上传 COS，详见 [DEPLOY.md](./DEPLOY.md) 第四节 |
-| 从作品库选择 | 选图加载统一走后端 `/api/gallery/image/:id`，避免 COS 跨域导致选图后图片不出现 |
+| 仓库 COS | 配 `COS_*` 后新图可走 COS → [DEPLOY.md](./DEPLOY.md) 第四节 |
+| 选图代理 | 统一 `/api/gallery/image/:id`，避免 COS 跨域 |
 
 ---
 
 ## 二、待办改进
 
+> 优先级与排期以业务为准。**「积分到期提醒」依赖「注册信息校验」**（须已验证邮箱/手机方可触达）。
+
 ### 2.1 功能类
 
 | 优先级 | 项目 | 说明 |
 |--------|------|------|
-| 中 | 用户自带 API Key | 用户填自己的 Gemini Key，生成请求不过本服务器 |
-| 低 | 图片定期自动清理 | N 天后自动删除仓库中的图片文件 |
-| 低 | 隐私政策页面 | 前端加一页说明数据存储范围与用途 |
-| 低 | 支付接入 | 微信支付/支付宝，客户自助下单 |
-| 低 | 到期提醒 | 提前 3～7 天发邮件/消息通知积分即将到期 |
-| 低 | 注册审批 | 新用户注册后需管理员审批才能使用 |
+| 中 | 注册信息校验 | 邮箱：验证码或激活链接。手机（若做）：短信验证码。需邮件/短信通道、频控、过期、防刷。 |
+| 低 | 支付接入 | 微信 / 支付宝自助下单 |
+| 低 | 积分到期提醒 | 到期前 **3～7 天** **邮件或短信**；**以前项注册校验已完善为前提**。 |
 
-### 2.2 体验类
+### 2.2 体验与算法类
 
 | 项目 | 说明 |
 |------|------|
-| **文字大小与字体** | 客户有指定生图文字大小、字体的需求，暂不实现。当前由 AI 根据设计规范自动决定。 |
-| 仓库批量保存 | 多张选文件夹时部分目录被拒，需优化方案 |
-| CPC 分类号 | 专利检索可补充分类号提高命中率（待定） |
-| **侵权检测专利命名同义词漏检（✅ 已部分改进）** | 美国外观专利标题可能使用完全出乎意料的命名，导致漏检。已知案例：金色纸巾架（中文：纸巾架），AI 生成词可能不含 **cocktail** 等专利标题用词，而该专利标题为 **Cocktail napkin stand**（USD1098777S1）。**已实施改进（2026-04）**：① `analysisPrompt` 要求 5-6 个英文词、每词 1-3 单词、多角度命名；② 后端 `expandPatentSynonyms` 通用同义词扩展；③ `fetchGooglePatentsMulti`：**1 个组合查询 + 每个词 `"词" design patent` 精确查询**，去重后最多 5 次 SerpApi；④ 综合报告 `patentRisk` 要求 Markdown 列表行，前端 `linkifyUrls` 使 URL 可点，嵌套 JSON 由 `ensureSectionString` 兜底。**根本局限**：关键词检索无法穷举专利标题用词，详见 `docs/IP-RISK.md` 第十节。 |
+| **组图文字大小/字体** | 客户需求存在；现由 AI 按规范决定，未单独开放参数。 |
+| **侵权检测 · 专利命名漏检** | 外观专利标题用词刁钻时仍可能漏检。**2026-04 已改进**（检索扩展、多路 Patents、报告结构等），见 [IP-RISK.md](./IP-RISK.md) 第十节。**根本局限**：关键词无法穷举所有专利表述。 |
 
 ---
 
 ## 三、运营须知：数据隐私与客户沟通
 
-### 3.1 管理员能看到什么
+### 3.1 管理员可见数据
 
-| 数据 | 能看见 | 说明 |
-|------|--------|------|
-| 账号邮箱 | ✅ | users 表 |
-| 密码 | ❌ | bcrypt 加密，不可逆 |
-| 积分余额/流水 | ✅ | user_points / points_transactions |
-| 生成的图片 | ✅ | server/gallery/ |
-| 上传的产品图 | ❌ | 只做分析，不落盘 |
-| 输入的文字要求 | ❌ | 只传 Gemini，不存库 |
+| 数据 | 可见 | 说明 |
+|------|:----:|------|
+| 账号邮箱 | ✅ | `users` |
+| 密码 | ❌ | bcrypt |
+| 积分与流水 | ✅ | `user_points` / `points_transactions` |
+| 仓库生成图 | ✅ | 本地或 COS |
+| 上传产品图（分析） | ❌ | 通常不落盘 |
+| 用户输入文案 | ❌ | 不当次落库 |
 
 ### 3.2 建议话术
 
-> 「作为平台管理员，我技术上能看到你生成的图片和账号信息，但我不会主动去查看。这和用 Canva、Notion 等 SaaS 一样——服务方都有管理员权限，信任来自我们的关系和承诺。」
+> 「平台方技术上可访问您账号下生成图与账户信息，但不会无故查看；与常见 SaaS 一致，信任靠约定与合规使用。」
 
-### 3.3 需额外说明的客户
+### 3.3 高敏感场景
 
-- 未上市产品、核心专利外观
-- 高度保密的商业设计
-
-**建议**：用完后在仓库手动删除图片；或等「用户自带 API Key」上线。
+未上市款、核心外观、高保密设计 → **建议用毕后在仓库手动删图**。
 
 ---
 
@@ -100,81 +93,45 @@
 
 ### 4.1 文档索引
 
-| 主题 | 文档 |
+[docs/README.md](./README.md)
+
+### 4.2 常用运维
+
+| 操作 | 链接 |
 |------|------|
-| 项目结构、技术栈 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) |
-| 全品类组图 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
-| 电商 AI 助手（亚马逊/eBay/速卖通） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
-| 侵权风险检测 | [IP-RISK.md](./IP-RISK.md) |
-| 1688 智能选品 | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
-| AI 美工 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
-| 部署与运维 | [DEPLOY.md](./DEPLOY.md) |
-| 积分与成本 | [PRICING-COST.md](./PRICING-COST.md) |
+| 发版更新 | [DEPLOY.md §2](./DEPLOY.md) |
+| 删用户与数据 | [DEPLOY.md §5](./DEPLOY.md) |
+| SerpApi（侵权深度） | [DEPLOY.md §3](./DEPLOY.md) |
+| 专利汇 | [DEPLOY.md](./DEPLOY.md) 相关小节 |
 
-### 4.2 常用操作
+### 4.3 关键环境变量
 
-| 操作 | 说明 |
+| 变量 | 用途 |
 |------|------|
-| 推送到服务器 | 见 [DEPLOY.md 第二节](./DEPLOY.md) |
-| 删除用户及数据 | 见 [DEPLOY.md 第五节](./DEPLOY.md) |
-| 配置 SerpApi（侵权深度查询） | 见 [DEPLOY.md 第三节](./DEPLOY.md) |
-| 配置专利汇 | 见 [DEPLOY.md 1.4、第三节](./DEPLOY.md) |
-
-### 4.3 关键配置
-
-| 环境变量 | 用途 |
-|----------|------|
-| GEMINI_API_KEY | 必需 |
-| SERPAPI_KEY | 侵权深度查询必需 |
-| PATENTHUB_TOKEN | 侵权专利汇检索（可选） |
-| ADMIN_EMAIL / ADMIN_PASSWORD | 管理员 |
-| DAJI_APP_KEY / DAJI_APP_SECRET | 智能选品 1688 搜索（需联系 Daji 激活） |
-| COS_* | 仓库图片加速（可选） |
+| `GEMINI_API_KEY` | 必需 |
+| `SERPAPI_KEY` | 侵权深度 |
+| `PATENTHUB_TOKEN` | 专利汇（可选） |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | 管理员 |
+| `DAJI_APP_KEY` / `DAJI_APP_SECRET` | 1688 选品（生产已激活；异常再联系 Daji） |
+| `COS_*` | 仓库 COS（可选） |
 
 ---
 
 ## 附录：历史变更摘要
 
-> 精简按模块归类，详细实现见代码与专项文档。
+> 一句话归档；实现细节见代码与各专项 md。
 
-### 侵权风险检测
+| 模块 | 摘要 |
+|------|------|
+| 侵权检测 | `/ip-risk`；快筛 + 深度 20 积分；入口默认隐藏 → [IP-RISK.md](./IP-RISK.md)、[TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md) |
+| 1688 选品 | 工具箱默认隐藏；匹配局限 §1.1 → [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
+| 电商助手 | 亚马逊 / eBay / 速卖通 Listing；A+ 随 `amazonAplus` → [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) |
+| AI 美工 | [AI-DESIGNER.md](./AI-DESIGNER.md) |
+| 仓库 | 生图入库、批量、「用AI编辑」带图；COS 可选 |
+| 积分 | [PRICING-COST.md](./PRICING-COST.md)；`POINTS_MAP` 前后端两处同步（`server/points.js` + `src/lib/pointsConfig.js`；前端 `pointsEstimate.js` 引用 `pointsConfig.js`） |
+| 管理后台 · 选图 · 组图（2026-03～24） | `Admin.jsx`、`loadGalleryImage.js`、[ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) |
+| 其他 | 注册赠 150 积分（30 天）；删用户可再注册；打印 `npm run docs:print` |
 
-- 独立模块 `/ip-risk`，免费快筛 + 深度查询（20 积分）。详见 [IP-RISK.md](./IP-RISK.md)。
+---
 
-### 1688 智能选品
-
-- AI 电商工具箱 → 智能选品：**已封存**（见 1.1 节）。原功能见 [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md)。
-
-### 电商 AI 助手
-
-- 亚马逊：生成/优化 Listing、竞品对比、关键词研究、A/B 变体；eBay/速卖通：生成/优化；智能粘贴。A+ 模块暂不实现。详见 [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md)。
-
-### AI 美工
-
-- 图片编辑（局部重绘/消除/换色、服装3D/平铺/调整身材、生成场景、添加人/物）、质量提升（智能扩图、提升质感）、文字修改（替换/语言转换/去除）、风格变迁、水印、官方示例。详见 [AI-DESIGNER.md](./AI-DESIGNER.md)。
-
-### 仓库
-
-- 生图即入仓；多选批量保存/删除；「用AI编辑」一二级菜单跳转并带图。COS 加速可选。
-
-### 积分与定价
-
-- ¥200/1000 积分/年；Nano Banana 1K=4、Nano Banana 2 各挡 4/6/10/14、Pro 12/12/20、侵权深度 20。Admin 充值 30天/180天/1年。
-
-### 管理后台（2026-03-23）
-
-- 备注列显示真实内容；「编辑备注」按钮在操作列；操作按钮（冻结/编辑备注/充值/流水/删除）单行排列；可拖拽调节列宽（localStorage 持久化）；按余额/已消耗/到期/注册时间排序；用户冻结功能（登录及接口返回 403，前端琥珀色提示）；仅普通用户可冻结。
-
-### 从作品库选择（2026-03-23）
-
-- 选图加载统一用 `loadImageFromGalleryId(id)` 走后端 `/api/gallery/image/:id`，避免 COS 跨域导致选图后图片不出现。GalleryThumb 传 `url/title/token`。从仓库「用AI编辑」带图进入时传 `id`，`loadImageFromGalleryUrl` 优先走 id 代理。
-
-### 通用电商生图（2026-03-24）
-
-- **选 X 张写 X 个描述**：卖点图/场景图/特写图/交互图各自选数量后须填写对应条数描述，白底主图无需描述。analyze 接口传 `sceneDescriptions/closeUpDescriptions/interactionDescriptions` 供 AI 严格按描述规划。
-- **是否显示文字**：卖点图、场景图、特写图、交互图各自可选「显示文字」，不勾选则生成纯视觉图（无标题/文案）。generate 接口传 `sceneShowText/closeUpShowText/interactionShowText`。详见 [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md)。
-- **分析失败**：未配置 GEMINI_API_KEY 或 AI 返回格式异常时，明确返回错误提示，不展示 mock 规划，避免客户误以为分析成功。
-
-### 其他
-
-- 新用户注册送 150 积分（30 天）；删除用户可重新注册；管理员客户备注；打印版 `npm run docs:print`。
+*打印版：`npm run docs:print`（输出 `docs/print/`）。*

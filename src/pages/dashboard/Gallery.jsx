@@ -95,6 +95,25 @@ function groupByDate(items) {
     .map((key) => ({ key, items: map[key] }))
 }
 
+/** 日期分组「全选/半选」复选框（原生 indeterminate） */
+function DateGroupCheckbox({ checked, indeterminate, onChange }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.indeterminate = Boolean(indeterminate)
+  }, [indeterminate, checked])
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="rounded border-gray-300 text-gray-800 focus:ring-gray-500 w-4 h-4"
+    />
+  )
+}
+
 export default function Gallery() {
   const navigate = useNavigate()
   const { getToken } = useAuth()
@@ -245,6 +264,21 @@ export default function Gallery() {
     }
   }
 
+  /** 选中 / 取消选中某一天内的全部图片 */
+  const toggleSelectDate = (dayItems) => {
+    if (dayItems.length === 0) return
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allInDay = dayItems.every((i) => next.has(i.id))
+      if (allInDay) {
+        dayItems.forEach((i) => next.delete(i.id))
+      } else {
+        dayItems.forEach((i) => next.add(i.id))
+      }
+      return next
+    })
+  }
+
   /** 批量删除选中的图片 */
   const batchDeleteSelected = useCallback(async () => {
     const ids = Array.from(selectedIds)
@@ -353,7 +387,9 @@ export default function Gallery() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900">仓库</h1>
-      <p className="mt-2 text-gray-500">您保存的图片保存在服务器，按日期分组；可多选后批量保存到客户所选文件夹</p>
+      <p className="mt-2 text-gray-500">
+        您保存的图片保存在服务器，按日期分组；可全选、按日期勾选当日全部，或单张多选后批量保存到本地
+      </p>
 
       {items.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-gray-300 bg-gray-50/50 py-16 text-center">
@@ -397,9 +433,29 @@ export default function Gallery() {
           </div>
 
           <div className="mt-6 space-y-8">
-            {groups.map(({ key, items: dayItems }) => (
+            {groups.map(({ key, items: dayItems }) => {
+              const dayCount = dayItems.length
+              const selectedInDay = dayItems.filter((i) => selectedIds.has(i.id)).length
+              const allDaySelected = dayCount > 0 && selectedInDay === dayCount
+              const someDaySelected = selectedInDay > 0 && selectedInDay < dayCount
+              return (
               <section key={key}>
-                <h2 className="text-sm font-semibold text-gray-500 mb-3">{dateLabel(key)}</h2>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+                  <h2 className="text-sm font-semibold text-gray-500">{dateLabel(key)}</h2>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-600">
+                    <DateGroupCheckbox
+                      checked={allDaySelected}
+                      indeterminate={someDaySelected}
+                      onChange={() => toggleSelectDate(dayItems)}
+                    />
+                    <span>
+                      选中当日全部
+                      <span className="text-gray-400 ml-1">
+                        （{selectedInDay}/{dayCount}）
+                      </span>
+                    </span>
+                  </label>
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {dayItems.map((item) => (
                     <div
@@ -476,7 +532,10 @@ export default function Gallery() {
                                     const blob = await res.blob()
                                     const name = (item.title || '图片').replace(/[^\w\u4e00-\u9fa5-]/g, '_') + '.png'
                                     await saveBlobWithPicker(blob, name)
-                                  } catch (_) {}
+                                  } catch (err) {
+                                    console.error('下载失败', err)
+                                    alert('下载失败，请稍后重试')
+                                  }
                                 }}
                                 className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                               >
@@ -497,7 +556,8 @@ export default function Gallery() {
                   ))}
                 </div>
               </section>
-            ))}
+              )
+            })}
           </div>
         </>
       )}

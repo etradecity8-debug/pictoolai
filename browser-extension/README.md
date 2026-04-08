@@ -1,6 +1,6 @@
 # PicToolAI 浏览器扩展（Chromium）
 
-**给客户用的安装与说明文案**（运营可复制）：见仓库 **`docs/BROWSER-EXTENSION.md`** 中 **「客户试用说明」** 一节。
+**用户安装说明**（可复制到帮助中心/客服）：见 **`docs/BROWSER-EXTENSION.md`** →「用户安装步骤」。**zip 分发**：用户登录官网后在顶栏 **浏览器扩展** 自行下载 `pictoolai-browser-extension.zip`（对应仓库 `public/pictoolai-browser-extension.zip`），一般无需运营单独发附件。
 
 ## 功能
 

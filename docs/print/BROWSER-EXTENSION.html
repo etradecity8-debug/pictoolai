@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/5</div>
+  <div class="meta">BROWSER-EXTENSION.md → 打印版 · 2026/4/9</div>
   <h1>浏览器扩展（PicToolAI 修图）</h1>
 <h2>作用</h2>
 <p>在任意网页对 <code>&lt;img&gt;</code> 右键：<strong>PicToolAI → 子菜单</strong>，抓取图片、压缩后写入扩展存储，新开 <code>pictoolai.studio</code> 对应页面并带图进入：</p>
@@ -50,18 +50,21 @@
 </ul>
 <p>生成结果请在 PicToolAI 内 <strong>保存到本地</strong>（或从仓库下载），再上传到电商平台 / ERP（如店小秘）；<strong>不会</strong>自动写回对方后台。</p>
 <hr>
-<h2>客户试用说明（运营向）</h2>
-<p>发给客户前，请自行确认：<strong>网站已部署含扩展握手的新代码</strong>、<code>browser-extension/background.js</code> 中 <code>SITE_ORIGIN</code> 为 <strong><code>https://pictoolai.studio</code></strong>（本地调试才用 <code>http://localhost:5173</code>）。打包给客户时：将 <strong><code>browser-extension</code> 文件夹</strong>打成 zip，<strong>解压后第一层可见 <code>manifest.json</code></strong>（不要多包一层空目录）。</p>
-<h3>发给客户（可直接复制）</h3>
-<p><strong>PicToolAI 浏览器扩展（试用）</strong></p>
+<h2>分发方式与用户安装说明</h2>
+<p><strong>当前约定</strong>：扩展 <strong>zip 由用户在官网自行下载</strong>（登录后顶栏 <strong>浏览器扩展</strong> 链接，静态文件 <code>public/pictoolai-browser-extension.zip</code>），运营一般<strong>不再单独发送</strong>压缩包。下文「用户安装步骤」可复制到帮助中心、客服话术或邮件。</p>
+<h3>上线 / 更新 zip 前（开发运维自检）</h3>
+<p>发布或替换线上 zip 前请确认：<strong>站点已部署含扩展握手的代码</strong>；打包进 <code>public/</code> 的 zip 来自仓库 <strong><code>browser-extension/</code></strong> 目录，且 <strong><code>background.js</code> 中 <code>SITE_ORIGIN</code> 为 <code>https://pictoolai.studio</code></strong>（仅本地调试改为 <code>http://localhost:5173</code>）。打 zip 时：<strong>解压后第一层须直接可见 <code>manifest.json</code></strong>（勿多包一层空目录）。更新源码后重新打包并覆盖 <code>public/pictoolai-browser-extension.zip</code>，与 <code>Header</code> 下载链接一致。</p>
+<h3>用户安装步骤（可直接复制）</h3>
+<p><strong>PicToolAI 浏览器扩展</strong></p>
 <ol>
+<li><strong>下载</strong>：登录 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong>，在顶栏点击 <strong>浏览器扩展</strong>（或同等入口），下载 zip 文件。</li>
 <li><strong>浏览器</strong>：请使用 <strong>Google Chrome</strong>，或使用 <strong>Microsoft Edge</strong>（Chromium 新版）。</li>
-<li><strong>解压</strong>：将收到的 zip 解压到电脑里<strong>固定文件夹</strong>（例如「文档」下的一个目录）。<strong>不要删除该文件夹</strong>，否则扩展会失效。</li>
+<li><strong>解压</strong>：将<strong>下载的</strong> zip 解压到电脑里<strong>固定文件夹</strong>（例如「文档」下的一个目录）。<strong>不要删除该文件夹</strong>，否则扩展会失效。</li>
 <li><strong>安装扩展</strong>  <ul>
 <li>地址栏输入 <code>chrome://extensions</code> 并回车（Edge 用户可试 <code>edge://extensions</code>）。  </li>
 <li>打开右上角 <strong>「开发者模式」</strong>。  </li>
 <li>点击 <strong>「加载已解压的扩展程序」</strong>。  </li>
-<li>选择解压后的 <strong><code>browser-extension</code></strong> 文件夹（文件夹内应有 <code>manifest.json</code>）。</li>
+<li>选择解压后的文件夹（<strong>解压后若最外层是 <code>browser-extension</code> 且其内含 <code>manifest.json</code>，则选该文件夹</strong>；若 zip 解压后根目录直接是 <code>manifest.json</code> 等文件，则选这一层目录）。</li>
 </ul>
 </li>
 <li><strong>登录网站</strong>：新开标签页打开 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong> ，使用 PicToolAI 账号<strong>登录</strong>（扩展会打开本站；未登录无法正常使用生图与扣费）。</li>
@@ -72,7 +75,7 @@
 </li>
 <li>上架用图请以各平台 / ERP <strong>后台实际上传的文件</strong>为准；扩展仅缩短「网页上的图 → 带进 PicToolAI」的路径。</li>
 </ol>
-<h3>常见问题（指导客户时对照）</h3>
+<h3>常见问题（客服 / 用户对照）</h3>
 <table>
 <thead>
 <tr>
@@ -81,6 +84,10 @@
 </tr>
 </thead>
 <tbody><tr>
+<td>不知道去哪下载 zip</td>
+<td>使用电脑浏览器登录 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong>，在顶栏找到 <strong>浏览器扩展</strong> 并下载；需登录账号。</td>
+</tr>
+<tr>
 <td>右键没有 PicToolAI</td>
 <td>打开扩展页确认扩展已<strong>启用</strong>；点扩展卡片上的 <strong>重新加载</strong> 后重试。</td>
 </tr>
@@ -106,7 +113,7 @@
 </tr>
 </tbody></table>
 <h3>正式发行（可选）</h3>
-<p>长期可提交 <strong>Chrome 网上应用店</strong>，客户无需开启开发者模式；权限与隐私说明见 <code>browser-extension/README.md</code> 中「打包上架」。</p>
+<p>长期可提交 <strong>Chrome 网上应用店</strong>，用户无需开启「加载已解压」；权限与隐私说明见 <code>browser-extension/README.md</code> 中「打包上架」。</p>
 <hr>
 <h2>架构要点</h2>
 <table>

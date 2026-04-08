@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { AI_TOOLBOX_ENABLED } from './lib/featureFlags'
 import ProtectedRoute from './components/ProtectedRoute'
 import GuestOnlyRoute from './components/GuestOnlyRoute'
 import Header from './components/layout/Header'
@@ -12,14 +11,11 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
 import DashboardLayout from './components/layout/DashboardLayout'
-import Dashboard from './pages/dashboard/Dashboard'
 import Gallery from './pages/dashboard/Gallery'
 import ListingHistory from './pages/dashboard/ListingHistory'
 import Points from './pages/dashboard/Points'
 import DetailSet from './pages/DetailSet'
 import StyleClone from './pages/StyleClone'
-import ApparelSet from './pages/ApparelSet'
-import ImageRetouch from './pages/ImageRetouch'
 import AiDesigner from './pages/AiDesigner'
 import AmazonAPlus from './pages/AmazonAPlus'
 import AiAssistant from './pages/AiAssistant'
@@ -27,6 +23,7 @@ import IpRisk from './pages/IpRisk'
 import AiToolbox from './pages/AiToolbox'
 import SupplierMatching from './pages/ai-toolbox/SupplierMatching'
 import Admin from './pages/Admin'
+import { SITE_NAV_HIDDEN } from './lib/siteFeatures'
 
 function MarketingLayout({ children }) {
   return (
@@ -53,22 +50,55 @@ export default function App() {
       {/* 以下需登录后访问，未登录会跳转到 /login */}
       <Route path="/detail-set" element={<ProtectedRoute><MarketingLayout><DetailSet /></MarketingLayout></ProtectedRoute>} />
       <Route path="/style-clone" element={<Navigate to="/ai-designer/style-clone" replace />} />
-      <Route path="/apparel-set" element={<ProtectedRoute><MarketingLayout><ApparelSet /></MarketingLayout></ProtectedRoute>} />
-      <Route path="/image-retouch" element={<ProtectedRoute><MarketingLayout><ImageRetouch /></MarketingLayout></ProtectedRoute>} />
       <Route path="/image-edit" element={<Navigate to="/ai-designer/add-remove" replace />} />
       <Route path="/ai-designer" element={<ProtectedRoute><AiDesigner /></ProtectedRoute>} />
       <Route path="/ai-designer/:toolId" element={<ProtectedRoute><AiDesigner /></ProtectedRoute>} />
-      <Route path="/amazon-aplus" element={<ProtectedRoute><MarketingLayout><AmazonAPlus /></MarketingLayout></ProtectedRoute>} />
+      <Route
+        path="/amazon-aplus"
+        element={
+          <ProtectedRoute>
+            {SITE_NAV_HIDDEN.amazonAplus ? (
+              <Navigate to="/" replace />
+            ) : (
+              <MarketingLayout>
+                <AmazonAPlus />
+              </MarketingLayout>
+            )}
+          </ProtectedRoute>
+        }
+      />
       <Route path="/ai-assistant" element={<ProtectedRoute><MarketingLayout><AiAssistant /></MarketingLayout></ProtectedRoute>} />
-      <Route path="/ip-risk" element={<ProtectedRoute><MarketingLayout><IpRisk /></MarketingLayout></ProtectedRoute>} />
-      {AI_TOOLBOX_ENABLED ? (
-      <Route path="/ai-toolbox" element={<ProtectedRoute><MarketingLayout><AiToolbox /></MarketingLayout></ProtectedRoute>}>
+      <Route
+        path="/ip-risk"
+        element={
+          <ProtectedRoute>
+            {SITE_NAV_HIDDEN.ipRisk ? (
+              <Navigate to="/" replace />
+            ) : (
+              <MarketingLayout>
+                <IpRisk />
+              </MarketingLayout>
+            )}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-toolbox"
+        element={
+          <ProtectedRoute>
+            {SITE_NAV_HIDDEN.aiToolboxSupplier ? (
+              <Navigate to="/" replace />
+            ) : (
+              <MarketingLayout>
+                <AiToolbox />
+              </MarketingLayout>
+            )}
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<Navigate to="/ai-toolbox/supplier-matching" replace />} />
         <Route path="supplier-matching" element={<SupplierMatching />} />
       </Route>
-      ) : (
-      <Route path="/ai-toolbox/*" element={<Navigate to="/" replace />} />
-      )}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard/gallery" replace />} />
         <Route path="gallery" element={<Gallery />} />

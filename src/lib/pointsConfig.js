@@ -5,8 +5,13 @@
  * - Nano Banana 2：0.5K=4，1K=6，2K=10，4K=14 积分/张
  */
 
+/**
+ * 积分规则在两处维护，修改时须同步：
+ *   1. server/points.js（后端扣费）
+ *   2. src/lib/pointsConfig.js（本文件，前端唯一定义）
+ */
 /** 模型 + 清晰度 → 每张图扣积分 */
-const POINTS_MAP = {
+export const POINTS_MAP = {
   'Nano Banana':     { '1K 标准': 4 },
   'Nano Banana Pro': { '1K 标准': 12, '2K 高清': 12, '4K 超清': 20 },
   'Nano Banana 2':   { '0.5K 快速': 4, '1K 标准': 6, '2K 高清': 10, '4K 超清': 14 },

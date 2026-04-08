@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { POINTS_TABLE } from '../lib/pointsConfig'
+import { useState, useMemo } from 'react'
+import { POINTS_TABLE, SUBSCRIPTION_PLANS } from '../lib/pointsConfig'
+import { SITE_NAV_HIDDEN } from '../lib/siteFeatures'
 
 function ContactModal({ open, onClose }) {
   if (!open) return null
@@ -24,17 +25,38 @@ function ContactModal({ open, onClose }) {
 }
 
 /** 非生图类操作（生图明细见 POINTS_TABLE）；pointsRange: [min, max] 表示积分区间 */
-const OTHER_OPERATIONS = [
+const OTHER_OPERATIONS_ALL = [
   { label: 'AI 美工（局部重绘/消除/换色等）', pointsRange: [4, 20], note: '每次，按所选模型' },
-  { label: '侵权风险检测 · 深度查询', points: 20, note: '每次' },
-  { label: '侵权风险检测 · 快速筛查', points: 0, note: '免费' },
+  { label: '侵权风险检测 · 深度查询', points: 20, note: '每次', requiresIpRiskNav: true },
+  { label: '侵权风险检测 · 快速筛查', points: 0, note: '免费', requiresIpRiskNav: true },
   { label: '电商AI运营助手（多平台 listing 生成/优化/关键字等）', points: 0, note: '免费' },
 ]
 
-const PLAN = { price: 200, points: 1000, expireDays: 365 }
+function useOtherOperations() {
+  return useMemo(
+    () =>
+      OTHER_OPERATIONS_ALL.filter((op) => {
+        if (op.requiresIpRiskNav && SITE_NAV_HIDDEN.ipRisk) return false
+        return true
+      }),
+    []
+  )
+}
+
+const PLAN = SUBSCRIPTION_PLANS[0]
 
 export default function Pricing() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
+  const OTHER_OPERATIONS = useOtherOperations()
+
+  const packageFeaturesLine =
+    SITE_NAV_HIDDEN.ipRisk
+      ? '全功能通用（通用电商生图 / AI美工 / AI运营助手）'
+      : '全功能通用（通用电商生图 / AI美工 / AI运营助手 / 侵权检测）'
+
+  const faqFreeAnswer = SITE_NAV_HIDDEN.ipRisk
+    ? '电商 AI 运营助手（Listing 生成/优化/竞品/关键词等分析功能）不消耗积分，注册即可使用。'
+    : '侵权快速筛查、电商 AI 运营助手（Listing 生成/优化/竞品/关键词等分析功能）均不消耗积分，注册即可使用。'
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-16">
@@ -69,7 +91,7 @@ export default function Pricing() {
             </li>
             <li className="flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-              <span>全功能通用（通用电商生图 / AI美工 / AI运营助手 / 侵权检测）</span>
+              <span>{packageFeaturesLine}</span>
             </li>
             <li className="flex items-center gap-2">
               <svg className="w-4 h-4 text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -159,7 +181,7 @@ export default function Pricing() {
           {[
             { q: '积分什么时候过期？', a: '购买之日起 1 年内有效，到期后未使用积分自动清零，请在有效期内使用。' },
             { q: '能买多份吗？', a: '可以，每次购买均以购买当日为起点重新计算 1 年有效期，余额叠加。' },
-            { q: '哪些功能免费？', a: '侵权快速筛查、电商 AI 运营助手（Listing 生成/优化/竞品/关键词/A+文案等分析功能）均不消耗积分，注册即可使用。' },
+            { q: '哪些功能免费？', a: faqFreeAnswer },
             { q: '如何购买？', a: '点击上方「立即购买」按钮，通过微信联系我们，付款后 1 个工作日内完成充值。' },
           ].map((item, i) => (
             <div key={i} className="rounded-xl border border-gray-200 bg-white p-4">

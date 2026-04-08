@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
-import { AI_TOOLBOX_ENABLED } from '../../lib/featureFlags'
+import { SITE_NAV_HIDDEN } from '../../lib/siteFeatures'
 
 const iconClass = 'w-4 h-4 shrink-0'
 
-// 工具类导航（居中显示）
-const toolLinks = [
+/** 静态资源：与 `public/pictoolai-browser-extension.zip` 同步（更新扩展后请重新打包 zip） */
+const BROWSER_EXTENSION_ZIP = '/pictoolai-browser-extension.zip'
+const BROWSER_EXTENSION_ZIP_NAME = 'pictoolai-browser-extension.zip'
+
+const toolLinksAll = [
   {
     to: '/detail-set',
     label: '通用电商生图',
@@ -28,7 +31,7 @@ const toolLinks = [
   {
     to: '/amazon-aplus',
     label: 'A+ 页面',
-    hidden: true, // 暂不开放，想清楚后再展示
+    hidden: () => SITE_NAV_HIDDEN.amazonAplus,
     icon: (
       <svg className={iconClass} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -37,11 +40,19 @@ const toolLinks = [
   },
 ]
 
+function useToolLinks() {
+  return useMemo(
+    () => toolLinksAll.filter((l) => !(l.hidden?.() ?? false)).map(({ hidden, ...rest }) => rest),
+    []
+  )
+}
+
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const toolLinks = useToolLinks()
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/'
@@ -62,7 +73,7 @@ export default function Header() {
 
           {/* 工具导航（居中，flex-1） */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1">
-            {toolLinks.filter((l) => !l.hidden).map(({ to, label, icon }) => (
+            {toolLinks.map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}
@@ -77,7 +88,7 @@ export default function Header() {
               </Link>
             ))}
 
-            {AI_TOOLBOX_ENABLED && (
+            {!SITE_NAV_HIDDEN.aiToolboxSupplier && (
             <Link
               to="/ai-toolbox"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
@@ -109,7 +120,7 @@ export default function Header() {
               <span>电商AI运营助手</span>
             </Link>
 
-            {/* 侵权风险检测 */}
+            {!SITE_NAV_HIDDEN.ipRisk && (
             <Link
               to="/ip-risk"
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap ${
@@ -123,6 +134,7 @@ export default function Header() {
               </svg>
               <span>侵权风险检测</span>
             </Link>
+            )}
           </nav>
 
           {/* 右侧：订阅 + 语言 + 用户 */}
@@ -152,6 +164,17 @@ export default function Header() {
             >
               <span>联系我们</span>
             </Link>
+            <a
+              href={BROWSER_EXTENSION_ZIP}
+              download={BROWSER_EXTENSION_ZIP_NAME}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition text-gray-500 hover:text-gray-900 hover:bg-white/70 whitespace-nowrap"
+              title="Chrome / Edge 等：解压后在扩展程序页「加载已解压的扩展程序」"
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>插件下载</span>
+            </a>
 
             {/* 竖线分隔 */}
             <div className="hidden lg:block w-px h-5 bg-gray-300 mx-1" />
@@ -216,7 +239,7 @@ export default function Header() {
         {/* 移动端展开菜单 */}
         {menuOpen && (
           <nav className="lg:hidden py-3 border-t border-gray-200 space-y-0.5">
-            {toolLinks.filter((l) => !l.hidden).map(({ to, label, icon }) => (
+            {toolLinks.map(({ to, label, icon }) => (
               <Link
                 key={to}
                 to={to}
@@ -229,7 +252,7 @@ export default function Header() {
                 <span>{label}</span>
               </Link>
             ))}
-            {AI_TOOLBOX_ENABLED && (
+            {!SITE_NAV_HIDDEN.aiToolboxSupplier && (
             <Link
               to="/ai-toolbox"
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
@@ -258,7 +281,7 @@ export default function Header() {
               </svg>
               <span>电商AI运营助手</span>
             </Link>
-            {/* 侵权风险检测（移动端） */}
+            {!SITE_NAV_HIDDEN.ipRisk && (
             <Link
               to="/ip-risk"
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm ${
@@ -271,6 +294,7 @@ export default function Header() {
               </svg>
               <span>侵权风险检测</span>
             </Link>
+            )}
             <Link
               to="/pricing"
               className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-white/60 hover:text-gray-900"
@@ -290,6 +314,18 @@ export default function Header() {
             >
               <span>联系我们</span>
             </Link>
+            <a
+              href={BROWSER_EXTENSION_ZIP}
+              download={BROWSER_EXTENSION_ZIP_NAME}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-white/60 hover:text-gray-900"
+              title="Chrome / Edge 等：解压后在扩展程序页「加载已解压的扩展程序」"
+              onClick={() => setMenuOpen(false)}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>插件下载</span>
+            </a>
             <div className="border-t border-gray-100 my-1" />
             {user ? (
               <>

@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USER MANUAL</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">USER-MANUAL.md → 打印版 · 2026/4/9</div>
+  <h1>PicToolAI 用户操作说明书</h1>
+<blockquote>
+<p><strong>文档版本</strong>：与当前站点功能同步编写，供终端用户按步骤操作。<br><strong>配图说明</strong>：文中插图位于 <code>docs/images/user-manual/</code>。若图片未显示，请按该目录下 <a href="./images/user-manual/README.md">README</a> 补拍同名 <strong>PNG</strong> 文件。<br><strong>更多说明</strong>：字段级细则、合规与技术文档见站内 <a href="./README.md">文档中心</a>（面向运营与技术人员）。<br><strong>菜单说明</strong>：侵权检测、智能选品、亚马逊 A+（含生成 Listing 的第 4 步）等是否出现在顶栏，以您登录后所见为准；若需使用可向 <strong>微信 13826530864</strong> 或对接运营咨询开通。</p>
+</blockquote>
+<hr>
+<h2>目录</h2>
+<ol>
+<li><a href="#%E4%B8%80%E4%BD%BF%E7%94%A8%E5%89%8D%E5%87%86%E5%A4%87">使用前准备</a></li>
+<li><a href="#%E4%BA%8C%E7%BD%91%E7%AB%99%E5%AF%BC%E8%88%AA%E4%B8%8E%E8%B4%A6%E5%8F%B7">网站导航与账号</a></li>
+<li><a href="#%E4%B8%89%E9%80%9A%E7%94%A8%E7%94%B5%E5%95%86%E7%94%9F%E5%9B%BE%E5%85%A8%E6%B5%81%E7%A8%8B">通用电商生图</a></li>
+<li><a href="#%E5%9B%9Bai-%E7%BE%8E%E5%B7%A5">AI 美工</a></li>
+<li><a href="#%E4%BA%94%E7%94%B5%E5%95%86-ai-%E8%BF%90%E8%90%A5%E5%8A%A9%E6%89%8B">电商 AI 运营助手</a></li>
+<li><a href="#%E5%85%AD%E5%B7%A5%E4%BD%9C%E5%8F%B0%E4%BB%93%E5%BA%93listing-%E5%8E%86%E5%8F%B2%E7%A7%AF%E5%88%86%E6%98%8E%E7%BB%86">工作台：仓库、Listing、积分</a></li>
+<li><a href="#%E4%B8%83%E8%AE%A2%E9%98%85%E4%B8%8E%E8%81%94%E7%B3%BB%E6%88%91%E4%BB%AC">订阅与联系我们</a></li>
+<li><a href="#%E5%85%AB%E6%B5%8F%E8%A7%88%E5%99%A8%E6%89%A9%E5%B1%95%E5%8F%AF%E9%80%89">浏览器扩展（可选）</a></li>
+<li><a href="#%E4%B9%9D%E7%A7%AF%E5%88%86%E4%B8%8E%E6%A8%A1%E5%9E%8B%E7%AE%80%E8%A6%81%E8%AF%B4%E6%98%8E">积分与模型简要说明</a></li>
+<li><a href="#%E5%8D%81%E9%99%84%E5%BD%95">附录</a></li>
+</ol>
+<hr>
+<h2>一、使用前准备</h2>
+<h3>1.1 运行环境</h3>
+<ul>
+<li>推荐使用 <strong>Chrome</strong> 或 <strong>Edge</strong> 等 Chromium 内核浏览器，并保持较新版本。</li>
+<li>需要 <strong>注册并登录</strong> 后，方可使用生图、仓库、AI 运营助手等核心功能。</li>
+<li>部分能力（如另存为到本地）依赖浏览器是否支持「文件选择器」；若批量保存文件夹被拒绝，可换成本地「文稿」下新建空文件夹再试。</li>
+</ul>
+<h3>1.2 术语速览</h3>
+<table>
+<thead>
+<tr>
+<th>术语</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>积分</td>
+<td>使用会扣积分的功能时消耗；新用户注册通常有体验积分（以站内说明为准）。</td>
+</tr>
+<tr>
+<td>仓库</td>
+<td>账号下保存的生成图记录，按日期分组；可批量下载、删除或带图进入 AI 美工。</td>
+</tr>
+<tr>
+<td>输出设置</td>
+<td>多数生图页可选：模型、画面比例、清晰度等，并显示预估积分。</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>二、网站导航与账号</h2>
+<h3>2.1 顶栏导航（登录后）</h3>
+<p>登录成功后，顶栏通常包含以下内容（<strong>具体以您所见为准</strong>；部分扩展入口可能未对全部账号开放）：</p>
+<ul>
+<li><strong>通用电商生图</strong>：全品类产品组图流程。</li>
+<li><strong>AI美工</strong>：单图编辑、修图、风格、水印等。</li>
+<li><strong>电商AI运营助手</strong>：多平台 Listing 文案与配图相关能力。</li>
+<li><strong>浏览器扩展</strong>：登录后在顶栏下载 <strong>Chromium 扩展 zip</strong>，本地解压后用「加载已解压的扩展程序」安装（详见第八节）。</li>
+<li><strong>订阅</strong>：查看套餐与积分说明。</li>
+<li><strong>联系我们</strong>：微信等联系方式。</li>
+<li><strong>工作台</strong>：进入个人工作台（仓库、Listing 历史等）。</li>
+</ul>
+<p><img src="images/user-manual/01-nav-overview.png" alt="图：顶栏导航总览"></p>
+<h3>2.2 注册</h3>
+<ol>
+<li>在首页或顶栏进入 <strong>免费注册</strong>。</li>
+<li>按页面提示填写邮箱、密码等信息并完成注册。</li>
+<li>若页面提示「新用户赠送体验积分」，请以实际显示为准。</li>
+</ol>
+<p><img src="images/user-manual/02-register.png" alt="图：注册页"></p>
+<h3>2.3 登录与退出</h3>
+<ol>
+<li>点击 <strong>登录</strong>，输入注册邮箱与密码。</li>
+<li>登录成功后，顶栏会显示账号入口与 <strong>工作台</strong>。</li>
+<li>需要退出时，点击 <strong>退出</strong>。</li>
+</ol>
+<p><img src="images/user-manual/03-login.png" alt="图：登录页"></p>
+<h3>2.4 找回密码</h3>
+<p>在登录页选择 <strong>忘记密码</strong>（若已开放），按邮件或页面指引重置密码。</p>
+<hr>
+<h2>三、通用电商生图（全流程）</h2>
+<p><strong>路径</strong>：顶栏 <strong>通用电商生图</strong>。</p>
+<p>流程分为 <strong>5 个步骤</strong>：输入 → 分析中 → 确认规划 → 生成中 → 完成。</p>
+<p><img src="images/user-manual/10-detailset-step1.png" alt="图：步骤 1 输入区"></p>
+<h3>3.1 步骤 1：输入</h3>
+<ol>
+<li><p><strong>上传产品图</strong>  </p>
+<ul>
+<li>点击上传区域，选择清晰的产品实拍图（建议主体完整、光线均匀）。</li>
+</ul>
+</li>
+<li><p><strong>填写产品名称</strong>（必填）  </p>
+<ul>
+<li>用于分析与生成时的产品指代，请与真实 SKU 一致。</li>
+</ul>
+</li>
+<li><p><strong>选填</strong>：目标人群、风格、其他要求  </p>
+<ul>
+<li>有助于统一画面气质与卖点表达。</li>
+</ul>
+</li>
+<li><p><strong>选择各类型图片张数</strong>  </p>
+<ul>
+<li><strong>白底主图</strong>、<strong>卖点图</strong>、<strong>特写图</strong>、<strong>场景图</strong>、<strong>交互图</strong> 可分别选择数量（各有上限，以页面为准）。  </li>
+<li><strong>白底主图</strong> 无需逐条描述。  </li>
+<li><strong>卖点图 / 场景图 / 特写图 / 交互图</strong>：选择 N 张时，一般需要填写 <strong>N 条对应描述</strong>（页面会校验）。</li>
+</ul>
+</li>
+<li><p><strong>是否显示文字</strong>  </p>
+<ul>
+<li>按类型勾选后，规划与生成会区分「图上是否出现文案」，请与上架平台习惯一致。</li>
+</ul>
+</li>
+<li><p>确认 <strong>目标语言</strong>（若与画面文字相关）、后续会用到的 <strong>模型 / 比例 / 清晰度</strong>（部分在后续步骤或生成前也可调整，以页面为准）。</p>
+</li>
+<li><p>点击 <strong>开始分析</strong>（或同等文案按钮）。  </p>
+<ul>
+<li>若提示未填必填项或总张数为 0，请按提示补全。</li>
+</ul>
+</li>
+</ol>
+<h3>3.2 步骤 2：分析中</h3>
+<ul>
+<li>等待服务端完成图片与文字分析，请勿关闭页面。  </li>
+<li>若网络不稳定，前端可能对分析请求自动重试（以实际行为为准）。</li>
+</ul>
+<h3>3.3 步骤 3：确认规划</h3>
+<ol>
+<li>阅读 <strong>整体设计规范</strong> 与 <strong>图片规划</strong>（多为 Markdown 排版，含按类型的彩色标签）。  </li>
+<li>若需调整需求，可返回步骤 1 修改条件后重新分析（以页面「上一步」或「重新」类按钮为准）。  </li>
+<li>确认无误后，进入 <strong>生成</strong>。</li>
+</ol>
+<p><img src="images/user-manual/11-detailset-step3.png" alt="图：步骤 3 确认规划"></p>
+<h3>3.4 步骤 4：生成中</h3>
+<ul>
+<li>按规划逐张生成，请耐心等待。  </li>
+<li>生成过程会消耗积分；失败一般不扣费（以站内规则为准）。</li>
+</ul>
+<h3>3.5 步骤 5：完成</h3>
+<ol>
+<li>结果按 <strong>图片类型</strong> 分组展示，可点击放大预览。  </li>
+<li><strong>保存到本地</strong>：单张可另存为；多张可能引导选择文件夹（受浏览器限制，部分系统目录会失败）。  </li>
+<li>成功生成的图片通常会 <strong>自动进入仓库</strong>，无需单独「保存到仓库」。  </li>
+<li>若修改了产品信息、张数、描述等核心条件，一般需要 <strong>回到步骤 1</strong> 并清空后续结果（以页面提示为准）；仅改模型、语言、尺寸等，可能支持直接再次生成（以页面为准）。</li>
+</ol>
+<p><img src="images/user-manual/12-detailset-step5.png" alt="图：步骤 5 完成"></p>
+<h3>3.6 浏览器扩展联动（可选）</h3>
+<p>若已安装 PicToolAI 浏览器扩展，可在电商网页 <strong>右键图片</strong> 进入组图流程，并可能自动带上产品图、预选图片类型。详见 <a href="#%E5%85%AB%E6%B5%8F%E8%A7%88%E5%99%A8%E6%89%A9%E5%B1%95%E5%8F%AF%E9%80%89">第八节</a>。</p>
+<hr>
+<h2>四、AI 美工</h2>
+<p><strong>路径</strong>：顶栏 <strong>AI美工</strong>，在左侧选择具体功能。</p>
+<p>左侧为 <strong>功能分类菜单</strong>，右侧为具体操作区。多数流程为：<strong>准备图片 → 填写参数 / 遮罩 → 输出设置 → 生成 → 保存 / 自动入仓库</strong>。</p>
+<p><img src="images/user-manual/20-aidesigner-sidebar.png" alt="图：AI 美工侧栏"></p>
+<h3>4.1 通用操作</h3>
+<ol>
+<li><p><strong>图片来源</strong>  </p>
+<ul>
+<li><strong>本地上传</strong>：按页面提示选择图片。  </li>
+<li><strong>从作品库选择</strong>：在支持该能力的页面，打开选图弹窗，从仓库选取（需登录）。</li>
+</ul>
+</li>
+<li><p><strong>输出设置</strong>（页面下方或侧栏，视具体工具而定）  </p>
+<ul>
+<li>选择 <strong>生图模型</strong>、<strong>画面比例</strong>、<strong>清晰度</strong> 等。  </li>
+<li>查看 <strong>预估积分</strong>；实际扣费以生成成功为准。</li>
+</ul>
+</li>
+</ol>
+<p><img src="images/user-manual/21-output-settings.png" alt="图：输出设置示例"></p>
+<ol start="3">
+<li><p><strong>生成与结果</strong>  </p>
+<ul>
+<li>点击生成后等待完成；失败时阅读错误提示（如积分不足、网络超时）。  </li>
+<li>成功后通常可 <strong>保存到本地</strong>，且图片会 <strong>进入仓库</strong>。</li>
+</ul>
+</li>
+<li><p><strong>从仓库带图进入</strong>  </p>
+<ul>
+<li>在仓库对某张图使用 <strong>用AI编辑</strong>，在菜单中选择功能，即会打开对应 AI 美工页并自动加载该图。</li>
+</ul>
+</li>
+</ol>
+<h3>4.2 图片编辑</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>局部重绘</td>
+<td>侧栏 <strong>局部重绘</strong>：上传原图，涂抹 <strong>遮罩</strong>，填写修改说明，生成替换遮罩区域。</td>
+</tr>
+<tr>
+<td>局部消除</td>
+<td>侧栏 <strong>局部消除</strong>：上传原图，涂抹需去除区域，生成抹除后效果。</td>
+</tr>
+<tr>
+<td>一键换色</td>
+<td>侧栏 <strong>一键换色</strong>：上传产品图，按提示选择或描述目标颜色。</td>
+</tr>
+<tr>
+<td>服装 3D</td>
+<td>侧栏 <strong>服装 3D</strong>：上传服装图，按页面说明生成立体展示效果。</td>
+</tr>
+<tr>
+<td>服装平铺</td>
+<td>侧栏 <strong>服装平铺</strong>：上传服装图，生成平铺展示图。</td>
+</tr>
+<tr>
+<td>调整身材</td>
+<td>侧栏 <strong>调整身材</strong>：上传模特穿搭图，按滑块或选项调整体型展示。</td>
+</tr>
+<tr>
+<td>生成场景</td>
+<td>侧栏 <strong>生成场景</strong>：上传产品图，填写 <strong>多个场景描述</strong>（有上限），可批量生成多场景图。</td>
+</tr>
+<tr>
+<td>添加人/物</td>
+<td>侧栏 <strong>添加人/物</strong>：上传产品图，配置人物/物品数量、位置与描述（或参考图），生成合成图。</td>
+</tr>
+</tbody></table>
+<h3>4.3 质量提升</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>智能扩图</td>
+<td>侧栏 <strong>智能扩图</strong>：上传图，指定扩展方向或比例，补全画面。</td>
+</tr>
+<tr>
+<td>提升质感</td>
+<td>侧栏 <strong>提升质感</strong>：上传产品图，选择材质预设或自定义描述，增强质感。</td>
+</tr>
+</tbody></table>
+<h3>4.4 文字修改</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>文字替换</td>
+<td>侧栏 <strong>文字替换</strong>：指定原文字与目标文字（或按页面表单项填写）。</td>
+</tr>
+<tr>
+<td>语言转换</td>
+<td>侧栏 <strong>语言转换</strong>：将图上文字译为其他语言；页面可能对模型有推荐（如优先 Nano Banana 2）。</td>
+</tr>
+<tr>
+<td>文字去除</td>
+<td>侧栏 <strong>文字去除</strong>：去除图中文字；复杂背景建议选更高能力模型。</td>
+</tr>
+</tbody></table>
+<h3>4.5 风格变迁</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>风格复刻</td>
+<td>侧栏 <strong>风格复刻</strong>：上传 <strong>参考风格图</strong> + <strong>产品图</strong>，分阶段生成与参考风格一致的产品图。</td>
+</tr>
+<tr>
+<td>风格改变</td>
+<td>侧栏 <strong>风格改变</strong>：上传图，描述目标风格或选择预设。</td>
+</tr>
+</tbody></table>
+<h3>4.6 水印</h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>操作要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>添加水印</td>
+<td>侧栏 <strong>添加水印</strong>：上传图，设置水印文字或样式（以页面为准）。</td>
+</tr>
+<tr>
+<td>去除水印</td>
+<td>侧栏 <strong>去除水印</strong>（或官方示例中的去水印流程）：按页面指引上传图并生成。</td>
+</tr>
+</tbody></table>
+<h3>4.7 官方示例（修改图片 · 10 种模式）</h3>
+<p>以下入口在侧栏 <strong>官方示例</strong> 中，页顶一般有 <strong>Before / After</strong> 对照示例，按名称进入即可。</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>说明摘要</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>添加/移除元素</td>
+<td>自然语言描述增删物体。</td>
+</tr>
+<tr>
+<td>局部重绘(语义)</td>
+<td>偏语义理解的局部修改。</td>
+</tr>
+<tr>
+<td>风格迁移</td>
+<td>整图风格变换。</td>
+</tr>
+<tr>
+<td>高级合成</td>
+<td>多图合成一张。</td>
+</tr>
+<tr>
+<td>高保真细节保留</td>
+<td>在保留主体细节下融合元素。</td>
+</tr>
+<tr>
+<td>让草图变生动</td>
+<td>草图转成品感图像。</td>
+</tr>
+<tr>
+<td>角色一致性 360°</td>
+<td>基于参考图生成不同视角。</td>
+</tr>
+<tr>
+<td>文字替换</td>
+<td>同 4.4。</td>
+</tr>
+<tr>
+<td>语言转换</td>
+<td>同 4.4。</td>
+</tr>
+<tr>
+<td>去除水印</td>
+<td>去除明显水印。</td>
+</tr>
+</tbody></table>
+<p><img src="images/user-manual/40-imageedit-demo.png" alt="图：修改图片模式页示例"></p>
+<p><strong>操作步骤（通用）</strong>：</p>
+<ol>
+<li>选择模式，阅读页顶示例。  </li>
+<li>按提示上传 <strong>一张或多张</strong> 图。  </li>
+<li>填写 <strong>英文或中文提示</strong>（以页面占位符为准）；需要遮罩的模式完成涂抹。  </li>
+<li>设置 <strong>输出设置</strong>，点击生成。  </li>
+<li>保存结果并到仓库查看。</li>
+</ol>
+<hr>
+<h2>五、电商 AI 运营助手</h2>
+<p><strong>路径</strong>：顶栏 <strong>电商AI运营助手</strong>。</p>
+<p>进入后，在 <strong>左侧选择平台</strong>：<strong>亚马逊</strong>、<strong>eBay</strong>、<strong>速卖通</strong>。不同平台下列出的功能卡片不同。</p>
+<p><img src="images/user-manual/30-ai-assistant-platforms.png" alt="图：平台切换与功能入口"></p>
+<h3>5.1 亚马逊</h3>
+<p><img src="images/user-manual/31-amazon-generate-cards.png" alt="图：亚马逊功能卡片"></p>
+<h4>5.1.1 生成 Listing</h4>
+<p>典型步骤（以页面为准）：</p>
+<ol>
+<li><p><strong>步骤 1 · 分析</strong>  </p>
+<ul>
+<li>上传至少一张产品图，填写类目、品牌、卖点、市场、语言等表单。  </li>
+<li>提交分析，等待返回产品理解与结构化信息。</li>
+</ul>
+</li>
+<li><p><strong>步骤 2 · 标题 / 关键词 / 五点 / 描述</strong>  </p>
+<ul>
+<li>在分析完成后，生成或编辑标题、后台关键词、五点、长描述。  </li>
+<li>文案多为 <strong>纯文本</strong>，便于粘贴到卖家后台。</li>
+</ul>
+</li>
+<li><p><strong>步骤 3 · 产品图</strong>  </p>
+<ul>
+<li>按页面配置主图与各类型张数（与通用生图逻辑类似处，以当前页为准）。  </li>
+<li>生成会扣积分；成功后图一般进 <strong>仓库</strong>。</li>
+</ul>
+</li>
+<li><p><strong>步骤 4 · A+ 文案与图片</strong>（若您的账号已开放本步，页面会出现；否则可跳过）  </p>
+<ul>
+<li>选择亚马逊标准 A+ 模块（最多 5 个），生成文案与配图；消耗积分以页面为准。  </li>
+<li>若顶栏有 <strong>A+ 页面</strong> 入口，也可从该入口独立走完整 A+ 流程。</li>
+</ul>
+</li>
+<li><p><strong>保存与导出</strong>  </p>
+<ul>
+<li><strong>保存到我的 Listing</strong>：将本套文案与关联图片 ID 写入 <strong>Listing 历史</strong>。  </li>
+<li><strong>导出 CSV / JSON</strong>：导出文案字段（图片请在仓库下载）。</li>
+</ul>
+</li>
+</ol>
+<h4>5.1.2 优化 Listing</h4>
+<ol>
+<li>粘贴或填写已有标题、五点、描述等。  </li>
+<li>可使用 <strong>智能粘贴</strong>（若提供）：从平台后台复制整页，由 AI 提取字段。  </li>
+<li>运行优化，查看诊断报告与优化建议；该能力一般 <strong>不扣积分</strong>（以页面说明为准）。  </li>
+<li>在结果区可查找 <strong>生成 A/B 变体</strong> 等入口，对比多套文案。</li>
+</ol>
+<h4>5.1.3 竞品对比</h4>
+<ol>
+<li>填写自己的 Listing 与 1～5 个竞品内容（支持 Tab 切换输入）。  </li>
+<li>生成对比报告：关键词差异、卖点矩阵、策略建议等。  </li>
+<li>一般不扣积分。</li>
+</ol>
+<h4>5.1.4 关键词研究</h4>
+<ol>
+<li>输入产品名称或核心词。  </li>
+<li>查看分组关键词、长尾建议、标题排布思路等。  </li>
+<li>一般不扣积分。</li>
+</ol>
+<h3>5.2 eBay</h3>
+<ul>
+<li><strong>生成 Listing</strong>：上传图片、填写表单 → 分析与生成 → 保存 / 导出。  </li>
+<li><strong>优化 Listing</strong>：粘贴现有文案 → 诊断与优化建议；支持与亚马逊类似的 <strong>智能粘贴</strong> 体验（以页面为准）。</li>
+</ul>
+<h3>5.3 速卖通</h3>
+<ul>
+<li><strong>生成 Listing</strong>：流程与 eBay 类似，字段符合速卖通习惯（标题长度、属性等）。  </li>
+<li><strong>优化 Listing</strong>：针对速卖通搜索与合规的诊断与建议。</li>
+</ul>
+<h3>5.4 Listing 历史</h3>
+<p>在工作台 <strong>Listing 历史</strong> 中可查看已保存记录、复制文案、查看关联主图与扩展配图（若有）。详见 <a href="#%E5%85%AD%E5%B7%A5%E4%BD%9C%E5%8F%B0%E4%BB%93%E5%BA%93listing-%E5%8E%86%E5%8F%B2%E7%A7%AF%E5%88%86%E6%98%8E%E7%BB%86">第六节</a>。</p>
+<p><img src="images/user-manual/32-listing-history.png" alt="图：Listing 历史"></p>
+<hr>
+<h2>六、工作台：仓库、Listing 历史、积分明细</h2>
+<p><strong>进入方式</strong>：顶栏 <strong>工作台</strong>（进入后默认打开仓库）。</p>
+<p><img src="images/user-manual/04-dashboard-sidebar.png" alt="图：工作台侧栏"></p>
+<h3>6.1 仓库</h3>
+<ol>
+<li>图片按 <strong>保存日期</strong> 分组展示。  </li>
+<li><strong>全选</strong>：选中当前列表全部图片。  </li>
+<li><strong>选中当日全部</strong>：某一日期标题旁可勾选，仅选中该日全部图片。  </li>
+<li>也可单张勾选。  </li>
+<li><strong>保存选中到本地</strong>：批量下载（浏览器可能要求选择文件夹）。  </li>
+<li><strong>删除选中</strong>：批量删除服务器上的记录与文件（谨慎操作）。  </li>
+<li>单张图：<strong>用AI编辑</strong>（弹出与 AI 美工一致的功能菜单）、<strong>下载</strong>、<strong>移除</strong>。  </li>
+<li>点击缩略图可 <strong>放大预览</strong>；若加载失败可 <strong>重试</strong>。</li>
+</ol>
+<p><img src="images/user-manual/22-gallery.png" alt="图：仓库列表与按日选择"></p>
+<p><img src="images/user-manual/23-gallery-ai-edit-menu.png" alt="图：用AI编辑菜单"></p>
+<h3>6.2 Listing 历史</h3>
+<ol>
+<li>浏览已保存的 Listing 记录列表。  </li>
+<li>进入详情查看标题、五点、描述、关联图片等。  </li>
+<li>使用 <strong>复制</strong> 按钮将各字段复制到剪贴板，粘贴到平台后台。</li>
+</ol>
+<h3>6.3 积分明细</h3>
+<ol>
+<li>查看积分 <strong>收入 / 支出</strong> 流水与余额相关说明。  </li>
+<li>对扣费有疑问时，可结合时间与描述核对。</li>
+</ol>
+<hr>
+<h2>七、订阅与联系我们</h2>
+<h3>7.1 订阅</h3>
+<ol>
+<li>查看当前套餐价格、包含积分数量与有效期说明。  </li>
+<li>查看各功能的 <strong>积分消耗参考表</strong>（生图按张、部分分析按次等）。  </li>
+<li><strong>购买</strong>：按页面指引联系运营方完成充值（如微信），到账时间以说明为准。</li>
+</ol>
+<p><img src="images/user-manual/05-pricing.png" alt="图：定价页"></p>
+<h3>7.2 联系我们</h3>
+<p>查看商务或支持微信等信息；部分套餐可能从定价页弹出联系窗口。</p>
+<hr>
+<h2>八、浏览器扩展（可选）</h2>
+<p>适用于 <strong>Chrome / Edge</strong> 等 Chromium 浏览器（Manifest V3）。</p>
+<h3>8.1 安装与站点地址</h3>
+<ol>
+<li>登录官网，在顶栏 <strong>浏览器扩展</strong> 下载 zip（无需向运营索取附件）；解压后于 Chrome/Edge「扩展程序」中开启开发者模式，选择 <strong>加载已解压的扩展程序</strong>。后续若上架应用店，可按官方说明安装。  </li>
+<li>若扩展要求填写网站地址，请使用 <strong><a href="https://pictoolai.studio">https://pictoolai.studio</a></strong>（与当前登录站点一致）；开发者本地调试另见 <a href="./BROWSER-EXTENSION.md">BROWSER-EXTENSION.md</a>。</li>
+</ol>
+<h3>8.2 使用步骤</h3>
+<ol>
+<li>在任意网页对 <strong>图片</strong> 右键。  </li>
+<li>选择 <strong>PicToolAI</strong> 子菜单：  <ul>
+<li>可直接进入某一 <strong>AI 美工</strong> 功能；或  </li>
+<li><strong>通用电商生图</strong> 下选择 <strong>白底主图 / 特写图 / 卖点图 / 场景图 / 交互图</strong>，将带图打开组图页并预选类型。</li>
+</ul>
+</li>
+<li>浏览器跳转至 PicToolAI；已登录则自动传图；若失败，请确认网站地址配置与登录状态。</li>
+</ol>
+<p><img src="images/user-manual/50-extension-menu.png" alt="图：右键 PicToolAI 菜单"></p>
+<p>更完整的扩展说明、权限与调试见 <a href="./BROWSER-EXTENSION.md">BROWSER-EXTENSION.md</a>。</p>
+<hr>
+<h2>九、积分与模型简要说明</h2>
+<ul>
+<li><strong>积分</strong>：生图、部分深度检测等会扣积分；<strong>Listing 文案生成/优化、竞品对比、关键词研究</strong> 等多数分析能力常以 <strong>不扣积分</strong> 方式提供（以官网 <strong>定价页</strong> 与各页提示为准）。  </li>
+<li><strong>模型</strong>：常见为 <strong>Nano Banana / Nano Banana 2 / Nano Banana Pro</strong>；不同模型支持的 <strong>清晰度挡位</strong> 不同，积分单价也不同。  </li>
+<li><strong>套餐与单价</strong>：对外介绍与积分表见 <a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a>；站内定价以 <strong>订阅页</strong> 为准。</li>
+</ul>
+<hr>
+<h2>十、附录</h2>
+<h3>10.1 扩展能力（按需开通）</h3>
+<p>以下能力若未在您的顶栏出现，属正常情况；需要使用时请通过微信或对接运营咨询开通。深度说明（效果边界、合规免责等）可在开通后向运营索取专项说明。</p>
+<ul>
+<li><strong>侵权风险检测</strong>：免费快筛与深度查询（深度一般扣积分）；报告仅供参考，不能替代专业法律意见。  </li>
+<li><strong>AI 电商工具箱 / 智能选品</strong>：表格驱动的货源匹配与利润参考；匹配效果受货源与图片差异影响。  </li>
+<li><strong>亚马逊 A+</strong>：独立 A+ 流程或生成 Listing 中的 A+ 步骤（若开放）。</li>
+</ul>
+<h3>10.2 管理员后台</h3>
+<p><strong>管理后台</strong>仅面向运营方 <strong>管理员账号</strong>，普通用户无入口；本说明书不展开。</p>
+<h3>10.3 延伸阅读（发给客户时）</h3>
+<table>
+<thead>
+<tr>
+<th>文档</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
+<td>产品介绍、定价与积分一览，适合对外转发</td>
+</tr>
+<tr>
+<td><a href="./BROWSER-EXTENSION.md">BROWSER-EXTENSION.md</a></td>
+<td>扩展：官网 zip 下载、安装步骤、权限与调试</td>
+</tr>
+</tbody></table>
+<p>需要字段级技术说明、部署文档或内部运维资料时，请向 PicToolAI 运营索取 <a href="./README.md">文档中心</a> 中的对应文件。</p>
+<hr>
+<p><em>文档结束。配图请维护于 <code>docs/images/user-manual/</code>。</em></p>
+
+</body>
+</html>

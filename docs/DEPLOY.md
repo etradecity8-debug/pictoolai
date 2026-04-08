@@ -185,7 +185,9 @@ pm2 save
 
 ## 二、每次更新上线
 
-> 每次改完代码后按这个流程操作。先在本机做 1-4 步，然后 SSH 登录服务器做 5-11 步。
+> 每次改完代码后按这个流程操作。先在本机做 1～4 步，再 SSH 登录服务器做 5～11 步。
+
+**仅改文档时**：若本次只改了 `docs/`（或 README），且未改 `package.json` / `server/package.json`、未改前端与后端代码，本机提交推送后，服务器上执行 **第五步、第六步**（`cd` + `git pull`）即可，**无需** `npm install`、`npm run build`、`pm2 restart`。
 
 ### 第一步：本机 → 查看改动
 
@@ -193,13 +195,15 @@ pm2 save
 git status
 ```
 
-确认改动文件符合预期（如 `server/index.js`、`src/pages/...`、`docs/` 等）。
+确认改动文件符合预期（如 `server/index.js`、`src/pages/...`、`public/`、`docs/` 等）。
 
 ### 第二步：本机 → 加入暂存区
 
 ```bash
-git add .
+git add -A
 ```
+
+`git add -A` 会包含新增、修改和**删除**的文件；若你习惯只暂存当前目录，也可用 `git add .`（在仓库根目录执行时一般效果相同）。
 
 ### 第三步：本机 → 提交
 
@@ -231,19 +235,26 @@ cd ~/app
 git pull
 ```
 
-### 第七步：安装前端依赖（仅 package.json 有变化时需要）
+若出现冲突，先在本地解决并推送后再到服务器拉取，或按 Git 提示在服务器上处理 merge（不推荐在服务器上直接改代码）。
+
+### 第七步：安装根目录依赖（根目录 `package.json` 或 `package-lock.json` 有变化时执行）
 
 ```bash
 npm install
 ```
 
-### 第八步：构建前端（有前端改动时执行）
+### 第八步：构建前端（有前端或静态资源变更时执行）
 
 ```bash
 npm run build
 ```
 
-若只改了后端（`server/index.js` 等），跳过第七、八步。
+以下情况**需要**执行本步（否则会一直线上旧版 `dist/`）：
+
+- 改了 `src/`、`index.html`、`vite.config.js` 等前端构建相关文件；
+- 改了 **`public/`**（如 `public/pictoolai-browser-extension.zip`、demo 图、logo 等；构建会拷贝进 `dist/`）。
+
+**可跳过**第七、八步的典型情况：只改了后端（如 `server/index.js`、`server/*.js`），且根目录依赖与前端构建输入均未变。
 
 ### 第九步：进入后端目录
 
@@ -251,7 +262,7 @@ npm run build
 cd server
 ```
 
-### 第十步：安装后端依赖（仅后端 package.json 有变化时需要）
+### 第十步：安装后端依赖（`server/package.json` 或 `server/package-lock.json` 有变化时执行）
 
 ```bash
 npm install
@@ -262,6 +273,8 @@ npm install
 ```bash
 pm2 restart pictoolai-server
 ```
+
+仅改前端静态资源且**未**改任何后端代码时，仍可执行本步以统一发版节奏；若确定后端无变更，跳过本步一般也可（Nginx 仍从 `dist/` 提供新静态文件）。**改了后端代码或 `server/` 下依赖则必须重启**。
 
 若 PM2 进程名不是 `pictoolai-server`，先用 `pm2 list` 查看实际名字。
 
@@ -278,6 +291,8 @@ pm2 logs pictoolai-server
 ---
 
 ## 三、配置 SerpApi（开放侵权深度查询）
+
+> **前台入口**：侵权检测模块可能按 `SITE_NAV_HIDDEN` 隐藏（见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md)）；配置 SerpApi 仍供接口与后续开放入口时使用。
 
 界面显示「深度查询暂未开放，请联系管理员」= 服务器上未配置 `SERPAPI_KEY`。
 

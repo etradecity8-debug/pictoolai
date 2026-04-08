@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TEMPORARILY HIDDEN FEATURES</title>
+  <style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #222;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1 { font-size: 1.5em; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+  h2 { font-size: 1.25em; margin-top: 1.2em; }
+  h3 { font-size: 1.1em; margin-top: 1em; }
+  h4, h5, h6 { font-size: 1em; margin-top: 0.8em; }
+  p { margin: 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+  th { background: #f5f5f5; }
+  pre, code { background: #f6f6f6; font-family: Consolas, Monaco, monospace; font-size: 0.9em; }
+  pre { padding: 12px; overflow-x: auto; border-radius: 4px; }
+  code { padding: 2px 6px; border-radius: 3px; }
+  pre code { padding: 0; background: none; }
+  blockquote { margin: 0.5em 0; padding-left: 1em; border-left: 4px solid #ddd; color: #555; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
+  .meta { color: #666; font-size: 0.9em; margin-bottom: 1.5em; }
+  @media print {
+    body { padding: 12px; font-size: 11pt; }
+    h1 { font-size: 14pt; }
+    h2 { font-size: 12pt; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="meta">TEMPORARILY-HIDDEN-FEATURES.md → 打印版 · 2026/4/9</div>
+  <h1>前台暂时隐藏的功能（与代码对齐）</h1>
+<blockquote>
+<p><strong>当前状态</strong>：以下能力<strong>仍保留后端接口与页面实现</strong>，但<strong>网站顶栏无入口</strong>，用户直接访问原路径会<strong>重定向首页</strong>。恢复展示时只需改一处配置。</p>
+</blockquote>
+<p><strong>代码唯一开关</strong>：<code>src/lib/siteFeatures.js</code> 中的 <code>SITE_NAV_HIDDEN</code>（各字段为 <code>true</code> 表示隐藏）。</p>
+<table>
+<thead>
+<tr>
+<th>开关字段</th>
+<th>前台表现</th>
+<th>原路径</th>
+<th>专项文档</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ipRisk</code></td>
+<td>不显示「侵权风险检测」</td>
+<td><code>/ip-risk</code></td>
+<td><a href="./IP-RISK.md">IP-RISK.md</a></td>
+</tr>
+<tr>
+<td><code>aiToolboxSupplier</code></td>
+<td>不显示「AI 电商工具箱」</td>
+<td><code>/ai-toolbox</code>、<code>/ai-toolbox/supplier-matching</code></td>
+<td><a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a></td>
+</tr>
+<tr>
+<td><code>amazonAplus</code></td>
+<td>不显示「A+ 页面」；亚马逊「生成 Listing」<strong>不展示第 4 步</strong></td>
+<td><code>/amazon-aplus</code></td>
+<td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a>（A+ 模块）、独立页 <code>AmazonAPlus.jsx</code></td>
+</tr>
+</tbody></table>
+<p><strong>说明</strong>：</p>
+<ul>
+<li><strong>定价页</strong>：隐藏侵权入口时，积分表中不再列出「侵权风险检测」行；套餐文案中的「全功能」描述与「哪些功能免费」FAQ 与当前开放能力一致。</li>
+<li><strong>Listing 历史</strong>：若用户曾在开放期间保存过含 A+ 字段的快照，详情页仍可展示（只读），与是否隐藏入口无关。</li>
+<li><strong>其他已删除能力</strong>（如服装组图、一键智能产品精修等）不在本表：相关路由与页面已从仓库移除，仅保留本表三项的「隐藏」策略。</li>
+</ul>
+<p><strong>运维</strong>：SerpApi、Daji、A+ 相关环境变量与部署说明仍见 <a href="./DEPLOY.md">DEPLOY.md</a>；功能隐藏不等于停用服务端逻辑。</p>
+
+</body>
+</html>

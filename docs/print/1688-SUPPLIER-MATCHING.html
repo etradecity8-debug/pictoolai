@@ -40,11 +40,11 @@
 </style>
 </head>
 <body>
-  <div class="meta">1688-SUPPLIER-MATCHING.md → 打印版 · 2026/4/5</div>
+  <div class="meta">1688-SUPPLIER-MATCHING.md → 打印版 · 2026/4/9</div>
   <h1>1688 智能选品匹配 — 功能方案说明</h1>
 <blockquote>
 <p>本文档面向客户沟通使用，说明「卖家精灵表格 → 自动匹配 1688 供应商 → 利润核算」功能的实现方案。</p>
-<p><strong>【2026-03 已封存】</strong> 该功能前台已隐藏（<code>AI_TOOLBOX_ENABLED = false</code>）。原因：Daji 以图搜图对亚马逊主图在 1688 上几乎无匹配，1688 少有与亚马逊完全同款的商品。代码与 API 保留，后续是否删除待定。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
+<p><strong>前台状态</strong>：<strong>默认隐藏入口</strong>（<code>SITE_NAV_HIDDEN.aiToolboxSupplier</code>），见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>。Daji 以图搜图对多数亚马逊主图在 1688 上仍可能 <strong>0 条或极少匹配</strong>，属货源差异导致，详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a> 1.1。</p>
 </blockquote>
 <hr>
 <h2>一、客户需求</h2>

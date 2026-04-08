@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">DEPLOY.md → 打印版 · 2026/4/5</div>
+  <div class="meta">DEPLOY.md → 打印版 · 2026/4/9</div>
   <h1>PicToolAI 运维手册</h1>
 <blockquote>
 <p>本文涵盖四块内容：<strong>首次部署</strong>（VPS 环境搭建）→ <strong>每次更新</strong>（日常发版操作）→ <strong>COS 配置</strong>（仓库图片国内加速）→ <strong>用户管理</strong>（管理后台 + 数据库操作）。</p>
@@ -182,15 +182,17 @@ pm2 save
 <hr>
 <h2>二、每次更新上线</h2>
 <blockquote>
-<p>每次改完代码后按这个流程操作。先在本机做 1-4 步，然后 SSH 登录服务器做 5-11 步。</p>
+<p>每次改完代码后按这个流程操作。先在本机做 1～4 步，再 SSH 登录服务器做 5～11 步。</p>
 </blockquote>
+<p><strong>仅改文档时</strong>：若本次只改了 <code>docs/</code>（或 README），且未改 <code>package.json</code> / <code>server/package.json</code>、未改前端与后端代码，本机提交推送后，服务器上执行 <strong>第五步、第六步</strong>（<code>cd</code> + <code>git pull</code>）即可，<strong>无需</strong> <code>npm install</code>、<code>npm run build</code>、<code>pm2 restart</code>。</p>
 <h3>第一步：本机 → 查看改动</h3>
 <pre><code class="language-bash">git status
 </code></pre>
-<p>确认改动文件符合预期（如 <code>server/index.js</code>、<code>src/pages/...</code>、<code>docs/</code> 等）。</p>
+<p>确认改动文件符合预期（如 <code>server/index.js</code>、<code>src/pages/...</code>、<code>public/</code>、<code>docs/</code> 等）。</p>
 <h3>第二步：本机 → 加入暂存区</h3>
-<pre><code class="language-bash">git add .
+<pre><code class="language-bash">git add -A
 </code></pre>
+<p><code>git add -A</code> 会包含新增、修改和<strong>删除</strong>的文件；若你习惯只暂存当前目录，也可用 <code>git add .</code>（在仓库根目录执行时一般效果相同）。</p>
 <h3>第三步：本机 → 提交</h3>
 <pre><code class="language-bash">git commit -m &quot;简短说明，如：feat: 侵权风险检测&quot;
 </code></pre>
@@ -206,22 +208,29 @@ pm2 save
 <h3>第六步：拉取最新代码</h3>
 <pre><code class="language-bash">git pull
 </code></pre>
-<h3>第七步：安装前端依赖（仅 package.json 有变化时需要）</h3>
+<p>若出现冲突，先在本地解决并推送后再到服务器拉取，或按 Git 提示在服务器上处理 merge（不推荐在服务器上直接改代码）。</p>
+<h3>第七步：安装根目录依赖（根目录 <code>package.json</code> 或 <code>package-lock.json</code> 有变化时执行）</h3>
 <pre><code class="language-bash">npm install
 </code></pre>
-<h3>第八步：构建前端（有前端改动时执行）</h3>
+<h3>第八步：构建前端（有前端或静态资源变更时执行）</h3>
 <pre><code class="language-bash">npm run build
 </code></pre>
-<p>若只改了后端（<code>server/index.js</code> 等），跳过第七、八步。</p>
+<p>以下情况<strong>需要</strong>执行本步（否则会一直线上旧版 <code>dist/</code>）：</p>
+<ul>
+<li>改了 <code>src/</code>、<code>index.html</code>、<code>vite.config.js</code> 等前端构建相关文件；</li>
+<li>改了 <strong><code>public/</code></strong>（如 <code>public/pictoolai-browser-extension.zip</code>、demo 图、logo 等；构建会拷贝进 <code>dist/</code>）。</li>
+</ul>
+<p><strong>可跳过</strong>第七、八步的典型情况：只改了后端（如 <code>server/index.js</code>、<code>server/*.js</code>），且根目录依赖与前端构建输入均未变。</p>
 <h3>第九步：进入后端目录</h3>
 <pre><code class="language-bash">cd server
 </code></pre>
-<h3>第十步：安装后端依赖（仅后端 package.json 有变化时需要）</h3>
+<h3>第十步：安装后端依赖（<code>server/package.json</code> 或 <code>server/package-lock.json</code> 有变化时执行）</h3>
 <pre><code class="language-bash">npm install
 </code></pre>
 <h3>第十一步：重启后端</h3>
 <pre><code class="language-bash">pm2 restart pictoolai-server
 </code></pre>
+<p>仅改前端静态资源且<strong>未</strong>改任何后端代码时，仍可执行本步以统一发版节奏；若确定后端无变更，跳过本步一般也可（Nginx 仍从 <code>dist/</code> 提供新静态文件）。<strong>改了后端代码或 <code>server/</code> 下依赖则必须重启</strong>。</p>
 <p>若 PM2 进程名不是 <code>pictoolai-server</code>，先用 <code>pm2 list</code> 查看实际名字。</p>
 <hr>
 <p><strong>查看日志</strong>（出现问题时）：</p>
@@ -230,6 +239,9 @@ pm2 save
 <p><strong>服务器重启后自动恢复</strong>：PM2 startup 配置好后，服务器重启会自动拉起后端，Nginx 也会自动启动。</p>
 <hr>
 <h2>三、配置 SerpApi（开放侵权深度查询）</h2>
+<blockquote>
+<p><strong>前台入口</strong>：侵权检测模块可能按 <code>SITE_NAV_HIDDEN</code> 隐藏（见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>）；配置 SerpApi 仍供接口与后续开放入口时使用。</p>
+</blockquote>
 <p>界面显示「深度查询暂未开放，请联系管理员」= 服务器上未配置 <code>SERPAPI_KEY</code>。</p>
 <p><strong>获取 Key</strong>：访问 <a href="https://serpapi.com/">https://serpapi.com/</a> → 注册/登录 → Dashboard → 复制 API Key。</p>
 <p><strong>套餐参考</strong>：<strong>当前使用 Free 版</strong>（约 250 次/月）；正式运营可升级 Developer（$75/月，5000 次/月）。每次深度查询约消耗 2～4 次（Lens + Patents 必选，商标/IP 角色检索按需）。</p>

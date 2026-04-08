@@ -1,6 +1,6 @@
 # PicToolAI
 
-专为跨境电商卖家打造的 AI 视觉与运营一体化平台。依托 Google Gemini Nano Banana 系列模型，提供全品类组图、AI 美工、Listing 生成/优化、侵权风险检测等能力。
+专为跨境电商卖家打造的 AI 视觉与运营一体化平台。依托 Google Gemini Nano Banana 系列模型，提供全品类组图、AI 美工、Listing 生成/优化等能力；侵权检测、智能选品、A+ 等可按配置开放（见 `docs/TEMPORARILY-HIDDEN-FEATURES.md`）。
 
 **品牌**：PicToolAI  
 **网址**：https://pictoolai.studio
@@ -14,7 +14,7 @@
 | **通用电商生图** | 上传产品图 + 填写要求 → AI 分析规划 → 批量生成白底主图、场景图、特写图、卖点图、交互图 |
 | **AI 美工** | 局部重绘/消除/换色、智能扩图、提升质感、服装 3D/平铺/调整身材、生成场景、添加人/物、文字修改、风格变迁、水印 |
 | **电商 AI 运营助手** | 亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究、A/B 变体、智能粘贴 |
-| **侵权风险检测** | 免费快筛（Gemini）+ 深度查询（Google Lens、Patents、商标、专利汇，20 积分/次） |
+| **扩展能力（默认隐藏入口）** | 侵权风险检测、1688 智能选品、亚马逊 A+；接口与文档保留，开关见 `src/lib/siteFeatures.js` |
 
 ---
 
@@ -80,8 +80,12 @@ ADMIN_PASSWORD=管理员密码
 | 类别 | 文档 |
 |------|------|
 | **总索引** | [docs/README.md](docs/README.md) — 按「我想做什么」查文档 |
+| **用户操作说明书** | [docs/USER-MANUAL.md](docs/USER-MANUAL.md) — 全功能步骤说明；截图放入 `docs/images/user-manual/` |
 | **项目概览** | [docs/PROJECT-OVERVIEW.md](docs/PROJECT-OVERVIEW.md) — 技术栈、目录结构、功能一览 |
 | **产品设计** | [ECOMMERCE-GENERAL-CREATE-PICTURES](docs/ECOMMERCE-GENERAL-CREATE-PICTURES.md)、[ECOMMERCE-AI-ASSISTANT](docs/ECOMMERCE-AI-ASSISTANT.md)、[AI-DESIGNER](docs/AI-DESIGNER.md) |
 | **运维部署** | [DEPLOY](docs/DEPLOY.md) |
+| **前台隐藏功能** | [TEMPORARILY-HIDDEN-FEATURES](docs/TEMPORARILY-HIDDEN-FEATURES.md) |
 | **已知问题** | [KNOWN_ISSUES](docs/KNOWN_ISSUES.md) |
-| **打印版** | 浏览器打开 `docs/print/index.html` 可打印；重新生成：`npm run docs:print` |
+| **打印版** | 浏览器打开 `docs/print/` 下对应 HTML 文件；重新生成：`npm run docs:print` |
+
+把代码更新到正式网站（本机提交 → 服务器拉代码、构建、重启）：打开 [DEPLOY.md](docs/DEPLOY.md) 找到 **二、每次更新上线**。仅改文档时通常只需在服务器 `git pull`，不必重新构建，详见该节开头说明。

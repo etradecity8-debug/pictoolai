@@ -40,11 +40,11 @@
 </style>
 </head>
 <body>
-  <div class="meta">ECOMMERCE-AI-ASSISTANT.md → 打印版 · 2026/4/5</div>
+  <div class="meta">ECOMMERCE-AI-ASSISTANT.md → 打印版 · 2026/4/9</div>
   <h1>电商 AI 运营助手完整说明</h1>
-<p>本文档涵盖「电商 AI 运营助手」全平台内容：<strong>亚马逊</strong>（Listing 生成/优化/竞品/关键词）、<strong>eBay</strong>（生成/优化）、<strong>速卖通</strong>（生成/优化）。<strong>侵权风险检测</strong>已拆分为独立主导航模块，详见 <a href="./IP-RISK.md">IP-RISK.md</a>。</p>
+<p>本文档仅涵盖「<strong>电商 AI 运营助手</strong>」内能力：<strong>亚马逊</strong>（Listing 生成/优化/竞品/关键词）、<strong>eBay</strong>（生成/优化）、<strong>速卖通</strong>（生成/优化）。站内其它独立模块见 <a href="./README.md">文档总索引</a>，<strong>不在本文展开</strong>。</p>
 <blockquote>
-<p><strong>说明</strong>：<strong>A+ 模块（生成 Listing Step 4 + 独立 A+ 详情页）暂不实现</strong>，界面与导航均已隐藏，详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
+<p><strong>前台可见性</strong>：<strong>A+</strong>（生成 Listing Step 4 + 独立页 <code>/amazon-aplus</code>）由 <code>SITE_NAV_HIDDEN.amazonAplus</code> 控制是否展示入口；隐藏时路径重定向首页，<strong>本文档中的 Listing / A+ 产品设计仍有效</strong>。全站隐藏入口总表见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>。A+ 效果因模块与品牌要求而异，另见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a> 1.1。</p>
 </blockquote>
 <hr>
 <h2>目录</h2>
@@ -66,10 +66,6 @@
 <tr>
 <td><a href="#%E4%B8%89%E9%80%9F%E5%8D%96%E9%80%9Aaliexpress">三、速卖通</a></td>
 <td>3.1 平台规格 · 3.2 速卖通规则 · 3.3 流程 · 3.4 数据存储与接口</td>
-</tr>
-<tr>
-<td><a href="#%E9%99%84%E5%BD%95%E4%BE%B5%E6%9D%83%E9%A3%8E%E9%99%A9%E6%A3%80%E6%B5%8B">附录</a></td>
-<td>侵权风险检测</td>
 </tr>
 </tbody></table>
 <hr>
@@ -317,11 +313,11 @@
 <td>Step 4</td>
 <td><strong>A+ 文案与图片</strong>（可选）</td>
 <td>以上全部结果</td>
-<td>约 2–3K tokens + 4 张 A+ 图；<strong>当前已锁定</strong>，界面显示「功能优化中」，详见 <code>KNOWN_ISSUES.md</code></td>
+<td>约 2–3K tokens + 按所选模块张数生图；扣积分规则以页面为准</td>
 </tr>
 </tbody></table>
 <blockquote>
-<p>注：Step 3 产品图与 Step 4 A+ 可并行；A+ 恢复方式见 <code>KNOWN_ISSUES.md</code>。</p>
+<p>注：Step 3 产品图与 Step 4 A+ 可并行。</p>
 </blockquote>
 <hr>
 <h3>1.1.6 亚马逊规则与合规约束</h3>
@@ -934,9 +930,6 @@
 </tr>
 </tbody></table>
 <p>Listing 历史：<code>/dashboard/listings?platform=aliexpress</code>，支持导出 CSV / JSON。</p>
-<hr>
-<h1>附录：侵权风险检测</h1>
-<p>侵权风险检测已拆分为独立主导航模块（路由 <code>/ip-risk</code>），功能、费用、漏检分析、外部数据源可行性详见 <a href="./IP-RISK.md">IP-RISK.md</a>。</p>
 
 </body>
 </html>

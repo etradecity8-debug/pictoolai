@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const DEFAULT_COL_WIDTHS = { email: 160, role: 72, balance: 76, consumed: 76, expires: 130, created: 110, notes: 100, actions: 300 }
+/** 列「最小宽度」拖拽调节；table-auto 下列可随长文本变宽，避免整表被挤变形 */
+const DEFAULT_COL_WIDTHS = { email: 300, role: 88, balance: 88, consumed: 88, expires: 168, created: 132, notes: 280, actions: 360 }
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -461,7 +462,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="w-full max-w-[min(100%,1920px)] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 页头 */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -537,10 +538,13 @@ export default function Admin() {
             <div className="text-center text-gray-400 py-16">暂无用户</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed" style={{ minWidth: Object.values(colWidths).reduce((a, b) => a + b, 0) }}>
+              <table
+                className="text-sm min-w-full w-max"
+                style={{ minWidth: Object.values(colWidths).reduce((a, b) => a + b, 0) }}
+              >
                 <colgroup>
                   {(['email', 'role', 'balance', 'consumed', 'expires', 'created', 'notes', 'actions']).map((k) => (
-                    <col key={k} style={{ width: colWidths[k] }} />
+                    <col key={k} style={{ minWidth: colWidths[k] }} />
                   ))}
                 </colgroup>
                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -630,8 +634,10 @@ export default function Admin() {
                 <tbody className="divide-y divide-gray-50">
                   {sorted.map((u) => (
                     <tr key={u.email} className={`hover:bg-gray-50/50 transition-colors ${u.frozen ? 'bg-gray-100/60' : ''}`}>
-                      <td className="px-3 py-2 font-medium text-gray-800 align-middle truncate" title={u.email}>{u.email}</td>
-                      <td className="px-3 py-2 align-middle">
+                      <td className="px-3 py-2 font-medium text-gray-800 align-top break-all max-w-xl">
+                        {u.email}
+                      </td>
+                      <td className="px-3 py-2 align-top whitespace-nowrap">
                         <div className="flex items-center gap-1 flex-nowrap">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
@@ -649,30 +655,26 @@ export default function Admin() {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-right align-middle whitespace-nowrap">
+                      <td className="px-3 py-2 text-right align-top whitespace-nowrap">
                         <span className={`font-semibold ${u.balance > 0 ? 'text-indigo-600' : 'text-gray-400'}`}>
                           {u.balance}
                         </span>
                         <span className="text-gray-400 text-xs ml-0.5">积分</span>
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-500 align-middle whitespace-nowrap">
+                      <td className="px-3 py-2 text-right text-gray-500 align-top whitespace-nowrap">
                         {u.totalSpent}
                         <span className="text-gray-400 text-xs ml-0.5">积分</span>
                       </td>
-                      <td className="px-3 py-2 align-middle overflow-hidden min-w-0">
-                        <div className="truncate" title={u.expiresAt ? `${formatDate(u.expiresAt)}` : ''}>
-                          {formatExpiry(u.expiresAt)}
-                        </div>
+                      <td className="px-3 py-2 align-top whitespace-nowrap text-gray-700">
+                        {formatExpiry(u.expiresAt)}
                       </td>
-                      <td className="px-3 py-2 text-gray-500 align-middle overflow-hidden min-w-0">
-                        <span className="block truncate">{formatDate(u.createdAt)}</span>
+                      <td className="px-3 py-2 text-gray-500 align-top whitespace-nowrap">
+                        {formatDate(u.createdAt)}
                       </td>
-                      <td className="px-3 py-2 align-middle overflow-hidden">
-                        <span className="block truncate text-gray-600 text-xs" title={u.adminNotes || ''}>
-                          {u.adminNotes || '—'}
-                        </span>
+                      <td className="px-3 py-2 align-top text-gray-600 text-xs break-words max-w-xl min-w-[14rem]">
+                        {u.adminNotes || '—'}
                       </td>
-                      <td className="px-3 py-2 align-middle overflow-visible">
+                      <td className="px-3 py-2 align-top overflow-visible whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5 flex-nowrap">
                           {u.role !== 'admin' && (
                             <button

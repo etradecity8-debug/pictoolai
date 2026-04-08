@@ -40,10 +40,10 @@
 </style>
 </head>
 <body>
-  <div class="meta">IP-RISK.md → 打印版 · 2026/4/5</div>
+  <div class="meta">IP-RISK.md → 打印版 · 2026/4/9</div>
   <h1>侵权风险检测完整说明</h1>
 <blockquote>
-<p>路由：<code>/ip-risk</code>（主导航独立模块）<br>文件：<code>src/pages/IpRisk.jsx</code>，后端接口：<code>POST /api/ai-assistant/ip-risk-check</code></p>
+<p>路由：<code>/ip-risk</code>。<strong>当前默认不在顶栏展示</strong>（<code>SITE_NAV_HIDDEN.ipRisk</code>），直接访问会重定向首页；恢复方式见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>。<br>文件：<code>src/pages/IpRisk.jsx</code>，后端接口：<code>POST /api/ai-assistant/ip-risk-check</code></p>
 </blockquote>
 <hr>
 <h2>一、功能概述</h2>
@@ -229,7 +229,7 @@
 </thead>
 <tbody><tr>
 <td>入口</td>
-<td>路由 <code>/ip-risk</code>，页面 <code>src/pages/IpRisk.jsx</code></td>
+<td>路由 <code>/ip-risk</code>，页面 <code>src/pages/IpRisk.jsx</code>；<strong>顶栏默认隐藏</strong>时见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a></td>
 </tr>
 <tr>
 <td>接口</td>

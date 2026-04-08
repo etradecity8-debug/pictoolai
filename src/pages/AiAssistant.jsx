@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import { useAuth } from '../context/AuthContext'
+import { SITE_NAV_HIDDEN } from '../lib/siteFeatures'
 import { buildAmazonCsv, buildEbayCsv, buildAliExpressCsv, downloadCsv, downloadJson } from '../lib/exportListingCsv'
 import { getPointsPerImage } from '../lib/pointsConfig'
 
@@ -72,7 +73,9 @@ const amazonFeatures = [
   {
     id: 'generate',
     title: '生成 Listing',
-    desc: '上传产品图，AI 自动提取搜索关键词、买家问题与目标画像，基于 A9 · Cosmo · Rufus · GEO 四大算法生成高转化 Listing 与产品图，支持多市场多语言。',
+    desc: SITE_NAV_HIDDEN.amazonAplus
+      ? '上传产品图，AI 自动提取搜索关键词、买家问题与目标画像，基于 A9 · Cosmo · Rufus · GEO 四大算法生成高转化 Listing 与产品图，支持多市场多语言。'
+      : '上传产品图，AI 自动提取搜索关键词、买家问题与目标画像，基于 A9 · Cosmo · Rufus · GEO 四大算法生成高转化 Listing、产品图与可选 A+ 素材，支持多市场多语言。',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -235,8 +238,8 @@ const AMAZON_LISTING_STEPS = [
   { id: 4, label: 'A+' },
 ]
 
-// Step 4 A+ 暂未开放：每位用户对 A+ 要求不同，研究中
-const APLUS_STEP_ENABLED = false
+// Step 4 A+ 与独立页 /amazon-aplus 由 SITE_NAV_HIDDEN.amazonAplus 统一控制
+const APLUS_STEP_ENABLED = !SITE_NAV_HIDDEN.amazonAplus
 
 // ── A+ 模块（亚马逊标准 17 种，与 docs/ECOMMERCE-AI-ASSISTANT.md 第三部分一致）────────
 const APLUS_MODULES = [
@@ -311,8 +314,9 @@ function GenerateForm() {
   const [sellingPointImageCount, setSellingPointImageCount] = useState(0) // Step 3 卖点图 0～卖点数
   const [sellingPointShowText, setSellingPointShowText] = useState(false) // 卖点图是否在图上显示文字
   const [interactionImageCount, setInteractionImageCount] = useState(0) // Step 3 交互图 0～4
-  const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选 A+ 模块，最多 5 个
+  const [aplusModules, setAplusModules] = useState([...APLUS_PRESETS.basic]) // Step 4 所选扩展模块，最多 5 个
   const step4Ref = useRef(null)
+  const visibleAmazonSteps = APLUS_STEP_ENABLED ? AMAZON_LISTING_STEPS : AMAZON_LISTING_STEPS.filter((s) => s.id !== 4)
 
   // 步骤 4 生成文案或生图时滚动到该区域，保持展开可见、不折叠
   useEffect(() => {
@@ -721,23 +725,30 @@ function GenerateForm() {
       {(step !== 'idle' || listingResult) && (
         <div className="mb-4">
           <div className="flex items-center gap-2">
-          {AMAZON_LISTING_STEPS.map((s, i) => {
-            const locked = s.id === 4 && !APLUS_STEP_ENABLED
-            const done = !locked && ((s.id === 1 && step !== 'idle' && step !== 'analyzing') || (s.id === 2 && (step === 'done' || !!listingResult)) || (s.id === 3 && !!productImagesResult) || (s.id === 4 && !!aplusImages))
-            const active = !locked && ((s.id === 1 && step === 'analyzing') || (s.id === 2 && step === 'generating') || (s.id === 3 && productImagesLoading) || (s.id === 4 && (aplusCopyLoading || aplusImagesLoading)))
+          {visibleAmazonSteps.map((s, i) => {
+            const done =
+              (s.id === 1 && step !== 'idle' && step !== 'analyzing') ||
+              (s.id === 2 && (step === 'done' || !!listingResult)) ||
+              (s.id === 3 && !!productImagesResult) ||
+              (s.id === 4 && !!aplusImages)
+            const active =
+              (s.id === 1 && step === 'analyzing') ||
+              (s.id === 2 && step === 'generating') ||
+              (s.id === 3 && productImagesLoading) ||
+              (s.id === 4 && (aplusCopyLoading || aplusImagesLoading))
             return (
               <div key={s.id} className="flex items-center gap-2">
                 <span
                   className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-full px-2 text-sm font-medium ${
-                    locked ? 'bg-gray-100 text-gray-400 border border-dashed border-gray-300' : active ? 'bg-gray-800 text-white' : done ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-500'
+                    active ? 'bg-gray-800 text-white' : done ? 'bg-gray-600 text-white' : 'bg-gray-200 text-gray-500'
                   }`}
                 >
                   {s.id}
                 </span>
-                <span className={`text-sm ${locked ? 'text-gray-400' : active ? 'font-medium text-gray-900' : done ? 'text-gray-700' : 'text-gray-500'}`}>
-                  {s.label}{locked ? '（暂未开放）' : ''}
+                <span className={`text-sm ${active ? 'font-medium text-gray-900' : done ? 'text-gray-700' : 'text-gray-500'}`}>
+                  {s.label}
                 </span>
-                {i < AMAZON_LISTING_STEPS.length - 1 && (
+                {i < visibleAmazonSteps.length - 1 && (
                   <span className="mx-1 h-px w-4 bg-gray-300" aria-hidden />
                 )}
               </div>
@@ -1142,7 +1153,7 @@ function GenerateForm() {
             )}
           </div>
 
-          {/* Step 4 A+（暂锁：每位用户对 A+ 要求不同，研究中） */}
+          {/* Step 4 A+ */}
           <div
             ref={step4Ref}
             className={`rounded-xl border p-4 transition-colors ${APLUS_STEP_ENABLED && aplusImagesLoading ? 'border-gray-400 bg-amber-50/50 ring-1 ring-amber-200' : 'border-gray-200 bg-gray-50'}`}
@@ -1168,7 +1179,7 @@ function GenerateForm() {
               )}
             </div>
             {!APLUS_STEP_ENABLED ? (
-              <p className="text-sm text-gray-500 py-4">🔒 功能优化中。每位用户对 A+ 的要求不同，我们正在研究如何更好地满足个性化需求，敬请期待。</p>
+              <p className="text-sm text-gray-500 py-4">🔒 功能优化中。该能力涉及多种版式与模块组合，我们正在优化方案，敬请期待。</p>
             ) : !aplusImages && (
               <div className="mb-3 space-y-3">
                 <div>
@@ -1335,7 +1346,12 @@ function GenerateForm() {
 
           {/* 所有步骤结束后：保存与导出 */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <p className="text-xs text-gray-500 mb-2"><strong>保存到我的 Listing：</strong>将保存本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。</p>
+            <p className="text-xs text-gray-500 mb-2">
+              <strong>保存到我的 Listing：</strong>
+              {APLUS_STEP_ENABLED
+                ? '将保存本页标题、后台关键词、五点、描述、分析结果与 A+ 文案；若已生成产品主图或 A+ 图片，会一并关联到本记录，可在「Listing 历史」中查看。'
+                : '将保存本页标题、后台关键词、五点、描述与分析结果；若已生成产品主图，会一并关联到本记录，可在「Listing 历史」中查看。'}
+            </p>
             <p className="text-xs text-gray-500 mb-3"><strong>导出 CSV / JSON：</strong>只导出文案，如果需要图片，请到仓库中查找。</p>
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -3397,7 +3413,7 @@ function KeywordResearchForm() {
 export default function AiAssistant() {
   const [searchParams, setSearchParams] = useSearchParams()
   const platformId = searchParams.get('platform') || 'amazon'
-  const [selectedFeature, setSelectedFeature] = useState(null) // null | 'generate' | 'optimize'
+  const [selectedFeature, setSelectedFeature] = useState(null) // null | 'generate' | 'optimize' | 'competitor' | 'keywords'
 
   const currentPlatform = platforms.find(p => p.id === platformId) || platforms[0]
 

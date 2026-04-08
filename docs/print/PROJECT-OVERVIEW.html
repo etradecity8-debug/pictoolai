@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/4/5</div>
+  <div class="meta">PROJECT-OVERVIEW.md → 打印版 · 2026/4/9</div>
   <h1>PicToolAI 项目概览</h1>
 <blockquote>
 <p>技术栈、目录结构、功能一览、数据与配置。详细设计见各专项文档。</p>
@@ -99,14 +99,19 @@
 │   ├── ECOMMERCE-GENERAL-CREATE-PICTURES.md
 │   ├── ECOMMERCE-AI-ASSISTANT.md
 │   ├── AI-DESIGNER.md
+│   ├── BROWSER-EXTENSION.md
 │   ├── IP-RISK.md
 │   ├── 1688-SUPPLIER-MATCHING.md
 │   ├── DEPLOY.md
 │   ├── KNOWN_ISSUES.md
+│   ├── TEMPORARILY-HIDDEN-FEATURES.md
 │   ├── PRICING-COST.md
 │   ├── PRODUCT-INTRO.md
+│   ├── USER-MANUAL.md
+│   ├── images/               # 文档配图（如 user-manual 截图）
 │   └── print/                # 打印版 HTML，npm run docs:print 生成
-├── public/                   # 静态资源（demo 图、logo 等）
+├── browser-extension/        # Chromium MV3 扩展源码
+├── public/                   # 静态资源（demo 图、logo、扩展 zip 等）
 ├── src/
 │   ├── App.jsx
 │   ├── main.jsx
@@ -114,8 +119,9 @@
 │   │   ├── DetailSet.jsx     # 通用电商生图（全品类组图）
 │   │   ├── AiDesigner.jsx    # AI 美工入口
 │   │   ├── ai-designer/      # AI 美工各子页（LocalRedraw、SmartExpansion 等）
-│   │   ├── ImageEdit.jsx     # 修改图片（9 种模式）
+│   │   ├── ImageEdit.jsx     # 修改图片（10 种模式）
 │   │   ├── AiAssistant.jsx   # 电商 AI 运营助手
+│   │   ├── AmazonAPlus.jsx   # 亚马逊 A+ 页面生成（独立流程）
 │   │   ├── IpRisk.jsx        # 侵权风险检测
 │   │   ├── AiToolbox.jsx     # AI 电商工具箱入口
 │   │   ├── ai-toolbox/       # 智能选品（SupplierMatching）
@@ -128,8 +134,10 @@
 │   │   ├── GalleryThumb.jsx  # 从作品库选择缩略图
 │   │   └── ...
 │   ├── lib/
+│   │   ├── siteFeatures.js       # SITE_NAV_HIDDEN（前台隐藏开关）
+│   │   ├── pointsConfig.js       # POINTS_MAP、SUBSCRIPTION_PLANS（前端唯一定义）
+│   │   ├── pointsEstimate.js     # 积分预估（引用 pointsConfig）
 │   │   ├── loadGalleryImage.js   # 从仓库 URL 加载图片
-│   │   ├── pointsEstimate.js     # 积分预估
 │   │   ├── clarityByModel.js     # 模型与清晰度
 │   │   ├── aspectByModel.js      # 模型与比例
 │   │   └── exportListingCsv.js   # 导出 CSV/JSON
@@ -151,6 +159,8 @@
 <hr>
 <h2>四、功能与路由</h2>
 <h3>4.1 主导航</h3>
+<p><strong>当前前台展示</strong>（始终可见）：通用电商生图、AI 美工、电商 AI 运营助手、订阅、联系我们。浏览器扩展：<strong>用户</strong>在顶栏下载 <code>pictoolai-browser-extension.zip</code>（<code>public/</code> 静态文件），无需运营单独发送。</p>
+<p><strong>暂时隐藏</strong>（顶栏无入口，访问路径重定向首页；实现与文档仍保留）：侵权风险检测、AI 电商工具箱（智能选品）、A+ 页面；亚马逊「生成 Listing」同步不展示第 4 步。详见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>，开关为 <code>src/lib/siteFeatures.js</code> 的 <code>SITE_NAV_HIDDEN</code>。</p>
 <table>
 <thead>
 <tr>
@@ -172,17 +182,22 @@
 <tr>
 <td>电商 AI 运营助手</td>
 <td><code>/ai-assistant</code></td>
-<td>亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究</td>
+<td>亚马逊/eBay/速卖通：生成 Listing、优化 Listing、竞品对比、关键词研究；<strong>Step 4 A+ 随 <code>SITE_NAV_HIDDEN.amazonAplus</code> 关闭</strong></td>
+</tr>
+<tr>
+<td>A+ 页面</td>
+<td><code>/amazon-aplus</code></td>
+<td>独立 A+ 流程（隐藏时重定向 <code>/</code>）</td>
 </tr>
 <tr>
 <td>AI 电商工具箱</td>
 <td><code>/ai-toolbox</code>、<code>/ai-toolbox/supplier-matching</code></td>
-<td>智能选品：卖家精灵表格→1688 匹配→利润核算（1 积分/条）</td>
+<td>智能选品（隐藏时重定向 <code>/</code>）</td>
 </tr>
 <tr>
 <td>侵权风险检测</td>
 <td><code>/ip-risk</code></td>
-<td>免费快筛 + 深度查询（20 积分）</td>
+<td>快筛 + 深度查询（隐藏时重定向 <code>/</code>）</td>
 </tr>
 <tr>
 <td>订阅</td>
@@ -267,7 +282,7 @@
 <tr>
 <td></td>
 <td>水印</td>
-<td>添加水印（去除待开发）</td>
+<td>添加水印、去除水印（<code>/ai-designer/watermark-remove</code>）</td>
 </tr>
 <tr>
 <td></td>
@@ -277,7 +292,7 @@
 <tr>
 <td><strong>亚马逊</strong></td>
 <td>生成 Listing</td>
-<td>Step 1 分析 → Step 2 文案 → Step 3 产品图</td>
+<td>Step 1 分析 → Step 2 文案 → Step 3 产品图 → Step 4 A+（随前台隐藏配置关闭时不展示）</td>
 </tr>
 <tr>
 <td></td>
@@ -306,21 +321,20 @@
 </tr>
 <tr>
 <td><strong>侵权检测</strong></td>
-<td>快筛</td>
-<td>Gemini 视觉分析，免费</td>
-</tr>
-<tr>
-<td></td>
-<td>深度查询</td>
-<td>Google Lens、Patents、专利汇、商标、IP 角色，20 积分</td>
+<td>快筛 / 深度</td>
+<td>接口保留；前台隐藏时无导航入口，见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a></td>
 </tr>
 <tr>
 <td><strong>AI 电商工具箱</strong></td>
 <td>智能选品</td>
-<td><strong>已封存</strong>。原功能：卖家精灵 Excel → 以图搜图 1688 → 利润核算。详见 KNOWN_ISSUES</td>
+<td>接口保留；<strong>匹配效果局限</strong>见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a> 1.1</td>
+</tr>
+<tr>
+<td><strong>A+</strong></td>
+<td>独立页 + Listing Step 4</td>
+<td>接口保留；与 <code>SITE_NAV_HIDDEN.amazonAplus</code> 联动</td>
 </tr>
 </tbody></table>
-<p><strong>暂不开放</strong>：亚马逊 A+ 模块（Step 4 + 独立 A+ 页）、服装组图、万能画布。详见 <a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a>。</p>
 <hr>
 <h2>五、数据库</h2>
 <p><strong>SQLite</strong>，文件 <code>server/pictoolai.db</code>。表结构由 <code>server/db.js</code> 启动时自动创建/迁移。</p>
@@ -531,50 +545,7 @@ npm install &amp;&amp; npm start
 </ul>
 <hr>
 <h2>十、相关文档</h2>
-<table>
-<thead>
-<tr>
-<th>主题</th>
-<th>文档</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>全品类组图设计</td>
-<td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
-</tr>
-<tr>
-<td>电商 AI 助手</td>
-<td><a href="./ECOMMERCE-AI-ASSISTANT.md">ECOMMERCE-AI-ASSISTANT.md</a></td>
-</tr>
-<tr>
-<td>AI 美工</td>
-<td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
-</tr>
-<tr>
-<td>侵权风险检测</td>
-<td><a href="./IP-RISK.md">IP-RISK.md</a></td>
-</tr>
-<tr>
-<td>1688 智能选品</td>
-<td><a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a></td>
-</tr>
-<tr>
-<td>运维部署</td>
-<td><a href="./DEPLOY.md">DEPLOY.md</a></td>
-</tr>
-<tr>
-<td>已知问题</td>
-<td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
-</tr>
-<tr>
-<td>积分与成本</td>
-<td><a href="./PRICING-COST.md">PRICING-COST.md</a></td>
-</tr>
-<tr>
-<td>对外宣传</td>
-<td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
-</tr>
-</tbody></table>
+<p>见 <a href="./README.md">docs/README.md 文档总索引</a>。</p>
 
 </body>
 </html>

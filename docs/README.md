@@ -11,6 +11,7 @@
 | 我想… | 看这里 |
 |-------|--------|
 | 了解项目整体结构、技术栈、目录、功能一览、数据库、API | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) |
+| **哪些功能前台暂时隐藏、如何恢复**（与 `src/lib/siteFeatures.js` 对齐） | [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md) |
 | 快速本地跑起来 | 根目录 [README.md](../README.md) — 快速开始 |
 
 ### 使用功能
@@ -22,9 +23,9 @@
 | 做 eBay Listing（80 字符标题、Item Specifics、Cassini） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 二、eBay |
 | 做速卖通 Listing（128 字符标题、产品属性） | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) — 三、速卖通 |
 | 用 AI 美工（局部重绘/消除/换色/扩图/提升质感/添加人物/生成场景/风格复刻/文字修改） | [AI-DESIGNER.md](./AI-DESIGNER.md) |
-| 浏览器扩展（右键带图进 PicToolAI；**含客户试用说明**） | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) |
-| 了解侵权风险检测（功能/实现原理/费用/漏检/外部数据源） | [IP-RISK.md](./IP-RISK.md) |
-| 了解 1688 智能选品匹配方案（卖家精灵→自动匹配供应商→利润核算） | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) |
+| 浏览器扩展（顶栏 zip 自载；右键带图进 PicToolAI；**含用户安装可复制文案**） | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) |
+| 了解侵权风险检测（功能/实现原理/费用/漏检/外部数据源） | [IP-RISK.md](./IP-RISK.md)（**前台入口默认隐藏**，见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md)） |
+| 了解 1688 智能选品匹配方案（卖家精灵→自动匹配供应商→利润核算） | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md)（同上） |
 
 ### 运维与部署
 
@@ -41,8 +42,9 @@
 | 我想… | 看这里 |
 |-------|--------|
 | 查已知问题、功能待办、数据隐私说明 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) |
+| **终端用户按步骤操作（全功能 + 截图位）** | [USER-MANUAL.md](./USER-MANUAL.md) |
 | 了解积分规则、API 成本、盈利分析（内部） | [PRICING-COST.md](./PRICING-COST.md) |
-| 对外介绍网站功能（发给客户/推广） | [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) |
+| 对外介绍与积分表（客户/推广） | [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) |
 
 ---
 
@@ -51,16 +53,18 @@
 | 类型 | 文件 | 内容 |
 |------|------|------|
 | 概览 | [PROJECT-OVERVIEW.md](./PROJECT-OVERVIEW.md) | 技术栈、目录结构、功能与路由、数据库、API、环境变量 |
+| 参考 | [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md) | 侵权检测 / 智能选品 / A+ 前台隐藏与 `SITE_NAV_HIDDEN` |
 | 功能 | [ECOMMERCE-GENERAL-CREATE-PICTURES.md](./ECOMMERCE-GENERAL-CREATE-PICTURES.md) | 全品类组图：5 个输入字段、AI 传参、分析→确认→生图 |
 | 功能 | [ECOMMERCE-AI-ASSISTANT.md](./ECOMMERCE-AI-ASSISTANT.md) | 电商 AI 助手：亚马逊（一）、eBay（二）、速卖通（三） |
 | 功能 | [AI-DESIGNER.md](./AI-DESIGNER.md) | AI 美工：图片编辑、质量提升、文字修改、风格变迁、水印、官方示例 |
-| 功能 | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) | Chromium 扩展：架构、路由、**客户试用可复制文案**、调试 |
+| 功能 | [BROWSER-EXTENSION.md](./BROWSER-EXTENSION.md) | Chromium 扩展：官网 zip 分发、架构路由、**用户安装步骤（可复制）**、调试 |
 | 功能 | [IP-RISK.md](./IP-RISK.md) | 侵权风险检测：功能、实现原理、费用、漏检分析、外部数据源 |
 | 方案 | [1688-SUPPLIER-MATCHING.md](./1688-SUPPLIER-MATCHING.md) | 1688 智能选品匹配：卖家精灵表格→自动匹配供应商→利润核算 |
 | 运维 | [DEPLOY.md](./DEPLOY.md) | 首次部署、每次更新、SerpApi、COS、用户管理、Gemini 地区限制 |
 | 参考 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | 已知问题、待办改进、运营须知（数据隐私） |
 | 参考 | [PRICING-COST.md](./PRICING-COST.md) | 积分规则、API 成本、固定成本、盈利分析 |
-| 对外 | [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) | 网站功能介绍（可直接发给客户） |
+| 对外 | [PRODUCT-INTRO.md](./PRODUCT-INTRO.md) | 产品介绍、定价与积分（客户/合作方可直接转发） |
+| 对外 | [USER-MANUAL.md](./USER-MANUAL.md) | **用户操作说明书**（客户向步骤说明）；配图 `docs/images/user-manual/` |
 | — | [README.md](./README.md)（本文件） | 文档总索引 |
 
 ---
@@ -68,8 +72,8 @@
 ## 打印版
 
 - **位置**：`docs/print/` 目录
-- **入口**：浏览器打开 `docs/print/index.html` 可浏览、打印或另存 PDF
-- **重新生成**：项目根目录执行 `npm run docs:print`（会遍历 `docs/*.md` 生成对应 HTML）
+- **生成/更新方法**：项目根目录执行 `npm run docs:print`，遍历 `docs/*.md` 生成对应 HTML
+- **查看**：浏览器直接打开 `docs/print/<文档名>.html`
 
 ---
 

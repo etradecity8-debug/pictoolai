@@ -40,7 +40,7 @@
 </style>
 </head>
 <body>
-  <div class="meta">README.md → 打印版 · 2026/4/5</div>
+  <div class="meta">README.md → 打印版 · 2026/4/9</div>
   <h1>PicToolAI 文档中心</h1>
 <blockquote>
 <p>所有详细说明都在本目录（<code>docs/</code>）。根目录 <code>README.md</code> 仅做项目入口与快速开始。</p>
@@ -58,6 +58,10 @@
 <tbody><tr>
 <td>了解项目整体结构、技术栈、目录、功能一览、数据库、API</td>
 <td><a href="./PROJECT-OVERVIEW.md">PROJECT-OVERVIEW.md</a></td>
+</tr>
+<tr>
+<td><strong>哪些功能前台暂时隐藏、如何恢复</strong>（与 <code>src/lib/siteFeatures.js</code> 对齐）</td>
+<td><a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a></td>
 </tr>
 <tr>
 <td>快速本地跑起来</td>
@@ -93,16 +97,16 @@
 <td><a href="./AI-DESIGNER.md">AI-DESIGNER.md</a></td>
 </tr>
 <tr>
-<td>浏览器扩展（右键带图进 PicToolAI；<strong>含客户试用说明</strong>）</td>
+<td>浏览器扩展（顶栏 zip 自载；右键带图进 PicToolAI；<strong>含用户安装可复制文案</strong>）</td>
 <td><a href="./BROWSER-EXTENSION.md">BROWSER-EXTENSION.md</a></td>
 </tr>
 <tr>
 <td>了解侵权风险检测（功能/实现原理/费用/漏检/外部数据源）</td>
-<td><a href="./IP-RISK.md">IP-RISK.md</a></td>
+<td><a href="./IP-RISK.md">IP-RISK.md</a>（<strong>前台入口默认隐藏</strong>，见 <a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a>）</td>
 </tr>
 <tr>
 <td>了解 1688 智能选品匹配方案（卖家精灵→自动匹配供应商→利润核算）</td>
-<td><a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a></td>
+<td><a href="./1688-SUPPLIER-MATCHING.md">1688-SUPPLIER-MATCHING.md</a>（同上）</td>
 </tr>
 </tbody></table>
 <h3>运维与部署</h3>
@@ -147,11 +151,15 @@
 <td><a href="./KNOWN_ISSUES.md">KNOWN_ISSUES.md</a></td>
 </tr>
 <tr>
+<td><strong>终端用户按步骤操作（全功能 + 截图位）</strong></td>
+<td><a href="./USER-MANUAL.md">USER-MANUAL.md</a></td>
+</tr>
+<tr>
 <td>了解积分规则、API 成本、盈利分析（内部）</td>
 <td><a href="./PRICING-COST.md">PRICING-COST.md</a></td>
 </tr>
 <tr>
-<td>对外介绍网站功能（发给客户/推广）</td>
+<td>对外介绍与积分表（客户/推广）</td>
 <td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
 </tr>
 </tbody></table>
@@ -171,6 +179,11 @@
 <td>技术栈、目录结构、功能与路由、数据库、API、环境变量</td>
 </tr>
 <tr>
+<td>参考</td>
+<td><a href="./TEMPORARILY-HIDDEN-FEATURES.md">TEMPORARILY-HIDDEN-FEATURES.md</a></td>
+<td>侵权检测 / 智能选品 / A+ 前台隐藏与 <code>SITE_NAV_HIDDEN</code></td>
+</tr>
+<tr>
 <td>功能</td>
 <td><a href="./ECOMMERCE-GENERAL-CREATE-PICTURES.md">ECOMMERCE-GENERAL-CREATE-PICTURES.md</a></td>
 <td>全品类组图：5 个输入字段、AI 传参、分析→确认→生图</td>
@@ -188,7 +201,7 @@
 <tr>
 <td>功能</td>
 <td><a href="./BROWSER-EXTENSION.md">BROWSER-EXTENSION.md</a></td>
-<td>Chromium 扩展：架构、路由、<strong>客户试用可复制文案</strong>、调试</td>
+<td>Chromium 扩展：官网 zip 分发、架构路由、<strong>用户安装步骤（可复制）</strong>、调试</td>
 </tr>
 <tr>
 <td>功能</td>
@@ -218,7 +231,12 @@
 <tr>
 <td>对外</td>
 <td><a href="./PRODUCT-INTRO.md">PRODUCT-INTRO.md</a></td>
-<td>网站功能介绍（可直接发给客户）</td>
+<td>产品介绍、定价与积分（客户/合作方可直接转发）</td>
+</tr>
+<tr>
+<td>对外</td>
+<td><a href="./USER-MANUAL.md">USER-MANUAL.md</a></td>
+<td><strong>用户操作说明书</strong>（客户向步骤说明）；配图 <code>docs/images/user-manual/</code></td>
 </tr>
 <tr>
 <td>—</td>
@@ -230,8 +248,8 @@
 <h2>打印版</h2>
 <ul>
 <li><strong>位置</strong>：<code>docs/print/</code> 目录</li>
-<li><strong>入口</strong>：浏览器打开 <code>docs/print/index.html</code> 可浏览、打印或另存 PDF</li>
-<li><strong>重新生成</strong>：项目根目录执行 <code>npm run docs:print</code>（会遍历 <code>docs/*.md</code> 生成对应 HTML）</li>
+<li><strong>生成/更新方法</strong>：项目根目录执行 <code>npm run docs:print</code>，遍历 <code>docs/*.md</code> 生成对应 HTML</li>
+<li><strong>查看</strong>：浏览器直接打开 <code>docs/print/&lt;文档名&gt;.html</code></li>
 </ul>
 <hr>
 <h2>文档约定</h2>

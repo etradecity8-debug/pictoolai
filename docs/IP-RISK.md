@@ -1,6 +1,6 @@
 # 侵权风险检测完整说明
 
-> 路由：`/ip-risk`（主导航独立模块）  
+> 路由：`/ip-risk`。**当前默认不在顶栏展示**（`SITE_NAV_HIDDEN.ipRisk`），直接访问会重定向首页；恢复方式见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md)。  
 > 文件：`src/pages/IpRisk.jsx`，后端接口：`POST /api/ai-assistant/ip-risk-check`
 
 ---
@@ -79,7 +79,7 @@
 
 | 项目 | 说明 |
 |------|------|
-| 入口 | 路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx` |
+| 入口 | 路由 `/ip-risk`，页面 `src/pages/IpRisk.jsx`；**顶栏默认隐藏**时见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md) |
 | 接口 | `POST /api/ai-assistant/ip-risk-check`（需登录） |
 | 模式 | **快速筛查**（免费）/ **深度查询**（20 积分/次） |
 

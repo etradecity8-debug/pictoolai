@@ -2,7 +2,7 @@
 
 > 本文档面向客户沟通使用，说明「卖家精灵表格 → 自动匹配 1688 供应商 → 利润核算」功能的实现方案。
 >
-> **【2026-03 已封存】** 该功能前台已隐藏（`AI_TOOLBOX_ENABLED = false`）。原因：Daji 以图搜图对亚马逊主图在 1688 上几乎无匹配，1688 少有与亚马逊完全同款的商品。代码与 API 保留，后续是否删除待定。详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
+> **前台状态**：**默认隐藏入口**（`SITE_NAV_HIDDEN.aiToolboxSupplier`），见 [TEMPORARILY-HIDDEN-FEATURES.md](./TEMPORARILY-HIDDEN-FEATURES.md)。Daji 以图搜图对多数亚马逊主图在 1688 上仍可能 **0 条或极少匹配**，属货源差异导致，详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) 1.1。
 
 ---
 
