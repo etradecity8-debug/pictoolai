@@ -641,6 +641,24 @@ app.post('/api/detail-set/generate', async (req, res) => {
 
     const ai = new GoogleGenAI({ apiKey })
     const count = Math.min(imagePlan.length, 15)
+
+    // 积分预检：先算本次最多需要多少积分，不够就不调模型
+    const pointsPerImagePre = getPointsPerImage(model || 'Nano Banana 2', resolvedClarity || '1K 标准')
+    const requiredPoints = count * pointsPerImagePre
+    const authPre = req.headers.authorization
+    const tokenPre = authPre && authPre.startsWith('Bearer ') ? authPre.slice(7) : null
+    if (tokenPre && requiredPoints > 0) {
+      try {
+        const prePayload = jwt.verify(tokenPre, JWT_SECRET)
+        const preBalance = getBalance(prePayload.email)
+        if (preBalance < requiredPoints) {
+          return res.status(402).json({ error: '积分不足', required: requiredPoints, balance: preBalance })
+        }
+      } catch (e) {
+        // token 无效或过期，继续（未登录用户不扣积分）
+      }
+    }
+
     const images = []
 
     const langRule = getLanguageRuleForImage(targetLanguage)
@@ -1308,6 +1326,22 @@ app.post('/api/image-edit', async (req, res) => {
     const isHeavy = modelId.includes('pro') || modelId.includes('3.1')
     const maxTries = isHeavy ? 3 : 2
     const genConfig = { responseModalities: ['TEXT', 'IMAGE'], imageConfig }
+
+    // 积分预检：在调用模型前确认余额足够
+    const authPre = req.headers.authorization
+    const tokenPre = authPre && authPre.startsWith('Bearer ') ? authPre.slice(7) : null
+    if (tokenPre) {
+      try {
+        const prePayload = jwt.verify(tokenPre, JWT_SECRET)
+        const pointsNeeded = getPointsPerImage(modelDisplayName, resolvedClarity || '1K 标准')
+        const preBalance = getBalance(prePayload.email)
+        if (preBalance < pointsNeeded) {
+          return res.status(402).json({ error: '积分不足', required: pointsNeeded, balance: preBalance })
+        }
+      } catch (e) {
+        // token 无效或过期，继续（未登录用户不扣积分）
+      }
+    }
 
     // 所有模式统一使用单次 generateContent：图片 + 指令一并发送
     // 多轮 chat 方案因 Nano Banana 2 的 thought_signature 机制报 400，已放弃
